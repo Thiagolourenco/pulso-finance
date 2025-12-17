@@ -259,6 +259,47 @@ export interface Database {
           updated_at?: string
         }
       }
+      recurring_expenses: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          amount: number
+          due_day: number
+          category_id: string | null
+          account_id: string | null
+          is_active: boolean
+          description: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          amount: number
+          due_day: number
+          category_id?: string | null
+          account_id?: string | null
+          is_active?: boolean
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          amount?: number
+          due_day?: number
+          category_id?: string | null
+          account_id?: string | null
+          is_active?: boolean
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
     }
   }
 }
@@ -271,4 +312,5 @@ export type Category = Database['public']['Tables']['categories']['Row']
 export type Goal = Database['public']['Tables']['goals']['Row']
 export type CardPurchase = Database['public']['Tables']['card_purchases']['Row']
 export type CardInvoice = Database['public']['Tables']['card_invoices']['Row']
+export type RecurringExpense = Database['public']['Tables']['recurring_expenses']['Row']
 

@@ -150,6 +150,30 @@ CREATE TABLE IF NOT EXISTS goals (
 CREATE INDEX IF NOT EXISTS idx_goals_user_id ON goals(user_id);
 
 -- ============================================
+-- 8. Tabela: recurring_expenses
+-- ============================================
+CREATE TABLE IF NOT EXISTS recurring_expenses (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  amount NUMERIC(12, 2) NOT NULL,
+  due_day INTEGER NOT NULL CHECK (due_day >= 1 AND due_day <= 31),
+  category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
+  account_id UUID REFERENCES accounts(id) ON DELETE SET NULL,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  description TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Índices para recurring_expenses
+CREATE INDEX IF NOT EXISTS idx_recurring_expenses_user_id ON recurring_expenses(user_id);
+CREATE INDEX IF NOT EXISTS idx_recurring_expenses_category_id ON recurring_expenses(category_id);
+CREATE INDEX IF NOT EXISTS idx_recurring_expenses_account_id ON recurring_expenses(account_id);
+CREATE INDEX IF NOT EXISTS idx_recurring_expenses_is_active ON recurring_expenses(is_active);
+CREATE INDEX IF NOT EXISTS idx_recurring_expenses_due_day ON recurring_expenses(due_day);
+
+-- ============================================
 -- Função para atualizar updated_at automaticamente
 -- ============================================
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -194,6 +218,7 @@ ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE card_purchases ENABLE ROW LEVEL SECURITY;
 ALTER TABLE card_invoices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE goals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE recurring_expenses ENABLE ROW LEVEL SECURITY;
 
 -- Policy: categories
 CREATE POLICY "Users can view their own categories"

@@ -9,7 +9,10 @@ import { NextMonthExpensesModal } from '@/components/modals/NextMonthExpensesMod
 import { MonthlyExpensesModal } from '@/components/modals/MonthlyExpensesModal'
 import { AddGoalForm } from '@/components/forms/AddGoalForm'
 import { AddCategoryForm } from '@/components/forms/AddCategoryForm'
+import { AddRecurringExpenseForm } from '@/components/forms/AddRecurringExpenseForm'
 import { GoalCard } from '@/components/goals/GoalCard'
+import { RecurringExpenseCard } from '@/components/recurring/RecurringExpenseCard'
+import { InsightsCard } from '@/components/insights/InsightsCard'
 import { useNavigate } from 'react-router-dom'
 import { useTransactions } from '@/hooks/useTransactions'
 import { useAccounts } from '@/hooks/useAccounts'
@@ -18,10 +21,11 @@ import { useCardPurchases } from '@/hooks/useCardPurchases'
 import { useCardInvoices } from '@/hooks/useCardInvoices'
 import { useCategories } from '@/hooks/useCategories'
 import { useGoals } from '@/hooks/useGoals'
+import { useRecurringExpenses } from '@/hooks/useRecurringExpenses'
 import { supabase } from '@/lib/supabase/client'
 import { getOrCreateDefaultCategory, getOrCreateBalanceCategory } from '@/lib/utils/categories'
 
-type ModalType = 'transaction' | 'account' | 'card' | 'cardPurchase' | 'goal' | 'category' | null
+type ModalType = 'transaction' | 'account' | 'card' | 'cardPurchase' | 'goal' | 'category' | 'recurringExpense' | null
 type TransactionType = 'expense' | 'income' | 'balance'
 
 export const Dashboard = () => {
@@ -37,11 +41,13 @@ export const Dashboard = () => {
   const { invoices, createInvoice, isCreating: isCreatingInvoice } = useCardInvoices()
   const { categories, createCategory, isCreating: isCreatingCategory } = useCategories()
   const { goals, createGoal, isCreating: isCreatingGoal } = useGoals()
+  const { expenses: recurringExpenses, createExpense, updateExpense, deleteExpense, isCreating: isCreatingRecurringExpense, isUpdating: isUpdatingRecurringExpense } = useRecurringExpenses()
 
   const [selectedCardId, setSelectedCardId] = useState<string | undefined>(undefined)
   const [selectedCardForModal, setSelectedCardForModal] = useState<string | null>(null)
   const [showNextMonthDetails, setShowNextMonthDetails] = useState(false)
   const [showMonthlyExpenses, setShowMonthlyExpenses] = useState(false)
+  const [editingRecurringExpense, setEditingRecurringExpense] = useState<any>(null)
 
   // Obtém o mês atual e anterior
   const currentDate = new Date()
@@ -458,6 +464,67 @@ export const Dashboard = () => {
     }
   }
 
+  const handleAddRecurringExpense = async (data: {
+    name: string
+    amount: number
+    due_day: number
+    category_id?: string
+    account_id?: string
+    description?: string
+  }) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setToast({ message: 'Você precisa estar logado', type: 'error' })
+        return
+      }
+
+      if (editingRecurringExpense) {
+        updateExpense({
+          id: editingRecurringExpense.id,
+          data: {
+            name: data.name,
+            amount: data.amount,
+            due_day: data.due_day,
+            category_id: data.category_id || null,
+            account_id: data.account_id || null,
+            description: data.description || null,
+          },
+        }, {
+          onSuccess: () => {
+            setToast({ message: 'Despesa recorrente atualizada com sucesso!', type: 'success' })
+            setModalType(null)
+            setEditingRecurringExpense(null)
+          },
+          onError: (error: Error) => {
+            setToast({ message: error.message || 'Erro ao atualizar despesa recorrente', type: 'error' })
+          },
+        })
+      } else {
+        createExpense({
+          user_id: user.id,
+          name: data.name,
+          amount: data.amount,
+          due_day: data.due_day,
+          category_id: data.category_id || null,
+          account_id: data.account_id || null,
+          description: data.description || null,
+          is_active: true,
+        }, {
+          onSuccess: () => {
+            setToast({ message: 'Despesa recorrente criada com sucesso!', type: 'success' })
+            setModalType(null)
+          },
+          onError: (error: Error) => {
+            setToast({ message: error.message || 'Erro ao criar despesa recorrente', type: 'error' })
+          },
+        })
+      }
+    } catch (error: any) {
+      setToast({ message: error.message || 'Erro ao salvar despesa recorrente', type: 'error' })
+    }
+  }
+
   const handleAddCategory = async (data: {
     name: string
     type: 'expense' | 'income'
@@ -533,7 +600,7 @@ export const Dashboard = () => {
     <div className="animate-fade-in">
       {/* Header com gradiente sutil */}
       <div className="flex items-center justify-between mb-8 pb-6 border-b border-border">
-        <div>
+    <div>
           <h1 className="text-h1 font-bold text-neutral-900 mb-2">Dashboard</h1>
           <p className="text-body-sm text-neutral-500">
             Visão geral das suas finanças • {new Date().toLocaleDateString('pt-BR', { 
@@ -579,7 +646,7 @@ export const Dashboard = () => {
       {/* Cards financeiros com melhor visual */}
       <div className="space-y-6 mb-8">
         {/* Linha superior: Receitas, Saldo e Investimentos */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <FinancialCard
             title="Receitas do mês"
             value={monthlyIncome}
@@ -648,19 +715,82 @@ export const Dashboard = () => {
               .reduce((sum, transaction) => sum + Math.abs(Number(transaction.amount) || 0), 0)
 
             const nextMonthFixedPurchases = purchases.filter(purchase => {
+              // Verifica se ainda há parcelas a pagar
+              if (purchase.current_installment > purchase.installments) {
+                return false
+              }
+
               const purchaseDate = new Date(purchase.purchase_date)
-              const monthsSincePurchase = nextMonthYear * 12 + nextMonth - (purchaseDate.getFullYear() * 12 + purchaseDate.getMonth() + 1)
+              const purchaseMonth = purchaseDate.getMonth() + 1
+              const purchaseYear = purchaseDate.getFullYear()
+              
+              // Se a compra foi feita no mês M, a primeira parcela é paga no mês M+1
+              // Então a parcela N é paga no mês M + N
+              // Calcula qual parcela será paga no próximo mês
+              const monthsDiff = (nextMonthYear - purchaseYear) * 12 + (nextMonth - purchaseMonth)
+              const installmentToPay = monthsDiff
+              
+              // Verifica se:
+              // 1. A parcela a ser paga está dentro do range (1 a installments)
+              // 2. A parcela ainda não foi paga (installmentToPay >= current_installment)
+              // 3. A parcela será paga no próximo mês (monthsDiff >= 0)
               return (
-                purchase.current_installment <= purchase.installments &&
-                monthsSincePurchase >= purchase.current_installment - 1 &&
-                monthsSincePurchase < purchase.installments
+                monthsDiff >= 0 &&
+                installmentToPay >= purchase.current_installment &&
+                installmentToPay <= purchase.installments
               )
             })
 
             const nextMonthFixedExpenses = nextMonthFixedPurchases
               .reduce((sum, purchase) => sum + (purchase.installment_amount || 0), 0)
 
-            const totalNextMonth = nextMonthExpenses + nextMonthFixedExpenses
+            // Adiciona despesas recorrentes ativas que vencem no próximo mês
+            const nextMonthRecurringExpensesList = recurringExpenses.filter(expense => {
+              if (!expense.is_active) return false
+              
+              // Todas as despesas recorrentes ativas vencem todo mês no mesmo dia
+              // Então sempre devem ser incluídas no próximo mês
+              console.log(`🔄 Despesa recorrente: ${expense.name} - R$ ${expense.amount} - Vence dia ${expense.due_day}`)
+              return true
+            })
+
+            const nextMonthRecurringExpenses = nextMonthRecurringExpensesList
+              .reduce((sum, expense) => sum + (expense.amount || 0), 0)
+
+            // Adiciona faturas abertas dos cartões que vencem no próximo mês
+            const nextMonthInvoices = invoices.filter(invoice => {
+              if (invoice.status !== 'open') return false
+              
+              const invoiceDueDate = new Date(invoice.due_date)
+              invoiceDueDate.setHours(0, 0, 0, 0)
+              const invoiceMonth = invoiceDueDate.getMonth() + 1
+              const invoiceYear = invoiceDueDate.getFullYear()
+              
+              const matches = invoiceMonth === nextMonth && invoiceYear === nextMonthYear
+              
+              if (invoice.total_amount > 0) {
+                console.log(`💳 Fatura: ${invoice.total_amount} vence em ${invoiceMonth}/${invoiceYear}, próximo mês: ${nextMonth}/${nextMonthYear}, match: ${matches}`)
+              }
+              
+              return matches
+            })
+
+            const nextMonthInvoiceExpenses = nextMonthInvoices
+              .reduce((sum, invoice) => sum + (invoice.total_amount || 0), 0)
+
+            // Debug: log dos valores calculados
+            console.log('📊 Cálculo Próximo Mês:', {
+              nextMonth: `${nextMonth}/${nextMonthYear}`,
+              nextMonthExpenses,
+              nextMonthFixedExpenses,
+              nextMonthRecurringExpenses,
+              nextMonthInvoiceExpenses,
+              totalNextMonth: nextMonthExpenses + nextMonthFixedExpenses + nextMonthRecurringExpenses + nextMonthInvoiceExpenses,
+              recurringExpensesList: nextMonthRecurringExpensesList.map(e => ({ name: e.name, amount: e.amount })),
+              invoicesList: nextMonthInvoices.map(i => ({ due_date: i.due_date, total_amount: i.total_amount }))
+            })
+
+            const totalNextMonth = nextMonthExpenses + nextMonthFixedExpenses + nextMonthRecurringExpenses + nextMonthInvoiceExpenses
 
             return (
               <>
@@ -682,8 +812,10 @@ export const Dashboard = () => {
                   onClose={() => setShowNextMonthDetails(false)}
                   nextMonthExpenses={nextMonthExpenses}
                   nextMonthFixedExpenses={nextMonthFixedExpenses}
+                  nextMonthRecurringExpenses={nextMonthRecurringExpenses}
                   totalNextMonth={totalNextMonth}
                   fixedExpensesDetails={nextMonthFixedPurchases}
+                  recurringExpensesDetails={nextMonthRecurringExpensesList}
                   transactionsDetails={nextMonthTransactions}
                   nextMonthName={nextMonthName}
                 />
@@ -695,6 +827,90 @@ export const Dashboard = () => {
 
       {/* Seção de insights rápidos melhorada */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* Insights Inteligentes com IA */}
+        <InsightsCard
+          monthlyData={{
+            income: monthlyIncome,
+            expenses: monthlyExpenses,
+            balance: totalBalance,
+            investments: totalInvestments,
+            nextMonthExpenses: (() => {
+              const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1
+              const nextMonthYear = currentMonth === 12 ? currentYear + 1 : currentYear
+              const nextMonthTransactions = transactions.filter(transaction => {
+                const transactionDate = new Date(transaction.date)
+                return (
+                  transaction.type === 'expense' &&
+                  transactionDate.getMonth() + 1 === nextMonth &&
+                  transactionDate.getFullYear() === nextMonthYear
+                )
+              })
+              return nextMonthTransactions.reduce((sum, transaction) => sum + Math.abs(Number(transaction.amount) || 0), 0)
+            })(),
+            nextMonthFixedExpenses: (() => {
+              const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1
+              const nextMonthYear = currentMonth === 12 ? currentYear + 1 : currentYear
+              const nextMonthFixedPurchases = purchases.filter(purchase => {
+                if (purchase.current_installment > purchase.installments) return false
+                const purchaseDate = new Date(purchase.purchase_date)
+                const purchaseMonth = purchaseDate.getMonth() + 1
+                const purchaseYear = purchaseDate.getFullYear()
+                const monthsDiff = (nextMonthYear - purchaseYear) * 12 + (nextMonth - purchaseMonth)
+                const installmentToPay = monthsDiff
+                return (
+                  monthsDiff >= 0 &&
+                  installmentToPay >= purchase.current_installment &&
+                  installmentToPay <= purchase.installments
+                )
+              })
+              return nextMonthFixedPurchases.reduce((sum, purchase) => sum + (purchase.installment_amount || 0), 0)
+            })(),
+            nextMonthRecurringExpenses: (() => {
+              const activeRecurring = recurringExpenses.filter(e => e.is_active)
+              return activeRecurring.reduce((sum, expense) => sum + (expense.amount || 0), 0)
+            })(),
+            nextMonthInvoiceExpenses: (() => {
+              const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1
+              const nextMonthYear = currentMonth === 12 ? currentYear + 1 : currentYear
+              const nextMonthInvoices = invoices.filter(invoice => {
+                if (invoice.status !== 'open') return false
+                const invoiceDueDate = new Date(invoice.due_date)
+                const invoiceMonth = invoiceDueDate.getMonth() + 1
+                const invoiceYear = invoiceDueDate.getFullYear()
+                return invoiceMonth === nextMonth && invoiceYear === nextMonthYear
+              })
+              return nextMonthInvoices.reduce((sum, invoice) => sum + (invoice.total_amount || 0), 0)
+            })(),
+            previousMonthIncome,
+            previousMonthExpenses,
+            expectedSurplus,
+            previousMonthSurplus,
+            recurringExpenses: recurringExpenses.filter(e => e.is_active).map(e => ({
+              name: e.name,
+              amount: e.amount,
+              due_day: e.due_day
+            })),
+            topExpenses: transactions
+              .filter(t => t.type === 'expense')
+              .map(t => {
+                const category = categories.find(c => c.id === t.category_id)
+                return {
+                  description: t.description,
+                  amount: Math.abs(Number(t.amount) || 0),
+                  category: category?.name
+                }
+              })
+              .sort((a, b) => b.amount - a.amount)
+              .slice(0, 5),
+            monthName: new Date(currentYear, currentMonth - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }),
+            nextMonthName: (() => {
+              const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1
+              const nextMonthYear = currentMonth === 12 ? currentYear + 1 : currentYear
+              return new Date(nextMonthYear, nextMonth - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+            })()
+          }}
+        />
+
         <div className="bg-gradient-to-br from-white to-neutral-50 rounded-card-lg p-6 border border-border shadow-card hover:shadow-card-hover transition-all duration-fast">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-lg bg-success-100 flex items-center justify-center">
@@ -814,7 +1030,7 @@ export const Dashboard = () => {
       {/* Seção de ações rápidas */}
       <div className="bg-gradient-to-r from-primary-50 to-primary-100 rounded-card-lg p-6 border border-primary-200">
         <h2 className="text-h3 font-semibold text-neutral-900 mb-4">Ações rápidas</h2>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
           <button 
             onClick={() => setModalType('account')}
             className="p-4 bg-white rounded-lg border border-border hover:border-primary-300 hover:shadow-md hover:scale-105 transition-all duration-fast text-left"
@@ -848,6 +1064,16 @@ export const Dashboard = () => {
           >
             <div className="text-2xl mb-2">🎯</div>
             <div className="text-body-sm font-medium text-neutral-900">Nova meta</div>
+          </button>
+          <button 
+            onClick={() => {
+              setEditingRecurringExpense(null)
+              setModalType('recurringExpense')
+            }}
+            className="p-4 bg-white rounded-lg border border-border hover:border-primary-300 hover:shadow-md hover:scale-105 transition-all duration-fast text-left"
+          >
+            <div className="text-2xl mb-2">🔄</div>
+            <div className="text-body-sm font-medium text-neutral-900">Despesa recorrente</div>
           </button>
           <button 
             onClick={() => navigate('/reports')}
@@ -897,6 +1123,98 @@ export const Dashboard = () => {
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Seção de Financiamentos e Despesas Recorrentes */}
+      {recurringExpenses.length > 0 && (
+        <div className="mb-8 mt-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-h3 font-semibold text-neutral-900">Financiamentos e Despesas Recorrentes</h2>
+            <button
+              onClick={() => {
+                setEditingRecurringExpense(null)
+                setModalType('recurringExpense')
+              }}
+              className="text-body-sm text-primary-600 hover:text-primary-700 font-medium"
+            >
+              + Adicionar
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {recurringExpenses.map((expense) => {
+              const category = categories.find(cat => cat.id === expense.category_id)
+              return (
+                <RecurringExpenseCard
+                  key={expense.id}
+                  expense={expense}
+                  category={category}
+                  onEdit={(exp) => {
+                    setEditingRecurringExpense(exp)
+                    setModalType('recurringExpense')
+                  }}
+                  onDelete={(id) => {
+                    deleteExpense(id, {
+                      onSuccess: () => {
+                        setToast({ message: 'Despesa recorrente excluída com sucesso!', type: 'success' })
+                      },
+                      onError: (error: Error) => {
+                        setToast({ message: error.message || 'Erro ao excluir despesa recorrente', type: 'error' })
+                      },
+                    })
+                  }}
+                  onToggleActive={(id, isActive) => {
+                    updateExpense({
+                      id,
+                      data: { is_active: isActive },
+                    }, {
+                      onSuccess: () => {
+                        setToast({ 
+                          message: isActive ? 'Despesa recorrente ativada!' : 'Despesa recorrente desativada!', 
+                          type: 'success' 
+                        })
+                      },
+                      onError: (error: Error) => {
+                        setToast({ message: error.message || 'Erro ao atualizar despesa', type: 'error' })
+                      },
+                    })
+                  }}
+                />
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Botão para adicionar despesa recorrente quando não há nenhuma */}
+      {recurringExpenses.length === 0 && (
+        <div className="mb-8 mt-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-h3 font-semibold text-neutral-900">Financiamentos e Despesas Recorrentes</h2>
+            <button
+              onClick={() => {
+                setEditingRecurringExpense(null)
+                setModalType('recurringExpense')
+              }}
+              className="text-body-sm text-primary-600 hover:text-primary-700 font-medium"
+            >
+              + Adicionar
+            </button>
+          </div>
+          <div className="p-8 bg-neutral-50 rounded-lg border border-border text-center">
+            <p className="text-body-sm text-neutral-500 mb-4">
+              Adicione financiamentos, internet, aluguel e outras despesas recorrentes fixas
+            </p>
+            <Button
+              variant="primary"
+              onClick={() => {
+                setEditingRecurringExpense(null)
+                setModalType('recurringExpense')
+              }}
+            >
+              + Adicionar primeira despesa recorrente
+            </Button>
+          </div>
         </div>
       )}
 
@@ -1053,6 +1371,33 @@ export const Dashboard = () => {
           onSubmit={handleAddCategory}
           onCancel={() => setModalType(null)}
           isLoading={isCreatingCategory}
+        />
+      </Modal>
+
+      <Modal
+        isOpen={modalType === 'recurringExpense'}
+        onClose={() => {
+          setModalType(null)
+          setEditingRecurringExpense(null)
+        }}
+        title={editingRecurringExpense ? 'Editar despesa recorrente' : 'Nova despesa recorrente'}
+        size="md"
+      >
+        <AddRecurringExpenseForm
+          onSubmit={handleAddRecurringExpense}
+          onCancel={() => {
+            setModalType(null)
+            setEditingRecurringExpense(null)
+          }}
+          isLoading={isCreatingRecurringExpense || isUpdatingRecurringExpense}
+          initialData={editingRecurringExpense ? {
+            name: editingRecurringExpense.name,
+            amount: editingRecurringExpense.amount,
+            due_day: editingRecurringExpense.due_day,
+            category_id: editingRecurringExpense.category_id || undefined,
+            account_id: editingRecurringExpense.account_id || undefined,
+            description: editingRecurringExpense.description || undefined,
+          } : undefined}
         />
       </Modal>
 

@@ -1,14 +1,17 @@
+import { useState } from 'react'
 import { Modal } from '@/components/ui'
-import type { Transaction, CardPurchase } from '@/types'
+import type { Transaction, CardPurchase, RecurringExpense } from '@/types'
 
 interface NextMonthExpensesModalProps {
   isOpen: boolean
   onClose: () => void
   nextMonthExpenses: number
   nextMonthFixedExpenses: number
+  nextMonthRecurringExpenses: number
   totalNextMonth: number
-  fixedExpensesDetails: CardPurchase[]
-  transactionsDetails: Transaction[]
+  fixedExpensesDetails?: CardPurchase[]
+  recurringExpensesDetails?: RecurringExpense[]
+  transactionsDetails?: Transaction[]
   nextMonthName: string
 }
 
@@ -17,11 +20,15 @@ export const NextMonthExpensesModal = ({
   onClose,
   nextMonthExpenses,
   nextMonthFixedExpenses,
+  nextMonthRecurringExpenses,
   totalNextMonth,
-  fixedExpensesDetails,
-  transactionsDetails,
+  fixedExpensesDetails = [],
+  recurringExpensesDetails = [],
+  transactionsDetails = [],
   nextMonthName,
 }: NextMonthExpensesModalProps) => {
+  const [activeTab, setActiveTab] = useState<'installments' | 'recurring'>('installments')
+
   return (
     <Modal
       isOpen={isOpen}
@@ -44,7 +51,7 @@ export const NextMonthExpensesModal = ({
           <div className="p-4 bg-white rounded-lg border border-border">
             <p className="text-caption text-neutral-600 mb-1">Valores fixos</p>
             <p className="text-body font-bold text-warning-600">
-              R$ {nextMonthFixedExpenses.toLocaleString('pt-BR', { 
+              R$ {(nextMonthFixedExpenses + nextMonthRecurringExpenses).toLocaleString('pt-BR', { 
                 minimumFractionDigits: 2, 
                 maximumFractionDigits: 2 
               })}
@@ -67,7 +74,7 @@ export const NextMonthExpensesModal = ({
             <h3 className="text-body font-semibold text-neutral-900 mb-3">
               Despesas já registradas ({transactionsDetails.length})
             </h3>
-            <div className="space-y-2 max-h-64 overflow-y-auto">
+            <div className="space-y-2 max-h-48 overflow-y-auto">
               {transactionsDetails.map((transaction) => (
                 <div
                   key={transaction.id}
@@ -92,39 +99,127 @@ export const NextMonthExpensesModal = ({
           </div>
         )}
 
-        {/* Despesas fixas (parcelas) */}
-        {fixedExpensesDetails.length > 0 && (
+        {/* Menu de tabs */}
+        <div className="flex gap-2 border-b border-border">
+          <button
+            onClick={() => setActiveTab('installments')}
+            className={`px-4 py-2 text-body-sm font-medium transition-colors border-b-2 ${
+              activeTab === 'installments'
+                ? 'border-primary-600 text-primary-600'
+                : 'border-transparent text-neutral-500 hover:text-neutral-700'
+            }`}
+          >
+            Parcelas ({fixedExpensesDetails.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('recurring')}
+            className={`px-4 py-2 text-body-sm font-medium transition-colors border-b-2 ${
+              activeTab === 'recurring'
+                ? 'border-primary-600 text-primary-600'
+                : 'border-transparent text-neutral-500 hover:text-neutral-700'
+            }`}
+          >
+            Recorrentes ({recurringExpensesDetails.length})
+          </button>
+        </div>
+
+        {/* Conteúdo das tabs */}
+        {activeTab === 'installments' && (
           <div>
-            <h3 className="text-body font-semibold text-neutral-900 mb-3">
-              Despesas fixas - Parcelas ({fixedExpensesDetails.length})
-            </h3>
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {fixedExpensesDetails.map((purchase) => (
-                <div
-                  key={purchase.id}
-                  className="p-3 bg-white rounded-lg border border-border flex items-center justify-between"
-                >
-                  <div>
-                    <p className="text-body-sm font-medium text-neutral-900">
-                      {purchase.description}
-                    </p>
-                    <p className="text-caption text-neutral-500">
-                      Parcela {purchase.current_installment}/{purchase.installments} • 
-                      Comprado em {new Date(purchase.purchase_date).toLocaleDateString('pt-BR')}
-                    </p>
-                  </div>
-                  <p className="text-body font-semibold text-warning-600">
-                    R$ {purchase.installment_amount.toLocaleString('pt-BR', { 
-                      minimumFractionDigits: 2 
-                    })}
-                  </p>
+            {fixedExpensesDetails.length > 0 ? (
+              <>
+                <h3 className="text-body font-semibold text-neutral-900 mb-3">
+                  Despesas fixas - Parcelas ({fixedExpensesDetails.length})
+                </h3>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {fixedExpensesDetails.map((purchase) => (
+                    <div
+                      key={purchase.id}
+                      className="p-3 bg-white rounded-lg border border-border flex items-center justify-between"
+                    >
+                      <div>
+                        <p className="text-body-sm font-medium text-neutral-900">
+                          {purchase.description}
+                        </p>
+                        <p className="text-caption text-neutral-500">
+                          Parcela {purchase.current_installment}/{purchase.installments} • 
+                          Comprado em {new Date(purchase.purchase_date).toLocaleDateString('pt-BR')}
+                        </p>
+                      </div>
+                      <p className="text-body font-semibold text-warning-600">
+                        R$ {purchase.installment_amount.toLocaleString('pt-BR', { 
+                          minimumFractionDigits: 2 
+                        })}
+                      </p>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </>
+            ) : (
+              <div className="p-8 text-center bg-neutral-50 rounded-lg border border-border">
+                <p className="text-body-sm text-neutral-500">
+                  Nenhuma parcela prevista para o próximo mês
+                </p>
+              </div>
+            )}
           </div>
         )}
 
-        {transactionsDetails.length === 0 && fixedExpensesDetails.length === 0 && (
+        {activeTab === 'recurring' && (
+          <div>
+            {recurringExpensesDetails.length > 0 ? (
+              <>
+                <h3 className="text-body font-semibold text-neutral-900 mb-3">
+                  Despesas recorrentes ({recurringExpensesDetails.length})
+                </h3>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {recurringExpensesDetails.map((expense) => {
+                    const nextDueDate = (() => {
+                      const today = new Date()
+                      const currentDay = today.getDate()
+                      const currentMonth = today.getMonth()
+                      const currentYear = today.getFullYear()
+                      let dueDate = new Date(currentYear, currentMonth, expense.due_day)
+                      if (dueDate < today) {
+                        dueDate = new Date(currentYear, currentMonth + 1, expense.due_day)
+                      }
+                      return dueDate
+                    })()
+
+                    return (
+                      <div
+                        key={expense.id}
+                        className="p-3 bg-white rounded-lg border border-border flex items-center justify-between"
+                      >
+                        <div>
+                          <p className="text-body-sm font-medium text-neutral-900">
+                            {expense.name}
+                          </p>
+                          <p className="text-caption text-neutral-500">
+                            Vence dia {expense.due_day} • Próximo: {nextDueDate.toLocaleDateString('pt-BR')}
+                          </p>
+                        </div>
+                        <p className="text-body font-semibold text-warning-600">
+                          R$ {expense.amount.toLocaleString('pt-BR', { 
+                            minimumFractionDigits: 2 
+                          })}
+                        </p>
+                      </div>
+                    )
+                  })}
+                </div>
+              </>
+            ) : (
+              <div className="p-8 text-center bg-neutral-50 rounded-lg border border-border">
+                <p className="text-body-sm text-neutral-500">
+                  Nenhuma despesa recorrente prevista para o próximo mês
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {transactionsDetails.length === 0 && fixedExpensesDetails.length === 0 && recurringExpensesDetails.length === 0 && (
           <div className="p-8 text-center bg-neutral-50 rounded-lg border border-border">
             <p className="text-body-sm text-neutral-500">
               Nenhuma despesa prevista para o próximo mês
@@ -135,5 +230,4 @@ export const NextMonthExpensesModal = ({
     </Modal>
   )
 }
-
 
