@@ -48,7 +48,7 @@ export const AddCardForm = ({
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       {error && (
-        <div className="p-4 bg-danger-50 border border-danger-200 text-danger-700 rounded-input text-body-sm">
+        <div className="p-4 bg-danger-50 dark:bg-danger-950 border border-danger-200 dark:border-danger-800 text-danger-700 dark:text-danger-300 rounded-input text-body-sm">
           {error}
         </div>
       )}

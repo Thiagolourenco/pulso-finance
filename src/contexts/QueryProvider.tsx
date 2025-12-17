@@ -6,6 +6,8 @@ const queryClient = new QueryClient({
     queries: {
       staleTime: 1000 * 60 * 5, // 5 minutos
       refetchOnWindowFocus: false,
+      // Garante que queries sejam invalidadas quando user_id muda
+      refetchOnMount: true,
     },
   },
 })

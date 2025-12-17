@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Navigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase/client'
 import { LoadingSpinner } from '@/components/ui'
 
@@ -10,6 +11,7 @@ interface PublicRouteProps {
 export const PublicRoute = ({ children }: PublicRouteProps) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const queryClient = useQueryClient()
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -47,10 +49,15 @@ export const PublicRoute = ({ children }: PublicRouteProps) => {
     checkAuth()
 
     // Ouvir mudanças na autenticação
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       const isSupabaseConfigured = 
         import.meta.env.VITE_SUPABASE_URL && 
         !import.meta.env.VITE_SUPABASE_URL.includes('placeholder')
+      
+      // Limpa cache quando usuário faz login
+      if (event === 'SIGNED_IN') {
+        queryClient.clear()
+      }
       
       if (!isSupabaseConfigured) {
         setIsAuthenticated(false)
@@ -62,7 +69,7 @@ export const PublicRoute = ({ children }: PublicRouteProps) => {
     return () => {
       subscription.unsubscribe()
     }
-  }, [])
+  }, [queryClient])
 
   if (isLoading) {
     return (

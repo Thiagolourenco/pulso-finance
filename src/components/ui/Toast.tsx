@@ -36,18 +36,18 @@ export const Toast = ({ message, type = 'info', isVisible, onClose, duration = 3
   }
 
   const toast = (
-    <div className="fixed top-4 right-4 z-50 animate-slide-in">
+    <div className="fixed top-4 left-4 right-4 lg:left-auto lg:right-4 lg:w-auto z-50 animate-slide-in">
       <div
         className={cn(
-          'flex items-center gap-3 px-4 py-3 rounded-card border shadow-lg min-w-[300px] max-w-md',
+          'flex items-center gap-2 lg:gap-3 px-3 lg:px-4 py-2.5 lg:py-3 rounded-card border shadow-lg w-full lg:min-w-[300px] lg:max-w-md',
           styles[type]
         )}
       >
-        <span className="text-xl font-bold">{icons[type]}</span>
-        <p className="flex-1 text-body-sm font-medium">{message}</p>
+        <span className="text-lg lg:text-xl font-bold flex-shrink-0">{icons[type]}</span>
+        <p className="flex-1 text-sm lg:text-body-sm font-medium">{message}</p>
         <button
           onClick={onClose}
-          className="text-current opacity-70 hover:opacity-100 transition-opacity"
+          className="text-current opacity-70 hover:opacity-100 transition-opacity flex-shrink-0"
           aria-label="Fechar"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

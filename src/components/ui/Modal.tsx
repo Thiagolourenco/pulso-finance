@@ -45,7 +45,7 @@ export const Modal = ({ isOpen, onClose, title, children, size = 'md' }: ModalPr
 
   const modalContent = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-end lg:items-center justify-center lg:p-4"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           onClose()
@@ -58,21 +58,22 @@ export const Modal = ({ isOpen, onClose, title, children, size = 'md' }: ModalPr
         onClick={onClose}
       />
 
-      {/* Modal */}
+      {/* Modal - Mobile: full screen bottom sheet, Desktop: centered */}
       <div
         className={cn(
-          'relative bg-white dark:bg-neutral-950 rounded-card-lg shadow-2xl w-full',
+          'relative bg-white dark:bg-neutral-950 rounded-t-2xl lg:rounded-card-lg shadow-2xl w-full lg:w-auto',
+          'h-[90vh] lg:h-auto lg:max-h-[90vh] flex flex-col',
           sizes[size],
-          'animate-scale-in z-10 transition-colors border border-border dark:border-border-dark'
+          'animate-slide-up lg:animate-scale-in z-10 transition-colors border-t lg:border border-border dark:border-border-dark'
         )}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border dark:border-border-dark">
-          <h2 className="text-h2 font-semibold text-neutral-950 dark:text-neutral-50">{title}</h2>
+        <div className="flex items-center justify-between p-4 lg:p-6 border-b border-border dark:border-border-dark flex-shrink-0">
+          <h2 className="text-lg lg:text-h2 font-semibold text-neutral-950 dark:text-neutral-50 pr-4">{title}</h2>
           <button
             onClick={onClose}
-            className="text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors duration-fast p-1 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700"
+            className="text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors duration-fast p-1 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 flex-shrink-0"
             aria-label="Fechar"
           >
             <svg
@@ -91,8 +92,8 @@ export const Modal = ({ isOpen, onClose, title, children, size = 'md' }: ModalPr
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-6">{children}</div>
+        {/* Content - Scrollable */}
+        <div className="flex-1 overflow-y-auto p-4 lg:p-6">{children}</div>
       </div>
     </div>
   )

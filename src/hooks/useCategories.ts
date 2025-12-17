@@ -21,11 +21,6 @@ export const useCategories = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] })
     },
-    onError: (error: Error) => {
-      console.error('Erro na mutation de criar categoria:', error)
-      // Re-throw para que o componente possa tratar
-      throw error
-    },
   })
 
   const updateMutation = useMutation({
@@ -43,11 +38,27 @@ export const useCategories = () => {
     },
   })
 
+  // Wrapper para aceitar callbacks
+  const createCategory = (
+    data: Parameters<typeof categoryService.create>[0],
+    callbacks?: { onSuccess?: () => void; onError?: (error: Error) => void }
+  ) => {
+    createMutation.mutate(data, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['categories'] })
+        callbacks?.onSuccess?.()
+      },
+      onError: (error: Error) => {
+        callbacks?.onError?.(error)
+      },
+    })
+  }
+
   return {
     categories: categories || [],
     isLoading,
     error,
-    createCategory: createMutation.mutate,
+    createCategory,
     updateCategory: updateMutation.mutate,
     deleteCategory: deleteMutation.mutate,
     isCreating: createMutation.isPending,

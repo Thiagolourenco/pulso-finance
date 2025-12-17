@@ -58,7 +58,7 @@ export const AddCategoryForm = ({
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       {error && (
-        <div className="p-4 bg-danger-50 border border-danger-200 text-danger-700 rounded-input text-body-sm">
+        <div className="p-4 bg-danger-50 dark:bg-danger-950 border border-danger-200 dark:border-danger-800 text-danger-700 dark:text-danger-300 rounded-input text-body-sm">
           {error}
         </div>
       )}
@@ -74,7 +74,7 @@ export const AddCategoryForm = ({
 
       {/* Tipo da categoria */}
       <div>
-        <label className="block text-label font-medium text-neutral-900 mb-2">
+        <label className="block text-label font-medium text-neutral-900 dark:text-neutral-50 mb-2">
           Tipo da categoria <span className="text-danger-500">*</span>
         </label>
         <div className="grid grid-cols-2 gap-3">
@@ -85,8 +85,8 @@ export const AddCategoryForm = ({
               p-4 rounded-lg border-2 transition-all duration-fast text-left
               ${
                 type === 'expense'
-                  ? 'border-danger-500 bg-danger-50 text-danger-700'
-                  : 'border-border bg-white hover:border-danger-300'
+                  ? 'border-danger-500 bg-danger-50 dark:bg-danger-950 text-danger-700 dark:text-danger-300'
+                  : 'border-border dark:border-border-dark bg-white dark:bg-neutral-900 hover:border-danger-300 dark:hover:border-danger-600'
               }
             `}
           >
@@ -105,8 +105,8 @@ export const AddCategoryForm = ({
               p-4 rounded-lg border-2 transition-all duration-fast text-left
               ${
                 type === 'income'
-                  ? 'border-success-500 bg-success-50 text-success-700'
-                  : 'border-border bg-white hover:border-success-300'
+                  ? 'border-success-500 bg-success-50 dark:bg-success-950 text-success-700 dark:text-success-300'
+                  : 'border-border dark:border-border-dark bg-white dark:bg-neutral-900 hover:border-success-300 dark:hover:border-success-600'
               }
             `}
           >
@@ -123,7 +123,7 @@ export const AddCategoryForm = ({
 
       {/* Ícone */}
       <div>
-        <label className="block text-label font-medium text-neutral-900 mb-2">
+        <label className="block text-label font-medium text-neutral-900 dark:text-neutral-50 mb-2">
           Ícone (opcional)
         </label>
         <div className="grid grid-cols-8 gap-2 mb-2">
@@ -136,8 +136,8 @@ export const AddCategoryForm = ({
                 p-3 rounded-lg border-2 transition-all duration-fast text-2xl
                 ${
                   selectedIcon === icon
-                    ? 'border-primary-500 bg-primary-50 scale-110'
-                    : 'border-border bg-white hover:border-primary-300'
+                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-950 scale-110'
+                    : 'border-border dark:border-border-dark bg-white dark:bg-neutral-900 hover:border-primary-300 dark:hover:border-primary-600'
                 }
               `}
             >
@@ -158,7 +158,7 @@ export const AddCategoryForm = ({
 
       {/* Cor */}
       <div>
-        <label className="block text-label font-medium text-neutral-900 mb-2">
+        <label className="block text-label font-medium text-neutral-900 dark:text-neutral-50 mb-2">
           Cor (opcional)
         </label>
         <div className="grid grid-cols-5 gap-2">

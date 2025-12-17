@@ -48,6 +48,7 @@ export const Dashboard = () => {
   const [showNextMonthDetails, setShowNextMonthDetails] = useState(false)
   const [showMonthlyExpenses, setShowMonthlyExpenses] = useState(false)
   const [editingRecurringExpense, setEditingRecurringExpense] = useState<any>(null)
+  const [showAllCards, setShowAllCards] = useState(false) // Para mobile: controla se mostra todos os cards
 
   // Obtém o mês atual e anterior
   const currentDate = new Date()
@@ -599,17 +600,17 @@ export const Dashboard = () => {
   return (
     <div className="animate-fade-in">
       {/* Header com gradiente sutil */}
-      <div className="flex items-center justify-between mb-8 pb-6 border-b border-border">
-    <div>
-          <h1 className="text-h1 font-bold text-neutral-900 mb-2">Dashboard</h1>
-          <p className="text-body-sm text-neutral-500">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6 lg:mb-8 pb-4 lg:pb-6 border-b border-border">
+        <div>
+          <h1 className="text-xl lg:text-h1 font-bold text-neutral-900 dark:text-neutral-50 mb-1 lg:mb-2">Dashboard</h1>
+          <p className="text-sm lg:text-body-sm text-neutral-500 dark:text-neutral-400">
             Visão geral das suas finanças • {new Date().toLocaleDateString('pt-BR', { 
               month: 'long', 
               year: 'numeric' 
             })}
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-2 lg:gap-3">
           <Button 
             variant="primary" 
             size="lg"
@@ -617,7 +618,7 @@ export const Dashboard = () => {
               setTransactionType('expense')
               setModalType('transaction')
             }}
-            className="shadow-lg hover:shadow-xl transition-shadow duration-fast"
+            className="shadow-lg hover:shadow-xl transition-shadow duration-fast w-full sm:w-auto justify-center"
           >
             <svg 
               className="w-5 h-5 mr-2" 
@@ -627,7 +628,8 @@ export const Dashboard = () => {
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            Adicionar transação
+            <span className="hidden sm:inline">Adicionar transação</span>
+            <span className="sm:hidden">Nova transação</span>
           </Button>
           <Button 
             variant="secondary" 
@@ -636,7 +638,7 @@ export const Dashboard = () => {
               setTransactionType('balance')
               setModalType('transaction')
             }}
-            className="shadow-lg hover:shadow-xl transition-shadow duration-fast"
+            className="shadow-lg hover:shadow-xl transition-shadow duration-fast w-full sm:w-auto justify-center"
           >
             💳 Saldo inicial
           </Button>
@@ -644,9 +646,9 @@ export const Dashboard = () => {
       </div>
 
       {/* Cards financeiros com melhor visual */}
-      <div className="space-y-6 mb-8">
+      <div className="space-y-4 lg:space-y-6 mb-6 lg:mb-8">
         {/* Linha superior: Receitas, Saldo e Investimentos */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
           <FinancialCard
             title="Receitas do mês"
             value={monthlyIncome}
@@ -669,21 +671,24 @@ export const Dashboard = () => {
               </div>
             }
           />
-          <FinancialCard
-            title="Investimentos"
-            value={totalInvestments}
-            subtitle="Total investido"
-            variant="default"
-            icon={
-              <div className="w-12 h-12 rounded-full bg-warning-100 flex items-center justify-center">
-                <span className="text-2xl">📈</span>
-              </div>
-            }
-          />
+          {/* Investimentos - oculto no mobile quando não expandido */}
+          <div className={showAllCards ? 'block' : 'hidden lg:block'}>
+            <FinancialCard
+              title="Investimentos"
+              value={totalInvestments}
+              subtitle="Total investido"
+              variant="default"
+              icon={
+                <div className="w-12 h-12 rounded-full bg-warning-100 flex items-center justify-center">
+                  <span className="text-2xl">📈</span>
+                </div>
+              }
+            />
+          </div>
         </div>
 
         {/* Linha inferior: Despesas do mês e Próximo mês */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className={`grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 ${showAllCards ? 'block' : 'hidden lg:grid'}`}>
           <FinancialCard
             title="Despesas do mês"
             value={monthlyExpenses}
@@ -822,6 +827,51 @@ export const Dashboard = () => {
               </>
             )
           })()}
+        </div>
+
+        {/* Botão Ver mais / Ver menos - apenas no mobile */}
+        <div className="lg:hidden flex justify-center pt-2">
+          <Button
+            variant="secondary"
+            onClick={() => setShowAllCards(!showAllCards)}
+            className="w-full sm:w-auto min-w-[200px]"
+          >
+            {showAllCards ? (
+              <>
+                <svg
+                  className="w-4 h-4 mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 15l7-7 7 7"
+                  />
+                </svg>
+                Ver menos
+              </>
+            ) : (
+              <>
+                <svg
+                  className="w-4 h-4 mr-2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+                Ver mais
+              </>
+            )}
+          </Button>
         </div>
       </div>
 
@@ -1028,22 +1078,22 @@ export const Dashboard = () => {
       </div>
 
       {/* Seção de ações rápidas */}
-      <div className="bg-gradient-to-r from-primary-50 to-primary-100 rounded-card-lg p-6 border border-primary-200">
-        <h2 className="text-h3 font-semibold text-neutral-900 mb-4">Ações rápidas</h2>
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+      <div className="bg-gradient-to-r from-primary-50 to-primary-100 dark:from-primary-950 dark:to-primary-900 rounded-card-lg p-4 lg:p-6 border border-primary-200 dark:border-primary-800">
+        <h2 className="text-lg lg:text-h3 font-semibold text-neutral-900 dark:text-neutral-50 mb-3 lg:mb-4">Ações rápidas</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 lg:gap-3">
           <button 
             onClick={() => setModalType('account')}
-            className="p-4 bg-white rounded-lg border border-border hover:border-primary-300 hover:shadow-md hover:scale-105 transition-all duration-fast text-left"
+            className="p-3 lg:p-4 bg-white dark:bg-neutral-900 rounded-lg border border-border dark:border-border-dark hover:border-primary-300 dark:hover:border-primary-600 hover:shadow-md active:scale-95 lg:hover:scale-105 transition-all duration-fast text-left"
           >
-            <div className="text-2xl mb-2">🏦</div>
-            <div className="text-body-sm font-medium text-neutral-900">Nova conta</div>
+            <div className="text-xl lg:text-2xl mb-1 lg:mb-2">🏦</div>
+            <div className="text-xs lg:text-body-sm font-medium text-neutral-900 dark:text-neutral-50">Nova conta</div>
           </button>
           <button 
             onClick={() => setModalType('card')}
-            className="p-4 bg-white rounded-lg border border-border hover:border-primary-300 hover:shadow-md hover:scale-105 transition-all duration-fast text-left"
+            className="p-3 lg:p-4 bg-white dark:bg-neutral-900 rounded-lg border border-border dark:border-border-dark hover:border-primary-300 dark:hover:border-primary-600 hover:shadow-md active:scale-95 lg:hover:scale-105 transition-all duration-fast text-left"
           >
-            <div className="text-2xl mb-2">💳</div>
-            <div className="text-body-sm font-medium text-neutral-900">Novo cartão</div>
+            <div className="text-xl lg:text-2xl mb-1 lg:mb-2">💳</div>
+            <div className="text-xs lg:text-body-sm font-medium text-neutral-900 dark:text-neutral-50">Novo cartão</div>
           </button>
           <button 
             onClick={() => {
@@ -1053,44 +1103,44 @@ export const Dashboard = () => {
               }
               setModalType('cardPurchase')
             }}
-            className="p-4 bg-white rounded-lg border border-border hover:border-primary-300 hover:shadow-md hover:scale-105 transition-all duration-fast text-left"
+            className="p-3 lg:p-4 bg-white dark:bg-neutral-900 rounded-lg border border-border dark:border-border-dark hover:border-primary-300 dark:hover:border-primary-600 hover:shadow-md active:scale-95 lg:hover:scale-105 transition-all duration-fast text-left"
           >
-            <div className="text-2xl mb-2">🛒</div>
-            <div className="text-body-sm font-medium text-neutral-900">Nova compra</div>
+            <div className="text-xl lg:text-2xl mb-1 lg:mb-2">🛒</div>
+            <div className="text-xs lg:text-body-sm font-medium text-neutral-900 dark:text-neutral-50">Nova compra</div>
           </button>
           <button 
             onClick={() => setModalType('goal')}
-            className="p-4 bg-white rounded-lg border border-border hover:border-primary-300 hover:shadow-md hover:scale-105 transition-all duration-fast text-left"
+            className="p-3 lg:p-4 bg-white dark:bg-neutral-900 rounded-lg border border-border dark:border-border-dark hover:border-primary-300 dark:hover:border-primary-600 hover:shadow-md active:scale-95 lg:hover:scale-105 transition-all duration-fast text-left"
           >
-            <div className="text-2xl mb-2">🎯</div>
-            <div className="text-body-sm font-medium text-neutral-900">Nova meta</div>
+            <div className="text-xl lg:text-2xl mb-1 lg:mb-2">🎯</div>
+            <div className="text-xs lg:text-body-sm font-medium text-neutral-900 dark:text-neutral-50">Nova meta</div>
           </button>
           <button 
             onClick={() => {
               setEditingRecurringExpense(null)
               setModalType('recurringExpense')
             }}
-            className="p-4 bg-white rounded-lg border border-border hover:border-primary-300 hover:shadow-md hover:scale-105 transition-all duration-fast text-left"
+            className="p-3 lg:p-4 bg-white dark:bg-neutral-900 rounded-lg border border-border dark:border-border-dark hover:border-primary-300 dark:hover:border-primary-600 hover:shadow-md active:scale-95 lg:hover:scale-105 transition-all duration-fast text-left"
           >
-            <div className="text-2xl mb-2">🔄</div>
-            <div className="text-body-sm font-medium text-neutral-900">Despesa recorrente</div>
+            <div className="text-xl lg:text-2xl mb-1 lg:mb-2">🔄</div>
+            <div className="text-xs lg:text-body-sm font-medium text-neutral-900 dark:text-neutral-50">Despesa recorrente</div>
           </button>
           <button 
             onClick={() => navigate('/reports')}
-            className="p-4 bg-white rounded-lg border border-border hover:border-primary-300 hover:shadow-md hover:scale-105 transition-all duration-fast text-left"
+            className="p-3 lg:p-4 bg-white dark:bg-neutral-900 rounded-lg border border-border dark:border-border-dark hover:border-primary-300 dark:hover:border-primary-600 hover:shadow-md active:scale-95 lg:hover:scale-105 transition-all duration-fast text-left"
           >
-            <div className="text-2xl mb-2">📊</div>
-            <div className="text-body-sm font-medium text-neutral-900">Ver relatórios</div>
+            <div className="text-xl lg:text-2xl mb-1 lg:mb-2">📊</div>
+            <div className="text-xs lg:text-body-sm font-medium text-neutral-900 dark:text-neutral-50">Ver relatórios</div>
           </button>
         </div>
-        <div className="mt-4 pt-4 border-t border-primary-200">
+        <div className="mt-3 lg:mt-4 pt-3 lg:pt-4 border-t border-primary-200 dark:border-primary-800">
           <button 
             onClick={() => setModalType('category')}
-            className="w-full p-3 bg-white rounded-lg border border-primary-300 hover:border-primary-400 hover:shadow-md transition-all duration-fast text-left"
+            className="w-full p-3 bg-white dark:bg-neutral-900 rounded-lg border border-primary-300 dark:border-primary-700 hover:border-primary-400 dark:hover:border-primary-600 hover:shadow-md active:scale-95 transition-all duration-fast text-left"
           >
             <div className="flex items-center gap-2">
               <span className="text-xl">📁</span>
-              <span className="text-body-sm font-medium text-neutral-900">Nova categoria</span>
+              <span className="text-sm lg:text-body-sm font-medium text-neutral-900 dark:text-neutral-50">Nova categoria</span>
             </div>
           </button>
         </div>

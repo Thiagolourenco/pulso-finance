@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Navigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase/client'
 import { LoadingSpinner } from '@/components/ui'
 
@@ -10,6 +11,8 @@ interface ProtectedRouteProps {
 export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const queryClient = useQueryClient()
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -25,6 +28,14 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
           // Para validação: permite acesso mesmo sem Supabase configurado
           setIsAuthenticated(true)
         } else {
+          const userId = session?.user?.id || null
+          
+          // Se o usuário mudou, limpa o cache
+          if (currentUserId && userId && currentUserId !== userId) {
+            queryClient.clear()
+          }
+          
+          setCurrentUserId(userId)
           setIsAuthenticated(!!session)
         }
       } catch (error) {
@@ -47,7 +58,7 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     checkAuth()
 
     // Ouvir mudanças na autenticação
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       const isSupabaseConfigured = 
         import.meta.env.VITE_SUPABASE_URL && 
         !import.meta.env.VITE_SUPABASE_URL.includes('placeholder')
@@ -55,6 +66,14 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
       if (!isSupabaseConfigured) {
         setIsAuthenticated(true)
       } else {
+        const userId = session?.user?.id || null
+        
+        // Limpa cache quando usuário faz logout ou quando muda de usuário
+        if (event === 'SIGNED_OUT' || (currentUserId && userId && currentUserId !== userId)) {
+          queryClient.clear()
+        }
+        
+        setCurrentUserId(userId)
         setIsAuthenticated(!!session)
       }
     })
@@ -62,7 +81,7 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     return () => {
       subscription.unsubscribe()
     }
-  }, [])
+  }, [queryClient, currentUserId])
 
   if (isLoading) {
     return (

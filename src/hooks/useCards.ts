@@ -38,11 +38,27 @@ export const useCards = () => {
     },
   })
 
+  // Wrapper para aceitar callbacks
+  const createCard = (
+    data: Parameters<typeof cardService.create>[0],
+    callbacks?: { onSuccess?: () => void; onError?: (error: Error) => void }
+  ) => {
+    createMutation.mutate(data, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['cards'] })
+        callbacks?.onSuccess?.()
+      },
+      onError: (error: Error) => {
+        callbacks?.onError?.(error)
+      },
+    })
+  }
+
   return {
     cards: cards || [],
     isLoading,
     error,
-    createCard: createMutation.mutate,
+    createCard,
     updateCard: updateMutation.mutate,
     deleteCard: deleteMutation.mutate,
     isCreating: createMutation.isPending,
@@ -50,6 +66,7 @@ export const useCards = () => {
     isDeleting: deleteMutation.isPending,
   }
 }
+
 
 
 
