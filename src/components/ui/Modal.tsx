@@ -61,7 +61,8 @@ export const Modal = ({ isOpen, onClose, title, children, size = 'md' }: ModalPr
       {/* Modal - Mobile: full screen bottom sheet, Desktop: centered */}
       <div
         className={cn(
-          'relative bg-white dark:bg-neutral-950 rounded-t-2xl lg:rounded-card-lg shadow-2xl w-full lg:w-auto',
+          // Mobile: bottom sheet full width. Desktop: centered panel with full width constrained by max-w.
+          'relative bg-white dark:bg-neutral-950 rounded-t-2xl lg:rounded-card-lg shadow-2xl w-full lg:w-full lg:min-w-[640px]',
           'h-[90vh] lg:h-auto lg:max-h-[90vh] flex flex-col',
           sizes[size],
           'animate-slide-up lg:animate-scale-in z-10 transition-colors border-t lg:border border-border dark:border-border-dark'

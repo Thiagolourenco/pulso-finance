@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTransactions } from '@/hooks/useTransactions'
 import { useAccounts } from '@/hooks/useAccounts'
 import { useCards } from '@/hooks/useCards'
@@ -21,6 +21,23 @@ export const Reports = () => {
   const { expenses: recurringExpenses, isLoading: isLoadingRecurring } = useRecurringExpenses()
 
   const [selectedPeriod, setSelectedPeriod] = useState<'month' | '3months' | '6months' | 'year'>('month')
+  const reportRef = useRef<HTMLDivElement | null>(null)
+  const [pdfHint, setPdfHint] = useState<string>('')
+  const [isPrinting, setIsPrinting] = useState(false)
+
+  const isMobile = useMemo(() => {
+    if (typeof navigator === 'undefined') return false
+    return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+  }, [])
+
+  useEffect(() => {
+    const after = () => {
+      setIsPrinting(false)
+      document.documentElement.classList.remove('print-mode')
+    }
+    window.addEventListener('afterprint', after)
+    return () => window.removeEventListener('afterprint', after)
+  }, [])
 
   const isLoading = isLoadingTransactions || isLoadingAccounts || isLoadingCards || isLoadingInvoices || isLoadingPurchases || isLoadingCategories || isLoadingRecurring
 
@@ -460,6 +477,23 @@ export const Reports = () => {
     URL.revokeObjectURL(url)
   }
 
+  // Exporta como PDF via print (usuário salva/compartilha como PDF)
+  const handleExportPdf = () => {
+    // Ativa modo de impressão para esconder sidebar/header e focar no relatório
+    setIsPrinting(true)
+    document.documentElement.classList.add('print-mode')
+
+    if (isMobile) {
+      setPdfHint('No celular: na tela de impressão, use “Compartilhar” ou “Salvar como PDF”.')
+      setTimeout(() => setPdfHint(''), 5000)
+    }
+
+    // Aguarda um tick para aplicar classes antes do print
+    setTimeout(() => {
+      window.print()
+    }, 50)
+  }
+
   if (isLoading) {
     return (
       <div className="animate-fade-in">
@@ -474,67 +508,65 @@ export const Reports = () => {
   }
 
   return (
-    <div className="animate-fade-in">
+    <div className="animate-fade-in" ref={reportRef}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-8 pb-6 border-b border-border">
-        <div>
-          <h1 className="text-h1 font-bold text-neutral-900 mb-2">Relatórios</h1>
-          <p className="text-body-sm text-neutral-500">
-            Análise detalhada das suas finanças
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="flex gap-2">
-            <button
-              onClick={() => setSelectedPeriod('month')}
-              className={`px-4 py-2 rounded-lg text-body-sm font-medium transition-colors ${
-                selectedPeriod === 'month'
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-white text-neutral-700 border border-border hover:bg-neutral-50'
-              }`}
-            >
-              Mês
-            </button>
-            <button
-              onClick={() => setSelectedPeriod('3months')}
-              className={`px-4 py-2 rounded-lg text-body-sm font-medium transition-colors ${
-                selectedPeriod === '3months'
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-white text-neutral-700 border border-border hover:bg-neutral-50'
-              }`}
-            >
-              3 Meses
-            </button>
-            <button
-              onClick={() => setSelectedPeriod('6months')}
-              className={`px-4 py-2 rounded-lg text-body-sm font-medium transition-colors ${
-                selectedPeriod === '6months'
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-white text-neutral-700 border border-border hover:bg-neutral-50'
-              }`}
-            >
-              6 Meses
-            </button>
-            <button
-              onClick={() => setSelectedPeriod('year')}
-              className={`px-4 py-2 rounded-lg text-body-sm font-medium transition-colors ${
-                selectedPeriod === 'year'
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-white text-neutral-700 border border-border hover:bg-neutral-50'
-              }`}
-            >
-              Ano
-            </button>
+      <div className="no-print mb-6 lg:mb-8 pb-4 lg:pb-6 border-b border-border">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <h1 className="text-xl lg:text-h1 font-bold text-neutral-900 dark:text-neutral-50 mb-1 lg:mb-2">
+              Relatórios
+            </h1>
+            <p className="text-sm lg:text-body-sm text-neutral-500 dark:text-neutral-400">
+              Análise detalhada das suas finanças
+            </p>
           </div>
-          <Button onClick={handleExport} variant="secondary">
-            📥 Exportar
-          </Button>
+
+          <div className="flex flex-col gap-3">
+            {/* Seletor de período - mobile com scroll horizontal */}
+            <div className="flex gap-2 overflow-x-auto pb-1 custom-scrollbar">
+              {([
+                { key: 'month', label: 'Mês' },
+                { key: '3months', label: '3 Meses' },
+                { key: '6months', label: '6 Meses' },
+                { key: 'year', label: 'Ano' },
+              ] as const).map((p) => (
+                <button
+                  key={p.key}
+                  onClick={() => setSelectedPeriod(p.key)}
+                  className={`
+                    flex-shrink-0 px-3 py-2 rounded-lg text-sm font-medium transition-colors
+                    ${selectedPeriod === p.key
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-200 border border-border dark:border-border-dark hover:bg-neutral-50 dark:hover:bg-neutral-800'}
+                  `}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Export */}
+            <div className="grid grid-cols-2 gap-2">
+              <Button onClick={handleExportPdf} variant="secondary" className="w-full justify-center">
+                {isMobile ? '📤 PDF' : '🖨️ PDF'}
+              </Button>
+              <Button onClick={handleExport} variant="secondary" className="w-full justify-center">
+                📥 JSON
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 
+      {pdfHint && (
+        <div className="no-print mb-4 p-3 rounded-lg border border-primary-200 dark:border-primary-800 bg-primary-50 dark:bg-primary-950 text-primary-700 dark:text-primary-300 text-sm">
+          {pdfHint}
+        </div>
+      )}
+
       {/* Resumo geral */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="p-6 bg-white rounded-card-lg border border-border">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6 lg:mb-8">
+        <div className="p-4 lg:p-6 bg-white dark:bg-neutral-950 rounded-card-lg border border-border dark:border-border-dark">
           <p className="text-caption text-neutral-600 mb-2">Total de Receitas</p>
           <p className="text-h2 font-bold text-success-600">
             R$ {summary.totalIncome.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -545,7 +577,7 @@ export const Reports = () => {
             </p>
           )}
         </div>
-        <div className="p-6 bg-white rounded-card-lg border border-border">
+        <div className="p-4 lg:p-6 bg-white dark:bg-neutral-950 rounded-card-lg border border-border dark:border-border-dark">
           <p className="text-caption text-neutral-600 mb-2">Total de Despesas</p>
           <p className="text-h2 font-bold text-danger-600">
             R$ {summary.totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
@@ -556,13 +588,13 @@ export const Reports = () => {
             </p>
           )}
         </div>
-        <div className="p-6 bg-white rounded-card-lg border border-border">
+        <div className="p-4 lg:p-6 bg-white dark:bg-neutral-950 rounded-card-lg border border-border dark:border-border-dark">
           <p className="text-caption text-neutral-600 mb-2">Saldo</p>
           <p className={`text-h2 font-bold ${summary.totalBalance >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
             {summary.totalBalance >= 0 ? '+' : ''}R$ {summary.totalBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
         </div>
-        <div className="p-6 bg-white rounded-card-lg border border-border">
+        <div className="p-4 lg:p-6 bg-white dark:bg-neutral-950 rounded-card-lg border border-border dark:border-border-dark">
           <p className="text-caption text-neutral-600 mb-2">Transações</p>
           <p className="text-h2 font-bold text-neutral-900">
             {summary.transactionCount}

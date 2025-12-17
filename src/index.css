@@ -52,3 +52,34 @@
     animation: slide-up 0.3s ease-out;
   }
 }
+
+/* Print / PDF export */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  /* Esconde layout app (sidebar/header) e deixa só o conteúdo */
+  aside,
+  header {
+    display: none !important;
+  }
+
+  main {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body {
+    background: white !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+/* Modo de impressão (antes do print abrir) */
+.print-mode aside,
+.print-mode header,
+.print-mode .no-print {
+  display: none !important;
+}
