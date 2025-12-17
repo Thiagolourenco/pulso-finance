@@ -5,6 +5,7 @@ import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { PublicRoute } from '@/components/auth/PublicRoute'
 import { Login } from '@/pages/auth/Login'
 import { Register } from '@/pages/auth/Register'
+import { Confirmation } from '@/pages/auth/Confirmation'
 import { Dashboard } from '@/pages/dashboard/Dashboard'
 import { Transactions } from '@/pages/dashboard/Transactions'
 import { Accounts } from '@/pages/dashboard/Accounts'
@@ -29,6 +30,7 @@ function App() {
         >
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/confirmation/signUp" element={<Confirmation />} />
         </Route>
 
         {/* Rotas protegidas - redireciona para login se não estiver autenticado */}
