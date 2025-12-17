@@ -24,16 +24,16 @@ export const FinancialCard = ({
   ...props
 }: FinancialCardProps) => {
   const valueColor = {
-    default: 'text-neutral-900',
-    success: 'text-success-600',
-    danger: 'text-danger-600',
-    warning: 'text-warning-600',
+    default: 'text-neutral-950 dark:text-neutral-50',
+    success: 'text-success-600 dark:text-success-500',
+    danger: 'text-danger-600 dark:text-danger-400',
+    warning: 'text-warning-500 dark:text-warning-400',
   }
 
   return (
     <div
       className={cn(
-        'bg-gradient-to-br from-white to-neutral-50 rounded-card-lg p-6 border border-border shadow-card',
+        'bg-white dark:bg-neutral-950 rounded-card-lg p-6 border border-border dark:border-border-dark shadow-card',
         'hover:shadow-card-hover hover:scale-[1.02] transition-all duration-fast',
         'animate-fade-in',
         className
@@ -42,9 +42,9 @@ export const FinancialCard = ({
     >
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
-          <h3 className="text-label font-medium text-neutral-500 mb-1">{title}</h3>
+          <h3 className="text-label font-medium text-neutral-600 dark:text-neutral-300 mb-1">{title}</h3>
           {subtitle && (
-            <p className="text-caption text-neutral-400">{subtitle}</p>
+            <p className="text-caption text-neutral-600 dark:text-neutral-300">{subtitle}</p>
           )}
         </div>
         {icon && (
@@ -67,8 +67,8 @@ export const FinancialCard = ({
             className={cn(
               'text-body-sm font-semibold px-2 py-1 rounded-full',
               trend.isPositive 
-                ? 'text-success-700 bg-success-100' 
-                : 'text-danger-700 bg-danger-100'
+                ? 'text-success-600 dark:text-success-500 bg-success-100 dark:bg-success-900' 
+                : 'text-danger-600 dark:text-danger-400 bg-danger-100 dark:bg-danger-900'
             )}
           >
             {trend.isPositive ? '↑' : '↓'} {trend.value}

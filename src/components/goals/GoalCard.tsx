@@ -1,14 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import type { Goal } from '@/types'
-import { useNavigate } from 'react-router-dom'
 
 interface GoalCardProps {
   goal: Goal
   onUpdate?: () => void
 }
 
-export const GoalCard = ({ goal, onUpdate }: GoalCardProps) => {
-  const navigate = useNavigate()
+export const GoalCard = ({ goal }: GoalCardProps) => {
   const [animatedProgress, setAnimatedProgress] = useState(0)
   const [showFireworks, setShowFireworks] = useState(false)
   const wasCompletedRef = useRef(false)

@@ -30,8 +30,8 @@ export const CardDetailsModal = ({
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   const queryClient = useQueryClient()
-  const { purchases, updatePurchase, isLoading: isLoadingPurchases } = useCardPurchases(card.id)
-  const { invoices, openInvoice, updateInvoice, isLoading: isLoadingInvoices } = useCardInvoices(card.id)
+  const { purchases, updatePurchase } = useCardPurchases(card.id)
+  const { openInvoice } = useCardInvoices(card.id)
 
   const activePurchases = purchases.filter(p => p.current_installment < p.installments)
 
@@ -111,7 +111,7 @@ export const CardDetailsModal = ({
       }
 
       // Cria a compra usando o serviço diretamente
-      const { data: newPurchase, error: purchaseError } = await supabase
+      const { error: purchaseError } = await supabase
         .from('card_purchases')
         .insert({
           user_id: user.id,
@@ -146,8 +146,9 @@ export const CardDetailsModal = ({
       setIsRecurring(false)
       setShowAddPurchase(false)
       onPurchaseAdded()
-    } catch (error: any) {
-      setToast({ message: error.message || 'Erro ao adicionar compra', type: 'error' })
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido'
+      setToast({ message: errorMessage || 'Erro ao adicionar compra', type: 'error' })
     } finally {
       setIsSubmitting(false)
     }

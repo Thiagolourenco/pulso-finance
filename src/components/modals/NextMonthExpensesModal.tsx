@@ -176,7 +176,6 @@ export const NextMonthExpensesModal = ({
                   {recurringExpensesDetails.map((expense) => {
                     const nextDueDate = (() => {
                       const today = new Date()
-                      const currentDay = today.getDate()
                       const currentMonth = today.getMonth()
                       const currentYear = today.getFullYear()
                       let dueDate = new Date(currentYear, currentMonth, expense.due_day)

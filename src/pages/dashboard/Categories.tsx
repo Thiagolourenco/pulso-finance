@@ -176,7 +176,7 @@ export const Categories = () => {
           title={editingCategory ? 'Editar Categoria' : 'Nova Categoria'}
         >
           <AddCategoryForm
-            onSubmit={async (data) => {
+            onSubmit={async () => {
               // A lógica de criação/edição será gerenciada pelo hook useCategories
               handleCloseModal()
             }}
@@ -189,6 +189,7 @@ export const Categories = () => {
         <Toast
           message={toast.message}
           type={toast.type}
+          isVisible={!!toast}
           onClose={() => setToast(null)}
         />
       )}

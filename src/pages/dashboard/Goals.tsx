@@ -23,7 +23,7 @@ export const Goals = () => {
   const { goals, isLoading, createGoal, updateGoal, deleteGoal, addAmountToGoal, isCreating, isUpdating, isDeleting } = useGoals()
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null)
-  const [formData, setFormData] = useState<GoalFormData>(initialFormData)
+  const [, setFormData] = useState<GoalFormData>(initialFormData)
   const [amountToAdd, setAmountToAdd] = useState<{ [key: string]: string }>({})
 
   const handleOpenForm = (goal?: Goal) => {
@@ -90,34 +90,6 @@ export const Goals = () => {
     }
   }
 
-  const getProgressPercentage = (goal: Goal) => {
-    if (!goal.target_amount || goal.target_amount === 0) return 0
-    const percentage = ((goal.current_amount || 0) / goal.target_amount) * 100
-    return Math.min(percentage, 100)
-  }
-
-  const getGoalStatus = (goal: Goal) => {
-    const targetDate = goal.target_date ? new Date(goal.target_date) : null
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const isCompleted = (goal.current_amount || 0) >= (goal.target_amount || 0)
-    const isExpired = targetDate && targetDate < today && !isCompleted
-
-    if (isCompleted) return { label: 'Concluída', color: 'bg-green-500' }
-    if (isExpired) return { label: 'Expirada', color: 'bg-red-500' }
-    return { label: 'Em andamento', color: 'bg-blue-500' }
-  }
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(value)
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR')
-  }
 
   if (isLoading) {
     return (

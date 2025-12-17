@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { Input, CurrencyInput, Button } from '@/components/ui'
-import { DEFAULT_CATEGORIES } from '@/lib/constants'
+import { Input, Button } from '@/components/ui'
 
 interface AddCategoryFormProps {
   onSubmit: (data: {

@@ -46,12 +46,14 @@ export const AddRecurringExpenseForm = ({
 
   useEffect(() => {
     if (initialData) {
-      setName(initialData.name || '')
-      setAmount(initialData.amount || 0)
-      setDueDay(initialData.due_day || 5)
-      setCategoryId(initialData.category_id || '')
-      setAccountId(initialData.account_id || '')
-      setDescription(initialData.description || '')
+      setTimeout(() => {
+        setName(initialData.name || '')
+        setAmount(initialData.amount || 0)
+        setDueDay(initialData.due_day || 5)
+        setCategoryId(initialData.category_id || '')
+        setAccountId(initialData.account_id || '')
+        setDescription(initialData.description || '')
+      }, 0)
     }
   }, [initialData])
 

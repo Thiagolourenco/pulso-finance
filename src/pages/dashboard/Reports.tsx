@@ -6,17 +6,17 @@ import { useCardInvoices } from '@/hooks/useCardInvoices'
 import { useCardPurchases } from '@/hooks/useCardPurchases'
 import { useCategories } from '@/hooks/useCategories'
 import { useRecurringExpenses } from '@/hooks/useRecurringExpenses'
-import { PieChart, Pie, Cell, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts'
+import { PieChart, Pie, Cell, BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts'
 import { Button } from '@/components/ui'
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16']
 
 export const Reports = () => {
   const { transactions, isLoading: isLoadingTransactions } = useTransactions()
-  const { accounts, isLoading: isLoadingAccounts } = useAccounts()
+  const { isLoading: isLoadingAccounts } = useAccounts()
   const { cards, isLoading: isLoadingCards } = useCards()
   const { invoices, isLoading: isLoadingInvoices } = useCardInvoices()
-  const { purchases, isLoading: isLoadingPurchases } = useCardPurchases()
+  const { isLoading: isLoadingPurchases } = useCardPurchases()
   const { categories, isLoading: isLoadingCategories } = useCategories()
   const { expenses: recurringExpenses, isLoading: isLoadingRecurring } = useRecurringExpenses()
 
@@ -131,7 +131,7 @@ export const Reports = () => {
             name: categoryName,
             amount,
             color: category?.color || '#64748B',
-            icon: category?.icon
+            icon: category?.icon ?? undefined
           })
         }
       })
@@ -356,7 +356,6 @@ export const Reports = () => {
   const cardsComparison = useMemo(() => {
     return cards.map(card => {
       const cardInvoices = invoices.filter(inv => inv.card_id === card.id)
-      const totalInvoices = cardInvoices.reduce((sum, inv) => sum + (inv.total_amount || 0), 0)
       const openInvoices = cardInvoices.filter(inv => inv.status === 'open')
       const totalOpen = openInvoices.reduce((sum, inv) => sum + (inv.total_amount || 0), 0)
       const usagePercentage = card.credit_limit > 0 ? (totalOpen / card.credit_limit) * 100 : 0
@@ -593,7 +592,7 @@ export const Reports = () => {
                 <XAxis dataKey="periodo" stroke="#64748B" />
                 <YAxis stroke="#64748B" />
                 <Tooltip
-                  formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                  formatter={(value: number | undefined) => `R$ ${(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
                 />
                 <Legend />
                 <Bar dataKey="receitas" fill="#10B981" radius={[8, 8, 0, 0]} />
@@ -617,17 +616,17 @@ export const Reports = () => {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  label={(props: any) => `${props.name || ''} ${((props.percent || 0) * 100).toFixed(0)}%`}
                   outerRadius={100}
                   fill="#8884d8"
                   dataKey="amount"
                 >
-                  {expensesByCategory.map((entry, index) => (
+                  {expensesByCategory.map((_, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                  formatter={(value: number | undefined) => `R$ ${(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -648,7 +647,7 @@ export const Reports = () => {
                 <XAxis dataKey="name" stroke="#64748B" />
                 <YAxis stroke="#64748B" />
                 <Tooltip
-                  formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                  formatter={(value: number | undefined) => `R$ ${(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
                 />
                 <Bar dataKey="amount" fill="#10B981" radius={[8, 8, 0, 0]} />
               </BarChart>
@@ -666,7 +665,7 @@ export const Reports = () => {
                 <XAxis dataKey="month" stroke="#64748B" />
                 <YAxis stroke="#64748B" />
                 <Tooltip
-                  formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                  formatter={(value: number | undefined) => `R$ ${(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
                 />
                 <Legend />
                 <Area type="monotone" dataKey="receitas" stackId="1" stroke="#10B981" fill="#10B981" fillOpacity={0.6} name="Receitas" />
@@ -691,7 +690,7 @@ export const Reports = () => {
                 <XAxis dataKey="dia" stroke="#64748B" />
                 <YAxis stroke="#64748B" />
                 <Tooltip
-                  formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                  formatter={(value: number | undefined) => `R$ ${(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
                 />
                 <Bar dataKey="gasto" fill="#3B82F6" radius={[8, 8, 0, 0]} />
               </BarChart>
@@ -714,7 +713,7 @@ export const Reports = () => {
                   <XAxis dataKey="semana" stroke="#64748B" />
                   <YAxis stroke="#64748B" />
                   <Tooltip
-                    formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                    formatter={(value: number | undefined) => `R$ ${(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
                   />
                   <Bar dataKey="gasto" fill="#8B5CF6" radius={[8, 8, 0, 0]} />
                 </BarChart>
@@ -737,7 +736,7 @@ export const Reports = () => {
                 <XAxis dataKey="mes" stroke="#64748B" />
                 <YAxis stroke="#64748B" />
                 <Tooltip
-                  formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                  formatter={(value: number | undefined) => `R$ ${(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
                 />
                 <Bar dataKey="total" fill="#F59E0B" radius={[8, 8, 0, 0]} />
               </BarChart>

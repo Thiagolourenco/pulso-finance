@@ -38,7 +38,7 @@ export const Dashboard = () => {
   const { accounts, createAccount, isCreating: isCreatingAccount } = useAccounts()
   const { cards, createCard, isCreating: isCreatingCard } = useCards()
   const { purchases, createPurchase, isCreating: isCreatingPurchase } = useCardPurchases()
-  const { invoices, createInvoice, isCreating: isCreatingInvoice } = useCardInvoices()
+  const { invoices } = useCardInvoices()
   const { categories, createCategory, isCreating: isCreatingCategory } = useCategories()
   const { goals, createGoal, isCreating: isCreatingGoal } = useGoals()
   const { expenses: recurringExpenses, createExpense, updateExpense, deleteExpense, isCreating: isCreatingRecurringExpense, isUpdating: isUpdatingRecurringExpense } = useRecurringExpenses()
@@ -919,7 +919,7 @@ export const Dashboard = () => {
             <h2 className="text-h3 font-semibold text-neutral-900">Saúde do mês</h2>
           </div>
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-border">
+            <div className="flex items-center justify-between p-3 bg-white dark:bg-neutral-800 rounded-lg border border-border dark:border-neutral-700">
               <div className="flex flex-col">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">📈</span>
@@ -952,7 +952,7 @@ export const Dashboard = () => {
                 )}
               </div>
             </div>
-            <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-border">
+            <div className="flex items-center justify-between p-3 bg-white dark:bg-neutral-800 rounded-lg border border-border dark:border-neutral-700">
               <div className="flex flex-col">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">💰</span>
@@ -987,7 +987,7 @@ export const Dashboard = () => {
                 )}
               </div>
             </div>
-            <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-border">
+            <div className="flex items-center justify-between p-3 bg-white dark:bg-neutral-800 rounded-lg border border-border dark:border-neutral-700">
               <div className="flex flex-col">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">💸</span>

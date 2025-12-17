@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: 'class',
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -7,44 +8,44 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Paleta Primária - Azul escuro / Azul petróleo
+        // Paleta Primária - Azul (seguindo CORES.md)
         primary: {
-          50: '#F0F4F8',
-          100: '#D9E2EC',
-          200: '#BCCCDC',
-          300: '#9FB3C8',
-          400: '#829AB1',
-          500: '#627D98',
-          600: '#486581',
-          700: '#334E68',
-          800: '#1E293B', // Principal
-          900: '#0F172A', // Mais escuro
+          50: '#EFF6FF',
+          100: '#DBEAFE',
+          200: '#BFDBFE',
+          300: '#93C5FD',
+          400: '#60A5FA', // Dark mode focus
+          500: '#3B82F6', // Dark mode primary
+          600: '#2563EB', // Light mode primary/focus
+          700: '#1D4ED8',
+          800: '#1E40AF',
+          900: '#1E3A8A',
         },
-        // Verde - Receita, saldo positivo, progresso
+        // Verde - Receita, saldo positivo, progresso (seguindo CORES.md)
         success: {
           50: '#F0FDF4',
-          100: '#DCFCE7',
+          100: '#DCFCE7', // Light mode state
           200: '#BBF7D0',
           300: '#86EFAC',
           400: '#4ADE80',
-          500: '#22C55E', // Principal
-          600: '#16A34A', // Mais escuro
+          500: '#22C55E', // Dark mode success
+          600: '#16A34A', // Light mode success
           700: '#15803D',
           800: '#166534',
-          900: '#14532D',
+          900: '#052E16', // Dark mode state
         },
-        // Amarelo/Laranja - Atenção, orçamento perto do limite
+        // Amarelo/Laranja - Atenção, orçamento perto do limite (seguindo CORES.md)
         warning: {
           50: '#FFFBEB',
-          100: '#FEF3C7',
+          100: '#FEF3C7', // Light mode state
           200: '#FDE68A',
           300: '#FCD34D',
-          400: '#FBBF24',
-          500: '#F59E0B', // Principal
+          400: '#FBBF24', // Dark mode warning
+          500: '#F59E0B', // Light mode warning
           600: '#D97706',
           700: '#B45309',
           800: '#92400E',
-          900: '#78350F',
+          900: '#422006', // Dark mode state
         },
         // Laranja
         alert: {
@@ -59,37 +60,53 @@ export default {
           800: '#9A3412',
           900: '#7C2D12',
         },
-        // Vermelho - Gasto, dívida, limite estourado
+        // Vermelho - Gasto, dívida, limite estourado (seguindo CORES.md)
         danger: {
           50: '#FEF2F2',
-          100: '#FEE2E2',
+          100: '#FEE2E2', // Light mode state
           200: '#FECACA',
           300: '#FCA5A5',
-          400: '#F87171',
-          500: '#EF4444', // Principal
-          600: '#DC2626', // Mais escuro
+          400: '#F87171', // Dark mode error
+          500: '#EF4444',
+          600: '#DC2626', // Light mode error
           700: '#B91C1C',
           800: '#991B1B',
-          900: '#7F1D1D',
+          900: '#450A0A', // Dark mode state
         },
-        // Neutros
+        // Neutros (seguindo CORES.md)
         neutral: {
-          50: '#F8FAFC', // Fundo claro
-          100: '#F1F5F9',
+          50: '#F8FAFC', // Light mode bg.primary, Dark mode text.primary
+          100: '#F1F5F9', // Light mode bg.hover
           200: '#E2E8F0',
-          300: '#CBD5E1',
-          400: '#94A3B8',
-          500: '#64748B', // Texto secundário
-          600: '#475569',
-          700: '#334155',
-          800: '#1E293B',
-          900: '#020617', // Texto principal
+          300: '#CBD5E1', // Dark mode text.secondary, Light mode border.divider
+          400: '#94A3B8', // Light mode text.disabled
+          500: '#64748B', // Dark mode text.disabled
+          600: '#475569', // Light mode text.secondary
+          700: '#334155', // Dark mode border.divider
+          800: '#1E293B', // Dark mode bg.hover, Dark mode border.default
+          900: '#0F172A', // Dark mode bg.secondary, Light mode text.highlight
+          950: '#020617', // Dark mode bg.primary/bg.elevated, Light mode text.primary
         },
-        // Bordas/divisores
+        // Info (seguindo CORES.md)
+        info: {
+          50: '#F0F9FF',
+          100: '#E0F2FE', // Light mode state
+          200: '#BAE6FD',
+          300: '#7DD3FC',
+          400: '#38BDF8', // Dark mode info
+          500: '#0EA5E9', // Light mode info
+          600: '#0284C7',
+          700: '#0369A1',
+          800: '#075985',
+          900: '#082F49', // Dark mode state
+        },
+        // Bordas/divisores (seguindo CORES.md)
         border: {
-          DEFAULT: '#E5E7EB',
+          DEFAULT: '#E5E7EB', // Light mode border.default
           light: '#F3F4F6',
-          dark: '#D1D5DB',
+          dark: '#1E293B', // Dark mode border.default
+          divider: '#CBD5E1', // Light mode border.divider
+          'divider-dark': '#334155', // Dark mode border.divider
         },
       },
       fontFamily: {

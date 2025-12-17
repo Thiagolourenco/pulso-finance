@@ -155,7 +155,7 @@ export const Accounts = () => {
           title={editingAccount ? 'Editar Conta' : 'Nova Conta'}
         >
           <AddAccountForm
-            onSubmit={async (data) => {
+            onSubmit={async () => {
               // A lógica de criação/edição será gerenciada pelo hook useAccounts
               handleCloseModal()
             }}
@@ -168,6 +168,7 @@ export const Accounts = () => {
         <Toast
           message={toast.message}
           type={toast.type}
+          isVisible={!!toast}
           onClose={() => setToast(null)}
         />
       )}

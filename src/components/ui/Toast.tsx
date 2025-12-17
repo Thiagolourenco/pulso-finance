@@ -24,9 +24,9 @@ export const Toast = ({ message, type = 'info', isVisible, onClose, duration = 3
   if (!isVisible) return null
 
   const styles = {
-    success: 'bg-success-50 border-success-200 text-success-800',
-    error: 'bg-danger-50 border-danger-200 text-danger-800',
-    info: 'bg-primary-50 border-primary-200 text-primary-800',
+    success: 'bg-success-100 dark:bg-success-900 border-success-200 dark:border-success-800 text-success-600 dark:text-success-500',
+    error: 'bg-danger-100 dark:bg-danger-900 border-danger-200 dark:border-danger-800 text-danger-600 dark:text-danger-400',
+    info: 'bg-info-100 dark:bg-info-900 border-info-200 dark:border-info-800 text-info-500 dark:text-info-400',
   }
 
   const icons = {

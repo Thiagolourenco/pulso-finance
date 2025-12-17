@@ -46,3 +46,5 @@ Após configurar, você deve ver no console do navegador que não há mais o avi
 - A chave **service_role** deve ser usada apenas no backend (nunca no frontend!)
 
 
+
+

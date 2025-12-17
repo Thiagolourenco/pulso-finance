@@ -30,3 +30,5 @@ WHERE table_name = 'card_purchases'
   AND column_name = 'is_recurring';
 
 
+
+

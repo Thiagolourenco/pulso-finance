@@ -196,3 +196,5 @@ const generateBasicInsights = (data: MonthlyData): Insight[] => {
 }
 
 
+
+

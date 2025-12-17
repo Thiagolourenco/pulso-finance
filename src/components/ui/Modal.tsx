@@ -61,18 +61,18 @@ export const Modal = ({ isOpen, onClose, title, children, size = 'md' }: ModalPr
       {/* Modal */}
       <div
         className={cn(
-          'relative bg-white rounded-card-lg shadow-2xl w-full',
+          'relative bg-white dark:bg-neutral-950 rounded-card-lg shadow-2xl w-full',
           sizes[size],
-          'animate-scale-in z-10'
+          'animate-scale-in z-10 transition-colors border border-border dark:border-border-dark'
         )}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-border">
-          <h2 className="text-h2 font-semibold text-neutral-900">{title}</h2>
+        <div className="flex items-center justify-between p-6 border-b border-border dark:border-border-dark">
+          <h2 className="text-h2 font-semibold text-neutral-950 dark:text-neutral-50">{title}</h2>
           <button
             onClick={onClose}
-            className="text-neutral-400 hover:text-neutral-600 transition-colors duration-fast p-1 rounded-lg hover:bg-neutral-100"
+            className="text-neutral-400 dark:text-neutral-500 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors duration-fast p-1 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700"
             aria-label="Fechar"
           >
             <svg

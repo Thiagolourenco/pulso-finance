@@ -112,3 +112,5 @@ Após executar o script, teste criando:
 Se tudo funcionar, o banco está configurado corretamente! 🎉
 
 
+
+

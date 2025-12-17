@@ -45,7 +45,9 @@ export const AddCardPurchaseForm = ({
 
   useEffect(() => {
     if (initialCardId) {
-      setCardId(initialCardId)
+      setTimeout(() => {
+        setCardId(initialCardId)
+      }, 0)
     }
   }, [initialCardId])
 

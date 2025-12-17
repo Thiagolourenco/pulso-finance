@@ -88,8 +88,6 @@ export const Cards = () => {
         {cards.length > 0 ? (
           cards.map(card => {
             const stats = getCardStats(card.id)
-            const cardInvoices = invoices.filter(inv => inv.card_id === card.id)
-            const openInvoices = cardInvoices.filter(inv => inv.status === 'open')
             const usedLimit = stats.totalOpenInvoices
             const availableLimit = card.credit_limit - usedLimit
             const usagePercentage = card.credit_limit > 0 ? (usedLimit / card.credit_limit) * 100 : 0
@@ -205,7 +203,7 @@ export const Cards = () => {
           title={editingCard ? 'Editar Cartão' : 'Novo Cartão'}
         >
           <AddCardForm
-            onSubmit={async (data) => {
+            onSubmit={async () => {
               // A lógica de criação/edição será gerenciada pelo hook useCards
               handleCloseModal()
             }}
@@ -217,9 +215,10 @@ export const Cards = () => {
       {/* Modal de Detalhes do Cartão */}
       {selectedCardId && (
         <CardDetailsModal
-          cardId={selectedCardId}
+          card={cards.find(c => c.id === selectedCardId)!}
           isOpen={!!selectedCardId}
           onClose={() => setSelectedCardId(null)}
+          onPurchaseAdded={() => {}}
         />
       )}
 
@@ -227,6 +226,7 @@ export const Cards = () => {
         <Toast
           message={toast.message}
           type={toast.type}
+          isVisible={!!toast}
           onClose={() => setToast(null)}
         />
       )}

@@ -1,4 +1,4 @@
-import { forwardRef, useState, useEffect } from 'react'
+import { forwardRef, useState, useMemo, useRef, useEffect } from 'react'
 import { Input } from './Input'
 import type { InputProps } from './Input'
 
@@ -10,22 +10,38 @@ export interface CurrencyInputProps extends Omit<InputProps, 'type' | 'value' | 
 export const CurrencyInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
   ({ value, onChange, ...props }, ref) => {
     const [displayValue, setDisplayValue] = useState('')
+    const isUserEditingRef = useRef(false)
+    const previousValueRef = useRef<number | undefined>(value)
 
-    useEffect(() => {
+    // Calcula o valor formatado baseado na prop value
+    const formattedValue = useMemo(() => {
       if (value !== undefined && value !== null) {
-        // Formata o valor para exibição
-        const formatted = new Intl.NumberFormat('pt-BR', {
+        return new Intl.NumberFormat('pt-BR', {
           style: 'currency',
           currency: 'BRL',
         }).format(value)
-        setDisplayValue(formatted)
-      } else {
-        setDisplayValue('')
       }
+      return ''
     }, [value])
+
+    // Sincroniza displayValue quando value muda externamente (não durante edição)
+    // Usa setTimeout para evitar cascading renders
+    useEffect(() => {
+      if (!isUserEditingRef.current && value !== previousValueRef.current) {
+        previousValueRef.current = value
+        if (formattedValue !== displayValue) {
+          // Usa setTimeout para evitar cascading renders
+          const timeoutId = setTimeout(() => {
+            setDisplayValue(formattedValue)
+          }, 0)
+          return () => clearTimeout(timeoutId)
+        }
+      }
+    }, [formattedValue, displayValue, value])
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       const inputValue = e.target.value
+      isUserEditingRef.current = true
       
       // Remove tudo exceto números
       const numbersOnly = inputValue.replace(/\D/g, '')
@@ -51,6 +67,8 @@ export const CurrencyInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
     }
 
     const handleBlur = () => {
+      // Reseta a flag para permitir sincronização com a prop value
+      isUserEditingRef.current = false
       // Garante que o valor está formatado corretamente ao perder o foco
       if (value !== undefined && value !== null) {
         const formatted = new Intl.NumberFormat('pt-BR', {

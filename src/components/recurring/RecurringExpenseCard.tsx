@@ -14,7 +14,6 @@ export const RecurringExpenseCard = ({
   category,
   onEdit,
   onDelete,
-  onToggleActive,
 }: RecurringExpenseCardProps) => {
   const [isDeleting, setIsDeleting] = useState(false)
 
@@ -32,7 +31,6 @@ export const RecurringExpenseCard = ({
 
   const getNextDueDate = () => {
     const today = new Date()
-    const currentDay = today.getDate()
     const currentMonth = today.getMonth()
     const currentYear = today.getFullYear()
 

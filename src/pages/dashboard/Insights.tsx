@@ -1,6 +1,5 @@
 import { useTransactions } from '@/hooks/useTransactions'
 import { useAccounts } from '@/hooks/useAccounts'
-import { useCards } from '@/hooks/useCards'
 import { useCardInvoices } from '@/hooks/useCardInvoices'
 import { useCardPurchases } from '@/hooks/useCardPurchases'
 import { useCategories } from '@/hooks/useCategories'
@@ -10,7 +9,6 @@ import { InsightsCard } from '@/components/insights/InsightsCard'
 export const Insights = () => {
   const { transactions } = useTransactions()
   const { accounts } = useAccounts()
-  const { cards } = useCards()
   const { invoices } = useCardInvoices()
   const { purchases } = useCardPurchases()
   const { categories } = useCategories()

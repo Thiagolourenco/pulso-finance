@@ -300,7 +300,7 @@ export const Transactions = () => {
         >
           <AddTransactionForm
             initialType={editingTransaction?.type || 'expense'}
-            onSubmit={async (data) => {
+            onSubmit={async () => {
               // TODO: Implementar edição quando o formulário suportar
               handleCloseModal()
             }}
@@ -313,6 +313,7 @@ export const Transactions = () => {
         <Toast
           message={toast.message}
           type={toast.type}
+          isVisible={!!toast}
           onClose={() => setToast(null)}
         />
       )}

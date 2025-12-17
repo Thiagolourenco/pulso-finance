@@ -13,10 +13,10 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     const baseStyles = 'inline-flex items-center justify-center font-medium rounded-button transition-all duration-fast ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed'
     
     const variants = {
-      primary: 'bg-primary-800 text-white hover:bg-primary-900 active:bg-primary-900 active:scale-[0.98]',
-      secondary: 'bg-neutral-200 text-neutral-900 hover:bg-neutral-300 active:bg-neutral-300 active:scale-[0.98]',
-      danger: 'bg-danger-600 text-white hover:bg-danger-700 active:bg-danger-700 active:scale-[0.98]',
-      ghost: 'text-neutral-700 hover:bg-neutral-100 active:bg-neutral-200 active:scale-[0.98]',
+      primary: 'bg-primary-600 dark:bg-primary-500 text-white hover:bg-primary-700 dark:hover:bg-primary-400 active:bg-primary-700 dark:active:bg-primary-400 active:scale-[0.98]',
+      secondary: 'bg-neutral-200 dark:bg-neutral-800 text-neutral-950 dark:text-neutral-50 hover:bg-neutral-300 dark:hover:bg-neutral-700 active:bg-neutral-300 dark:active:bg-neutral-700 active:scale-[0.98]',
+      danger: 'bg-danger-600 dark:bg-danger-400 text-white hover:bg-danger-700 dark:hover:bg-danger-500 active:bg-danger-700 dark:active:bg-danger-500 active:scale-[0.98]',
+      ghost: 'text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 active:bg-neutral-200 dark:active:bg-neutral-700 active:scale-[0.98]',
     }
     
     const sizes = {

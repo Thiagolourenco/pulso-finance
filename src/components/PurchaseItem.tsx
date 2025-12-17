@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { Input } from '@/components/ui'
 import type { CardPurchase } from '@/types'
 
 interface PurchaseItemProps {

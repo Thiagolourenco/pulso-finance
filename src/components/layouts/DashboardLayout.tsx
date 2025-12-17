@@ -1,6 +1,7 @@
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom'
 import { signOut } from '@/lib/supabase/middleware'
 import { cn } from '@/lib/utils'
+import { ThemeToggle } from '@/components/ui/ThemeToggle'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: '📊' },
@@ -28,13 +29,14 @@ export const DashboardLayout = () => {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50">
+    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 transition-colors">
       {/* Sidebar fixa */}
-      <aside className="fixed inset-y-0 left-0 w-64 bg-white border-r border-border z-10">
+      <aside className="fixed inset-y-0 left-0 w-64 bg-white dark:bg-neutral-950 border-r border-border dark:border-border-dark z-10 transition-colors">
         <div className="flex flex-col h-full">
           {/* Header da sidebar */}
-          <div className="flex items-center justify-center h-16 border-b border-border px-6">
-            <h1 className="text-2xl font-bold text-primary-800">Pulso</h1>
+          <div className="flex items-center justify-between h-16 border-b border-border dark:border-border-dark px-6">
+            <h1 className="text-2xl font-bold text-neutral-950 dark:text-neutral-50">Pulso</h1>
+            <ThemeToggle />
           </div>
           
           {/* Navegação */}
@@ -47,10 +49,10 @@ export const DashboardLayout = () => {
                   to={item.href}
                   className={cn(
                     'flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-fast',
-                    'hover:bg-neutral-100 active:scale-[0.98]',
+                    'hover:bg-neutral-100 dark:hover:bg-neutral-800 active:scale-[0.98]',
                     isActive
-                      ? 'bg-primary-50 text-primary-800 font-medium'
-                      : 'text-neutral-700 hover:text-neutral-900'
+                      ? 'bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400 font-medium'
+                      : 'text-neutral-600 dark:text-neutral-300 hover:text-neutral-950 dark:hover:text-neutral-50'
                   )}
                 >
                   <span className="text-lg">{item.icon}</span>
@@ -61,10 +63,10 @@ export const DashboardLayout = () => {
           </nav>
           
           {/* Footer da sidebar */}
-          <div className="p-4 border-t border-border">
+          <div className="p-4 border-t border-border dark:border-border-dark">
             <button
               onClick={handleSignOut}
-              className="w-full px-4 py-2 text-sm font-medium text-danger-600 rounded-lg hover:bg-danger-50 active:scale-[0.98] transition-all duration-fast"
+              className="w-full px-4 py-2 text-sm font-medium text-danger-600 dark:text-danger-400 rounded-lg hover:bg-danger-100 dark:hover:bg-danger-900 active:scale-[0.98] transition-all duration-fast"
             >
               Sair
             </button>
