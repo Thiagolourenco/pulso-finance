@@ -15,8 +15,10 @@ export const PurchaseItem = ({ purchase, onUpdate, onToast }: PurchaseItemProps)
 
   // Sincroniza o valor local quando a compra é atualizada
   useEffect(() => {
-    setLocalInstallment(purchase.current_installment)
-    setIsRecurring(purchase.is_recurring || false)
+    setTimeout(() => {
+      setLocalInstallment(purchase.current_installment)
+      setIsRecurring(purchase.is_recurring || false)
+    }, 0)
   }, [purchase.current_installment, purchase.is_recurring])
 
   const paidInstallments = purchase.current_installment - 1
