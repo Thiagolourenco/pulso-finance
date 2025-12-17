@@ -53,7 +53,6 @@ function App() {
         {/* Redirecionamento padrão */}
         <Route path="/" element={<Navigate to="/login" replace />} />
       </Routes>
-      <p>tete</p>
     </BrowserRouter>
   )
 }

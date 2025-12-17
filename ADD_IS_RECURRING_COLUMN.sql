@@ -32,3 +32,4 @@ WHERE table_name = 'card_purchases'
 
 
 
+
