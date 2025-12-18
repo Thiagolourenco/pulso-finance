@@ -23,7 +23,6 @@ export const Reports = () => {
   const [selectedPeriod, setSelectedPeriod] = useState<'month' | '3months' | '6months' | 'year'>('month')
   const reportRef = useRef<HTMLDivElement | null>(null)
   const [pdfHint, setPdfHint] = useState<string>('')
-  const [isPrinting, setIsPrinting] = useState(false)
 
   const isMobile = useMemo(() => {
     if (typeof navigator === 'undefined') return false
@@ -32,7 +31,6 @@ export const Reports = () => {
 
   useEffect(() => {
     const after = () => {
-      setIsPrinting(false)
       document.documentElement.classList.remove('print-mode')
     }
     window.addEventListener('afterprint', after)
@@ -480,7 +478,6 @@ export const Reports = () => {
   // Exporta como PDF via print (usuário salva/compartilha como PDF)
   const handleExportPdf = () => {
     // Ativa modo de impressão para esconder sidebar/header e focar no relatório
-    setIsPrinting(true)
     document.documentElement.classList.add('print-mode')
 
     if (isMobile) {
