@@ -6,7 +6,7 @@ export interface FinancialCardProps extends HTMLAttributes<HTMLDivElement> {
   value: string | number
   subtitle?: string
   icon?: ReactNode
-  variant?: 'default' | 'success' | 'danger' | 'warning'
+  variant?: 'default' | 'success' | 'danger' | 'warning' | 'purple'
   trend?: {
     value: string
     isPositive: boolean
@@ -28,6 +28,7 @@ export const FinancialCard = ({
     success: 'text-success-600 dark:text-success-500',
     danger: 'text-danger-600 dark:text-danger-400',
     warning: 'text-warning-500 dark:text-warning-400',
+    purple: 'text-purple-600 dark:text-purple-400',
   }
 
   return (

@@ -25,7 +25,7 @@ import { useRecurringExpenses } from '@/hooks/useRecurringExpenses'
 import { supabase } from '@/lib/supabase/client'
 import { getOrCreateDefaultCategory, getOrCreateBalanceCategory } from '@/lib/utils/categories'
 
-type ModalType = 'transaction' | 'account' | 'card' | 'cardPurchase' | 'goal' | 'category' | 'recurringExpense' | null
+type ModalType = 'transaction' | 'account' | 'card' | 'cardPurchase' | 'goal' | 'category' | 'recurringExpense' | 'totalMoney' | null
 type TransactionType = 'expense' | 'income' | 'balance'
 
 export const Dashboard = () => {
@@ -49,6 +49,7 @@ export const Dashboard = () => {
   const [showMonthlyExpenses, setShowMonthlyExpenses] = useState(false)
   const [editingRecurringExpense, setEditingRecurringExpense] = useState<any>(null)
   const [showAllCards, setShowAllCards] = useState(false) // Para mobile: controla se mostra todos os cards
+  const [showTotalMoneyModal, setShowTotalMoneyModal] = useState(false) // Controla modal do resumo do total do dinheiro
 
   // Obtém o mês atual e anterior
   const currentDate = new Date()
@@ -107,13 +108,18 @@ export const Dashboard = () => {
     })
     .reduce((sum, transaction) => sum + Math.abs(Number(transaction.amount) || 0), 0)
 
-  // Calcula o saldo total (soma de TODAS as contas, incluindo investimentos)
-  // O saldo é a soma de todos os current_balance das contas
-  const totalBalance = accounts.reduce((sum, account) => {
+  // Calcula o total de investimentos
+  const investmentAccounts = accounts.filter(account => account.type === 'investment')
+  const totalInvestments = investmentAccounts.reduce((sum, account) => {
     const balance = Number(account.current_balance) || 0
-    console.log(`💳 Conta: ${account.name} (${account.type}) = R$ ${balance.toFixed(2)}`)
     return sum + balance
   }, 0)
+
+  // Calcula sobra prevista (receitas - despesas do mês atual)
+  const expectedSurplus = monthlyIncome - monthlyExpenses
+  
+  // Total do dinheiro = Total investido + Sobra prevista
+  const totalBalance = totalInvestments + expectedSurplus
 
   // Também calcula saldo a partir das transações (para comparação)
   const balanceFromTransactions = transactions.reduce((sum, transaction) => {
@@ -130,9 +136,6 @@ export const Dashboard = () => {
     fromTransactions: balanceFromTransactions,
     difference: totalBalance - balanceFromTransactions,
   })
-
-  // Calcula sobra prevista (receitas - despesas do mês atual)
-  const expectedSurplus = monthlyIncome - monthlyExpenses
   
   // Calcula sobra do mês anterior
   const previousMonthSurplus = previousMonthIncome - previousMonthExpenses
@@ -142,12 +145,6 @@ export const Dashboard = () => {
     ? ((expectedSurplus - previousMonthSurplus) / Math.abs(previousMonthSurplus)) * 100
     : 0
 
-  // Calcula o total de investimentos (apenas para o card de investimentos)
-  const investmentAccounts = accounts.filter(account => account.type === 'investment')
-  const totalInvestments = investmentAccounts.reduce((sum, account) => {
-    const balance = Number(account.current_balance) || 0
-    return sum + balance
-  }, 0)
 
   // Debug: log para verificar os dados
   console.log('📊 Dashboard Debug:', {
@@ -661,15 +658,17 @@ export const Dashboard = () => {
             }
           />
           <FinancialCard
-            title="Saldo"
+            title="Total do dinheiro"
             value={totalBalance}
-            subtitle="Total disponível"
-            variant="default"
+            subtitle="Contas + Investimentos"
+            variant="purple"
             icon={
-              <div className="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center">
-                <span className="text-2xl">💳</span>
+              <div className="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
+                <span className="text-2xl">💵</span>
               </div>
             }
+            onClick={() => setShowTotalMoneyModal(true)}
+            className="cursor-pointer"
           />
           {/* Investimentos - oculto no mobile quando não expandido */}
           <div className={showAllCards ? 'block' : 'hidden lg:block'}>
@@ -1491,6 +1490,89 @@ export const Dashboard = () => {
           />
         )
       })()}
+
+      {/* Modal de resumo do Total do dinheiro */}
+      <Modal
+        isOpen={showTotalMoneyModal}
+        onClose={() => setShowTotalMoneyModal(false)}
+        title="Resumo do Total do dinheiro"
+        size="md"
+      >
+        <div className="space-y-6">
+          <div className="bg-purple-50 dark:bg-purple-900/20 rounded-card-lg p-4 border border-purple-200 dark:border-purple-800">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-label font-medium text-neutral-700 dark:text-neutral-300">Total do dinheiro</span>
+              <span className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                {new Intl.NumberFormat('pt-BR', {
+                  style: 'currency',
+                  currency: 'BRL',
+                }).format(totalBalance)}
+              </span>
+            </div>
+            <p className="text-caption text-neutral-600 dark:text-neutral-400">Soma dos investimentos + sobra prevista</p>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-neutral-50 dark:bg-neutral-900 rounded-card border border-border dark:border-border-dark">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-warning-100 dark:bg-warning-900 flex items-center justify-center">
+                  <span className="text-xl">📈</span>
+                </div>
+                <div>
+                  <p className="text-body-sm font-medium text-neutral-950 dark:text-neutral-50">Total investido</p>
+                  <p className="text-caption text-neutral-600 dark:text-neutral-400">Soma de todas as contas de investimento</p>
+                </div>
+              </div>
+              <span className="text-body font-bold text-neutral-950 dark:text-neutral-50">
+                {new Intl.NumberFormat('pt-BR', {
+                  style: 'currency',
+                  currency: 'BRL',
+                }).format(totalInvestments)}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-neutral-50 dark:bg-neutral-900 rounded-card border border-border dark:border-border-dark">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-success-100 dark:bg-success-900 flex items-center justify-center">
+                  <span className="text-xl">💰</span>
+                </div>
+                <div>
+                  <p className="text-body-sm font-medium text-neutral-950 dark:text-neutral-50">Sobra prevista</p>
+                  <p className="text-caption text-neutral-600 dark:text-neutral-400">Receitas - Despesas do mês</p>
+                </div>
+              </div>
+              <span className={`text-body font-bold ${expectedSurplus >= 0 ? 'text-success-600 dark:text-success-500' : 'text-danger-600 dark:text-danger-400'}`}>
+                {new Intl.NumberFormat('pt-BR', {
+                  style: 'currency',
+                  currency: 'BRL',
+                  signDisplay: 'always',
+                }).format(expectedSurplus)}
+              </span>
+            </div>
+
+            <div className="pt-4 border-t border-border dark:border-border-dark">
+              <div className="flex items-center justify-between text-caption text-neutral-600 dark:text-neutral-400 mb-2">
+                <span>Receitas do mês</span>
+                <span className="text-body-sm font-medium text-neutral-950 dark:text-neutral-50">
+                  {new Intl.NumberFormat('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL',
+                  }).format(monthlyIncome)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-caption text-neutral-600 dark:text-neutral-400">
+                <span>Despesas do mês</span>
+                <span className="text-body-sm font-medium text-neutral-950 dark:text-neutral-50">
+                  {new Intl.NumberFormat('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL',
+                  }).format(monthlyExpenses)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Modal>
 
       {/* Toast de notificação */}
       <Toast
