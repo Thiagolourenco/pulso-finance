@@ -85,7 +85,7 @@ export const Dashboard = () => {
     .reduce((sum, transaction) => sum + (Number(transaction.amount) || 0), 0)
 
   // Calcula despesas do mês atual (transações do tipo 'expense')
-  const monthlyExpenses = transactions
+  const transactionExpenses = transactions
     .filter(transaction => {
       const transactionDate = new Date(transaction.date)
       return (
@@ -96,8 +96,34 @@ export const Dashboard = () => {
     })
     .reduce((sum, transaction) => sum + Math.abs(Number(transaction.amount) || 0), 0)
 
-  // Calcula despesas do mês anterior
-  const previousMonthExpenses = transactions
+  // Inclui faturas de cartão abertas que vencem no mês atual (ou já venceram mas ainda não foram pagas) como despesas
+  const currentMonthInvoices = invoices.filter(invoice => {
+    // Apenas faturas abertas (não pagas)
+    if (invoice.status !== 'open') return false
+    
+    const invoiceDueDate = new Date(invoice.due_date)
+    invoiceDueDate.setHours(0, 0, 0, 0)
+    const invoiceMonth = invoiceDueDate.getMonth() + 1
+    const invoiceYear = invoiceDueDate.getFullYear()
+    
+    // Inclui faturas que vencem no mês atual
+    // E também faturas que já venceram mas ainda estão abertas (não foram pagas)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    
+    const isCurrentMonth = invoiceMonth === currentMonth && invoiceYear === currentYear
+    const isOverdue = invoiceDueDate <= today && invoice.status === 'open'
+    
+    // Retorna faturas do mês atual OU faturas vencidas (mas ainda abertas) que pertencem ao período atual
+    return isCurrentMonth || (isOverdue && invoice.total_amount > 0)
+  })
+  const currentMonthInvoiceTotal = currentMonthInvoices.reduce((sum, invoice) => sum + (invoice.total_amount || 0), 0)
+
+  // Despesas do mês = transações + faturas que vencem no mês atual
+  const monthlyExpenses = transactionExpenses + currentMonthInvoiceTotal
+
+  // Calcula despesas do mês anterior (transações do tipo 'expense')
+  const previousMonthTransactionExpenses = transactions
     .filter(transaction => {
       const transactionDate = new Date(transaction.date)
       return (
@@ -107,6 +133,19 @@ export const Dashboard = () => {
       )
     })
     .reduce((sum, transaction) => sum + Math.abs(Number(transaction.amount) || 0), 0)
+
+  // Inclui faturas de cartão que venceram no mês anterior
+  const previousMonthInvoices = invoices.filter(invoice => {
+    if (invoice.status !== 'open' && invoice.status !== 'paid') return false
+    const invoiceDueDate = new Date(invoice.due_date)
+    const invoiceMonth = invoiceDueDate.getMonth() + 1
+    const invoiceYear = invoiceDueDate.getFullYear()
+    return invoiceMonth === previousMonth && invoiceYear === previousYear
+  })
+  const previousMonthInvoiceTotal = previousMonthInvoices.reduce((sum, invoice) => sum + (invoice.total_amount || 0), 0)
+
+  // Despesas do mês anterior = transações + faturas que venceram no mês anterior
+  const previousMonthExpenses = previousMonthTransactionExpenses + previousMonthInvoiceTotal
 
   // Calcula o total de investimentos
   const investmentAccounts = accounts.filter(account => account.type === 'investment')
@@ -118,8 +157,11 @@ export const Dashboard = () => {
   // Calcula sobra prevista (receitas - despesas do mês atual)
   const expectedSurplus = monthlyIncome - monthlyExpenses
   
-  // Total do dinheiro = Total investido + Sobra prevista
-  const totalBalance = totalInvestments + expectedSurplus
+  // Calcula sobra do mês anterior
+  const previousMonthSurplus = previousMonthIncome - previousMonthExpenses
+  
+  // Total do dinheiro = Total investido + Sobra prevista do mês atual + Sobra do mês anterior
+  const totalBalance = totalInvestments + expectedSurplus + previousMonthSurplus
 
   // Também calcula saldo a partir das transações (para comparação)
   const balanceFromTransactions = transactions.reduce((sum, transaction) => {
@@ -136,9 +178,6 @@ export const Dashboard = () => {
     fromTransactions: balanceFromTransactions,
     difference: totalBalance - balanceFromTransactions,
   })
-  
-  // Calcula sobra do mês anterior
-  const previousMonthSurplus = previousMonthIncome - previousMonthExpenses
   
   // Calcula variação percentual da sobra
   const surplusVariation = previousMonthSurplus !== 0

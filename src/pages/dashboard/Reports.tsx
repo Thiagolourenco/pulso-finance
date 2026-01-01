@@ -7,7 +7,7 @@ import { useCardPurchases } from '@/hooks/useCardPurchases'
 import { useCategories } from '@/hooks/useCategories'
 import { useRecurringExpenses } from '@/hooks/useRecurringExpenses'
 import { PieChart, Pie, Cell, BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts'
-import { Button } from '@/components/ui'
+import { Button, Modal } from '@/components/ui'
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16']
 
@@ -20,9 +20,10 @@ export const Reports = () => {
   const { categories, isLoading: isLoadingCategories } = useCategories()
   const { expenses: recurringExpenses, isLoading: isLoadingRecurring } = useRecurringExpenses()
 
-  const [selectedPeriod, setSelectedPeriod] = useState<'month' | '3months' | '6months' | 'year'>('month')
+  const [selectedPeriod, setSelectedPeriod] = useState<'month' | 'previousMonth' | '3months' | '6months' | 'year'>('month')
   const reportRef = useRef<HTMLDivElement | null>(null)
   const [pdfHint, setPdfHint] = useState<string>('')
+  const [selectedCategory, setSelectedCategory] = useState<{ name: string; type: 'expense' | 'income' } | null>(null)
 
   const isMobile = useMemo(() => {
     if (typeof navigator === 'undefined') return false
@@ -45,22 +46,34 @@ export const Reports = () => {
 
   // Calcula o período baseado na seleção
   const periodData = useMemo(() => {
-    // Último dia do mês atual às 23:59:59
-    const endDate = new Date(currentYear, currentMonth, 0, 23, 59, 59, 999)
     let startDate = new Date()
+    let endDate = new Date()
+
+    const previousMonth = currentMonth === 1 ? 12 : currentMonth - 1
+    const previousYear = currentMonth === 1 ? currentYear - 1 : currentYear
 
     switch (selectedPeriod) {
       case 'month':
         startDate = new Date(currentYear, currentMonth - 1, 1, 0, 0, 0, 0)
+        endDate = new Date(currentYear, currentMonth, 0, 23, 59, 59, 999)
+        break
+      case 'previousMonth':
+        // Primeiro dia do mês anterior
+        startDate = new Date(previousYear, previousMonth - 1, 1, 0, 0, 0, 0)
+        // Último dia do mês anterior
+        endDate = new Date(previousYear, previousMonth, 0, 23, 59, 59, 999)
         break
       case '3months':
         startDate = new Date(currentYear, currentMonth - 4, 1, 0, 0, 0, 0)
+        endDate = new Date(currentYear, currentMonth, 0, 23, 59, 59, 999)
         break
       case '6months':
         startDate = new Date(currentYear, currentMonth - 7, 1, 0, 0, 0, 0)
+        endDate = new Date(currentYear, currentMonth, 0, 23, 59, 59, 999)
         break
       case 'year':
         startDate = new Date(currentYear - 1, currentMonth - 1, 1, 0, 0, 0, 0)
+        endDate = new Date(currentYear, currentMonth, 0, 23, 59, 59, 999)
         break
     }
 
@@ -475,6 +488,40 @@ export const Reports = () => {
     URL.revokeObjectURL(url)
   }
 
+  // Filtra transações da categoria selecionada
+  const categoryTransactions = useMemo(() => {
+    if (!selectedCategory) return []
+    
+    return transactions
+      .filter(t => {
+        const transactionDate = new Date(t.date)
+        transactionDate.setHours(0, 0, 0, 0)
+        const start = new Date(periodData.startDate)
+        start.setHours(0, 0, 0, 0)
+        const end = new Date(periodData.endDate)
+        end.setHours(23, 59, 59, 999)
+        
+        const isInPeriod = transactionDate >= start && transactionDate <= end
+        const isCorrectType = t.type === selectedCategory.type
+        
+        if (!isInPeriod || !isCorrectType) return false
+        
+        const category = categories.find(c => c.id === t.category_id)
+        const categoryName = category?.name || 'Sem categoria'
+        
+        return categoryName === selectedCategory.name
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  }, [transactions, selectedCategory, categories, periodData])
+
+  // Calcula total da categoria selecionada
+  const categoryTotal = useMemo(() => {
+    return categoryTransactions.reduce((sum, t) => {
+      const amount = Math.abs(Number(t.amount) || 0)
+      return sum + amount
+    }, 0)
+  }, [categoryTransactions])
+
   // Exporta como PDF via print (usuário salva/compartilha como PDF)
   const handleExportPdf = () => {
     // Ativa modo de impressão para esconder sidebar/header e focar no relatório
@@ -523,6 +570,7 @@ export const Reports = () => {
             <div className="flex gap-2 overflow-x-auto pb-1 custom-scrollbar">
               {([
                 { key: 'month', label: 'Mês' },
+                { key: 'previousMonth', label: 'Mês Anterior' },
                 { key: '3months', label: '3 Meses' },
                 { key: '6months', label: '6 Meses' },
                 { key: 'year', label: 'Ano' },
@@ -645,10 +693,14 @@ export const Reports = () => {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={(props: any) => `${props.name || ''} ${((props.percent || 0) * 100).toFixed(0)}%`}
+                  label={(props: { name?: string; percent?: number }) => `${props.name || ''} ${((props.percent || 0) * 100).toFixed(0)}%`}
                   outerRadius={100}
                   fill="#8884d8"
                   dataKey="amount"
+                  onClick={(data: { name: string }) => {
+                    setSelectedCategory({ name: data.name, type: 'expense' })
+                  }}
+                  style={{ cursor: 'pointer' }}
                 >
                   {expensesByCategory.map((_, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -678,7 +730,18 @@ export const Reports = () => {
                 <Tooltip
                   formatter={(value: number | undefined) => `R$ ${(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
                 />
-                <Bar dataKey="amount" fill="#10B981" radius={[8, 8, 0, 0]} />
+                <Bar 
+                  dataKey="amount" 
+                  fill="#10B981" 
+                  radius={[8, 8, 0, 0]}
+                  onClick={(data) => {
+                    const barData = data as { name?: string }
+                    if (barData && barData.name) {
+                      setSelectedCategory({ name: barData.name, type: 'income' })
+                    }
+                  }}
+                  style={{ cursor: 'pointer' }}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -913,6 +976,78 @@ export const Reports = () => {
           )}
         </div>
       </div>
+
+      {/* Modal de histórico da categoria */}
+      <Modal
+        isOpen={!!selectedCategory}
+        onClose={() => setSelectedCategory(null)}
+        title={`Histórico - ${selectedCategory?.name || ''}`}
+        size="lg"
+      >
+        <div className="space-y-4">
+          {/* Resumo da categoria */}
+          <div className={`p-4 rounded-lg border ${selectedCategory?.type === 'income' ? 'bg-success-50 border-success-200' : 'bg-danger-50 border-danger-200'}`}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-label text-neutral-600 mb-1">Total {selectedCategory?.type === 'income' ? 'de Receitas' : 'de Gastos'}</p>
+                <p className={`text-2xl font-bold ${selectedCategory?.type === 'income' ? 'text-success-600' : 'text-danger-600'}`}>
+                  {selectedCategory?.type === 'income' ? '+' : '-'}R$ {categoryTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-label text-neutral-600 mb-1">Transações</p>
+                <p className="text-h3 font-semibold text-neutral-900">{categoryTransactions.length}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Lista de transações */}
+          <div className="max-h-96 overflow-y-auto space-y-2">
+            {categoryTransactions.length === 0 ? (
+              <div className="p-8 text-center text-neutral-500">
+                <p>Nenhuma transação encontrada nesta categoria</p>
+              </div>
+            ) : (
+              categoryTransactions.map((transaction) => {
+                const category = categories.find(c => c.id === transaction.category_id)
+                const amountValue = Math.abs(Number(transaction.amount) || 0)
+                
+                return (
+                  <div
+                    key={transaction.id}
+                    className="flex items-center justify-between p-4 bg-neutral-50 rounded-lg border border-border hover:border-primary-300 transition-colors"
+                  >
+                    <div className="flex-1">
+                      <p className="text-body-sm font-medium text-neutral-900 mb-1">
+                        {transaction.description}
+                      </p>
+                      <div className="flex items-center gap-2 text-caption text-neutral-500">
+                        <span>{new Date(transaction.date).toLocaleDateString('pt-BR')}</span>
+                        {category && (
+                          <>
+                            <span>•</span>
+                            <span className="px-2 py-0.5 rounded-full text-caption" style={{ 
+                              backgroundColor: category.color ? `${category.color}20` : '#64748B20',
+                              color: category.color || '#64748B'
+                            }}>
+                              {category.name}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right ml-4">
+                      <p className={`text-body font-bold ${transaction.type === 'income' ? 'text-success-600' : 'text-danger-600'}`}>
+                        {transaction.type === 'income' ? '+' : '-'}R$ {amountValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

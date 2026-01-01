@@ -34,6 +34,18 @@ export const CardDetailsModal = ({
   const { openInvoice } = useCardInvoices(card.id)
 
   const activePurchases = purchases.filter(p => p.current_installment < p.installments)
+  // Filtra compras recorrentes (trata null/undefined como false)
+  const recurringPurchases = activePurchases.filter(p => p.is_recurring === true)
+  const nonRecurringPurchases = activePurchases.filter(p => !p.is_recurring || p.is_recurring === false)
+
+  // Debug: log para verificar as compras recorrentes
+  console.log('🔍 Debug Compras:', {
+    total: purchases.length,
+    active: activePurchases.length,
+    recurring: recurringPurchases.length,
+    recurringPurchases: recurringPurchases.map(p => ({ id: p.id, description: p.description, is_recurring: p.is_recurring })),
+    allPurchases: purchases.map(p => ({ id: p.id, description: p.description, is_recurring: p.is_recurring }))
+  })
 
   // Calcula total da fatura (soma das parcelas que vencem nesta fatura)
   const invoiceTotal = openInvoice ? (openInvoice.total_amount || 0) : 0
@@ -219,10 +231,49 @@ export const CardDetailsModal = ({
             </div>
           )}
 
+          {/* Compras recorrentes */}
+          {recurringPurchases.length > 0 && (
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-h3 font-semibold text-neutral-900">Compras Recorrentes</h3>
+                  <span className="px-2 py-1 text-caption font-medium bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 rounded-full">
+                    {recurringPurchases.length}
+                  </span>
+                </div>
+              </div>
+              <div className="p-4 bg-primary-50 dark:bg-primary-900/20 rounded-lg border border-primary-200 dark:border-primary-800">
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {recurringPurchases.map((purchase: CardPurchase) => (
+                    <PurchaseItem
+                      key={purchase.id}
+                      purchase={purchase}
+                      onUpdate={(id, data, callbacks) => {
+                        updatePurchase({ id, data }, {
+                          onSuccess: () => {
+                            queryClient.invalidateQueries({ queryKey: ['card_purchases'] })
+                            queryClient.invalidateQueries({ queryKey: ['card_invoices'] })
+                            callbacks?.onSuccess?.()
+                          },
+                          onError: (error: Error) => {
+                            callbacks?.onError?.(error)
+                          },
+                        })
+                      }}
+                      onToast={(message, type) => setToast({ message, type })}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Lista de compras */}
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-h3 font-semibold text-neutral-900">Compras</h3>
+              <h3 className="text-h3 font-semibold text-neutral-900">
+                {recurringPurchases.length > 0 ? 'Outras Compras' : 'Compras'}
+              </h3>
               <Button
                 variant="primary"
                 size="sm"
@@ -300,12 +351,16 @@ export const CardDetailsModal = ({
 
             {/* Lista de compras */}
             <div className="space-y-2 max-h-96 overflow-y-auto">
-              {activePurchases.length === 0 ? (
+              {nonRecurringPurchases.length === 0 && recurringPurchases.length === 0 ? (
                 <div className="p-8 text-center bg-neutral-50 rounded-lg border border-border">
                   <p className="text-body-sm text-neutral-500">Nenhuma compra registrada</p>
                 </div>
+              ) : nonRecurringPurchases.length === 0 ? (
+                <div className="p-8 text-center bg-neutral-50 rounded-lg border border-border">
+                  <p className="text-body-sm text-neutral-500">Nenhuma outra compra registrada</p>
+                </div>
               ) : (
-                activePurchases.map((purchase: CardPurchase) => (
+                nonRecurringPurchases.map((purchase: CardPurchase) => (
                   <PurchaseItem
                     key={purchase.id}
                     purchase={purchase}
