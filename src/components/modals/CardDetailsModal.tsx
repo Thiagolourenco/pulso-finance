@@ -36,7 +36,7 @@ export const CardDetailsModal = ({
   const activePurchases = purchases.filter(p => p.current_installment < p.installments)
   // Filtra compras recorrentes (trata null/undefined como false)
   const recurringPurchases = activePurchases.filter(p => p.is_recurring === true)
-  const nonRecurringPurchases = activePurchases.filter(p => !p.is_recurring || p.is_recurring === false)
+  const nonRecurringPurchases = activePurchases.filter(p => !p.is_recurring)
 
   // Debug: log para verificar as compras recorrentes
   console.log('🔍 Debug Compras:', {
