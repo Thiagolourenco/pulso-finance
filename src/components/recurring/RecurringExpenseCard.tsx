@@ -1,12 +1,14 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { RecurringExpense, Category } from '@/types'
 
 interface RecurringExpenseCardProps {
-  expense: RecurringExpense
+  expense: RecurringExpense & { is_paid_current_month?: boolean }
   category?: Category
   onEdit?: (expense: RecurringExpense) => void
   onDelete?: (id: string) => void
   onToggleActive?: (id: string, isActive: boolean) => void
+  onUpdate?: (id: string, data: { is_paid_current_month?: boolean }, callbacks?: { onSuccess?: () => void; onError?: (error: Error) => void }) => void
+  onToast?: (message: string, type: 'success' | 'error') => void
 }
 
 export const RecurringExpenseCard = ({
@@ -14,8 +16,17 @@ export const RecurringExpenseCard = ({
   category,
   onEdit,
   onDelete,
+  onUpdate,
+  onToast,
 }: RecurringExpenseCardProps) => {
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isPaidCurrentMonth, setIsPaidCurrentMonth] = useState(expense.is_paid_current_month || false)
+  const [isUpdatingPaid, setIsUpdatingPaid] = useState(false)
+
+  // Sincroniza o valor local quando a despesa é atualizada
+  useEffect(() => {
+    setIsPaidCurrentMonth(expense.is_paid_current_month || false)
+  }, [expense.is_paid_current_month])
 
   const handleDelete = async () => {
     if (!onDelete) return
@@ -46,6 +57,55 @@ export const RecurringExpenseCard = ({
 
   const nextDueDate = getNextDueDate()
   const daysUntilDue = Math.ceil((nextDueDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+  
+  // Verifica se está atrasada baseado apenas no dia (ignorando mês/ano)
+  const today = new Date()
+  const currentMonth = today.getMonth() + 1
+  const currentYear = today.getFullYear()
+  const todayDay = today.getDate()
+  
+  // Cria data normalizada para comparar apenas o dia
+  const normalizedDueDate = new Date(currentYear, currentMonth - 1, expense.due_day)
+  const normalizedToday = new Date(currentYear, currentMonth - 1, todayDay)
+  
+  const isOverdue = !isPaidCurrentMonth && normalizedDueDate < normalizedToday
+  
+  // Determina qual badge mostrar
+  let badgeText = ''
+  let badgeColor = ''
+  
+  if (isPaidCurrentMonth) {
+    badgeText = 'PAGA'
+    badgeColor = 'bg-success-100 text-success-700 border-success-300'
+  } else if (isOverdue) {
+    badgeText = 'ATRASADA'
+    badgeColor = 'bg-danger-100 text-danger-700 border-danger-300'
+  } else {
+    badgeText = 'A PAGAR'
+    badgeColor = 'bg-warning-100 text-warning-700 border-warning-300'
+  }
+  
+  const handleTogglePaid = (checked: boolean) => {
+    if (!onUpdate) return
+    
+    setIsPaidCurrentMonth(checked)
+    setIsUpdatingPaid(true)
+    onUpdate(
+      expense.id,
+      { is_paid_current_month: checked },
+      {
+        onSuccess: () => {
+          setIsUpdatingPaid(false)
+          onToast?.(checked ? 'Despesa marcada como paga' : 'Despesa desmarcada como paga', 'success')
+        },
+        onError: (error: Error) => {
+          setIsUpdatingPaid(false)
+          setIsPaidCurrentMonth(!checked) // Reverte o estado
+          onToast?.(error.message || 'Erro ao atualizar despesa', 'error')
+        },
+      }
+    )
+  }
 
   return (
     <div className={`p-5 bg-white rounded-card-lg border-2 ${expense.is_active ? 'border-border hover:border-primary-400 hover:shadow-lg' : 'border-neutral-200 opacity-60'} transition-all duration-fast relative`}>
@@ -119,7 +179,7 @@ export const RecurringExpenseCard = ({
       </div>
 
       {/* Informações de vencimento */}
-      <div className="grid grid-cols-2 gap-4 p-3 bg-neutral-50 rounded-lg">
+      <div className="grid grid-cols-2 gap-4 p-3 bg-neutral-50 rounded-lg mb-3">
         <div>
           <p className="text-caption text-neutral-500 mb-1">Vence dia</p>
           <p className="text-body font-semibold text-neutral-900">
@@ -138,6 +198,27 @@ export const RecurringExpenseCard = ({
           )}
         </div>
       </div>
+      
+      {/* Badge e Checkbox para marcar como paga */}
+      {expense.is_active && onUpdate && (
+        <div className="flex items-center justify-between pt-2 border-t border-border">
+          <span className={`px-2 py-1 text-caption font-semibold rounded-full border ${badgeColor}`}>
+            {badgeText}
+          </span>
+          <label className="flex items-center gap-1.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isPaidCurrentMonth}
+              onChange={(e) => handleTogglePaid(e.target.checked)}
+              disabled={isUpdatingPaid}
+              className="w-4 h-4 text-success-600 border-border rounded focus:ring-success-500 focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+            <span className="text-caption text-neutral-600">
+              Paga
+            </span>
+          </label>
+        </div>
+      )}
     </div>
   )
 }

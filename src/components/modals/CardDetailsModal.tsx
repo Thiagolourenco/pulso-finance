@@ -31,7 +31,12 @@ export const CardDetailsModal = ({
 
   const queryClient = useQueryClient()
   const { purchases, updatePurchase } = useCardPurchases(card.id)
-  const { openInvoice } = useCardInvoices(card.id)
+  const { openInvoice, updateInvoice, isUpdating: isUpdatingInvoice } = useCardInvoices(card.id)
+
+  // Obtém mês e ano atual
+  const currentDate = new Date()
+  const currentMonth = currentDate.getMonth() + 1
+  const currentYear = currentDate.getFullYear()
 
   const activePurchases = purchases.filter(p => p.current_installment < p.installments)
   // Filtra compras recorrentes (trata null/undefined como false)
@@ -88,17 +93,35 @@ export const CardDetailsModal = ({
           .eq('id', invoiceId)
       } else {
         const purchaseDateObj = new Date(purchaseDate)
-        const currentMonth = purchaseDateObj.getMonth()
-        const currentYear = purchaseDateObj.getFullYear()
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
         
-        const closingDate = new Date(currentYear, currentMonth, card.closing_day)
-        const invoiceMonth = purchaseDateObj.getDate() <= card.closing_day 
-          ? new Date(currentYear, currentMonth, 1)
-          : new Date(currentYear, currentMonth + 1, 1)
+        // Se a data da compra for no passado, usa a data atual para calcular as datas da fatura
+        const referenceDate = purchaseDateObj < today ? today : purchaseDateObj
+        const referenceMonth = referenceDate.getMonth()
+        const referenceYear = referenceDate.getFullYear()
         
-        const dueDate = new Date(currentYear, currentMonth, card.due_day)
+        // Calcula a data de fechamento baseada na data de referência
+        const closingDate = new Date(referenceYear, referenceMonth, card.closing_day)
+        
+        // Se já passou o dia de fechamento no mês de referência, a fatura é do próximo mês
+        const invoiceMonth = referenceDate.getDate() <= card.closing_day 
+          ? new Date(referenceYear, referenceMonth, 1)
+          : new Date(referenceYear, referenceMonth + 1, 1)
+        
+        // Calcula a data de vencimento
+        const dueDate = new Date(referenceYear, referenceMonth, card.due_day)
         if (dueDate < closingDate) {
           dueDate.setMonth(dueDate.getMonth() + 1)
+        }
+        
+        // Se a data de vencimento calculada já passou, ajusta para o próximo ciclo
+        if (dueDate < today) {
+          dueDate.setMonth(dueDate.getMonth() + 1)
+          // Ajusta o mês de referência também se necessário
+          if (invoiceMonth.getMonth() === referenceMonth && invoiceMonth.getFullYear() === referenceYear) {
+            invoiceMonth.setMonth(invoiceMonth.getMonth() + 1)
+          }
         }
 
         const { data: newInvoice, error: invoiceError } = await supabase
@@ -224,6 +247,54 @@ export const CardDetailsModal = ({
                   </p>
                 </div>
               </div>
+              {/* Checkbox para marcar como paga - só mostra se vence no mês atual */}
+              {(() => {
+                const invoiceDueDate = new Date(openInvoice.due_date)
+                const invoiceMonth = invoiceDueDate.getMonth() + 1
+                const invoiceYear = invoiceDueDate.getFullYear()
+                const isCurrentMonth = invoiceMonth === currentMonth && invoiceYear === currentYear
+                
+                return isCurrentMonth ? (
+                  <div className="mt-3 pt-3 border-t border-border">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={openInvoice.status === 'paid'}
+                        onChange={(e) => {
+                          updateInvoice(
+                            { 
+                              id: openInvoice.id, 
+                              data: { status: e.target.checked ? 'paid' : 'open' } 
+                            },
+                            {
+                              onSuccess: () => {
+                                queryClient.invalidateQueries({ queryKey: ['card_invoices'] })
+                                setToast({ 
+                                  message: e.target.checked 
+                                    ? 'Fatura marcada como paga' 
+                                    : 'Fatura reaberta', 
+                                  type: 'success' 
+                                })
+                              },
+                              onError: (error: Error) => {
+                                setToast({ 
+                                  message: error.message || 'Erro ao atualizar fatura', 
+                                  type: 'error' 
+                                })
+                              },
+                            }
+                          )
+                        }}
+                        disabled={isUpdatingInvoice}
+                        className="w-4 h-4 text-success-600 border-border rounded focus:ring-success-500 focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      />
+                      <span className="text-body-sm text-neutral-700 font-medium">
+                        Fatura paga
+                      </span>
+                    </label>
+                  </div>
+                ) : null
+              })()}
             </div>
           ) : (
             <div className="p-4 bg-neutral-50 rounded-lg border border-border text-center">

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { FinancialCard, Button, Modal, Toast } from '@/components/ui'
 import { AddTransactionForm } from '@/components/forms/AddTransactionForm'
 import { AddAccountForm } from '@/components/forms/AddAccountForm'
@@ -14,6 +14,7 @@ import { GoalCard } from '@/components/goals/GoalCard'
 import { RecurringExpenseCard } from '@/components/recurring/RecurringExpenseCard'
 import { InsightsCard } from '@/components/insights/InsightsCard'
 import { useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { useTransactions } from '@/hooks/useTransactions'
 import { useAccounts } from '@/hooks/useAccounts'
 import { useCards } from '@/hooks/useCards'
@@ -30,6 +31,7 @@ type TransactionType = 'expense' | 'income' | 'balance'
 
 export const Dashboard = () => {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [modalType, setModalType] = useState<ModalType>(null)
   const [transactionType, setTransactionType] = useState<TransactionType>('expense')
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
@@ -38,8 +40,64 @@ export const Dashboard = () => {
   const { accounts, createAccount, isCreating: isCreatingAccount } = useAccounts()
   const { cards, createCard, isCreating: isCreatingCard } = useCards()
   const { purchases, createPurchase, isCreating: isCreatingPurchase } = useCardPurchases()
-  const { invoices } = useCardInvoices()
+  const { invoices, updateInvoice, isUpdating: isUpdatingInvoice } = useCardInvoices()
   const { categories, createCategory, isCreating: isCreatingCategory } = useCategories()
+  
+  // Notificações de faturas vencidas ou no dia do vencimento
+  useEffect(() => {
+    const checkInvoiceNotifications = () => {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      
+      // Faturas atrasadas
+      const overdueInvoices = invoices.filter(invoice => {
+        if (invoice.status !== 'open' || invoice.status === 'paid') return false
+        
+        const dueDate = new Date(invoice.due_date)
+        dueDate.setHours(0, 0, 0, 0)
+        
+        return dueDate < today && invoice.total_amount > 0
+      })
+      
+      // Faturas que vencem hoje
+      const dueTodayInvoices = invoices.filter(invoice => {
+        if (invoice.status !== 'open' || invoice.status === 'paid') return false
+        
+        const dueDate = new Date(invoice.due_date)
+        dueDate.setHours(0, 0, 0, 0)
+        
+        return dueDate.getTime() === today.getTime() && invoice.total_amount > 0
+      })
+      
+      if (overdueInvoices.length > 0) {
+        const cardNames = overdueInvoices.map(inv => {
+          const card = cards.find(c => c.id === inv.card_id)
+          return card?.name || 'Cartão'
+        }).join(', ')
+        
+        setToast({
+          message: `⚠️ Você tem ${overdueInvoices.length} fatura(s) atrasada(s): ${cardNames}`,
+          type: 'error'
+        })
+      } else if (dueTodayInvoices.length > 0) {
+        const cardNames = dueTodayInvoices.map(inv => {
+          const card = cards.find(c => c.id === inv.card_id)
+          return card?.name || 'Cartão'
+        }).join(', ')
+        
+        setToast({
+          message: `📅 Fatura(s) vence(m) hoje: ${cardNames}. Não esqueça de pagar!`,
+          type: 'info'
+        })
+      }
+    }
+    
+    // Verifica ao carregar e a cada hora
+    checkInvoiceNotifications()
+    const interval = setInterval(checkInvoiceNotifications, 3600000) // A cada 1 hora
+    
+    return () => clearInterval(interval)
+  }, [invoices, cards])
   const { goals, createGoal, isCreating: isCreatingGoal } = useGoals()
   const { expenses: recurringExpenses, createExpense, updateExpense, deleteExpense, isCreating: isCreatingRecurringExpense, isUpdating: isUpdatingRecurringExpense } = useRecurringExpenses()
 
@@ -96,31 +154,40 @@ export const Dashboard = () => {
     })
     .reduce((sum, transaction) => sum + Math.abs(Number(transaction.amount) || 0), 0)
 
-  // Inclui faturas de cartão abertas que vencem no mês atual (ou já venceram mas ainda não foram pagas) como despesas
+  // Inclui faturas de cartão que vencem no mês atual (mesmo que pagas) como despesas
   const currentMonthInvoices = invoices.filter(invoice => {
-    // Apenas faturas abertas (não pagas)
-    if (invoice.status !== 'open') return false
-    
     const invoiceDueDate = new Date(invoice.due_date)
     invoiceDueDate.setHours(0, 0, 0, 0)
     const invoiceMonth = invoiceDueDate.getMonth() + 1
     const invoiceYear = invoiceDueDate.getFullYear()
     
-    // Inclui faturas que vencem no mês atual
-    // E também faturas que já venceram mas ainda estão abertas (não foram pagas)
+    // Inclui todas as faturas (abertas e pagas) que vencem no mês atual
+    const isCurrentMonth = invoiceMonth === currentMonth && invoiceYear === currentYear
+    
+    // Também inclui faturas vencidas que ainda estão abertas
     const today = new Date()
     today.setHours(0, 0, 0, 0)
-    
-    const isCurrentMonth = invoiceMonth === currentMonth && invoiceYear === currentYear
     const isOverdue = invoiceDueDate <= today && invoice.status === 'open'
     
-    // Retorna faturas do mês atual OU faturas vencidas (mas ainda abertas) que pertencem ao período atual
     return isCurrentMonth || (isOverdue && invoice.total_amount > 0)
   })
   const currentMonthInvoiceTotal = currentMonthInvoices.reduce((sum, invoice) => sum + (invoice.total_amount || 0), 0)
 
-  // Despesas do mês = transações + faturas que vencem no mês atual
-  const monthlyExpenses = transactionExpenses + currentMonthInvoiceTotal
+  // Calcula despesas recorrentes ativas que vencem no mês atual (mesmo que pagas)
+  const currentMonthRecurringExpenses = recurringExpenses
+    .filter(expense => {
+      if (!expense.is_active) return false
+      
+      // Calcula a data de vencimento no mês atual baseado no dia de vencimento
+      const dueDate = new Date(currentYear, currentMonth - 1, expense.due_day)
+      
+      // Verifica se o vencimento é no mês atual (independente de já ter passado ou não)
+      return dueDate.getMonth() + 1 === currentMonth && dueDate.getFullYear() === currentYear
+    })
+    .reduce((sum, expense) => sum + (expense.amount || 0), 0)
+
+  // Despesas do mês = transações + faturas + despesas recorrentes que vencem no mês atual
+  const monthlyExpenses = transactionExpenses + currentMonthInvoiceTotal + currentMonthRecurringExpenses
 
   // Calcula despesas do mês anterior (transações do tipo 'expense')
   const previousMonthTransactionExpenses = transactions
@@ -134,9 +201,8 @@ export const Dashboard = () => {
     })
     .reduce((sum, transaction) => sum + Math.abs(Number(transaction.amount) || 0), 0)
 
-  // Inclui faturas de cartão que venceram no mês anterior
+  // Inclui faturas de cartão que venceram no mês anterior (mesmo que pagas)
   const previousMonthInvoices = invoices.filter(invoice => {
-    if (invoice.status !== 'open' && invoice.status !== 'paid') return false
     const invoiceDueDate = new Date(invoice.due_date)
     const invoiceMonth = invoiceDueDate.getMonth() + 1
     const invoiceYear = invoiceDueDate.getFullYear()
@@ -144,8 +210,21 @@ export const Dashboard = () => {
   })
   const previousMonthInvoiceTotal = previousMonthInvoices.reduce((sum, invoice) => sum + (invoice.total_amount || 0), 0)
 
-  // Despesas do mês anterior = transações + faturas que venceram no mês anterior
-  const previousMonthExpenses = previousMonthTransactionExpenses + previousMonthInvoiceTotal
+  // Calcula despesas recorrentes ativas que venceram no mês anterior (mesmo que pagas)
+  const previousMonthRecurringExpenses = recurringExpenses
+    .filter(expense => {
+      if (!expense.is_active) return false
+      
+      // Calcula o vencimento do mês anterior baseado no dia de vencimento
+      const prevMonthDate = new Date(previousYear, previousMonth - 1, expense.due_day)
+      
+      // Verifica se o vencimento foi no mês anterior
+      return prevMonthDate.getMonth() + 1 === previousMonth && prevMonthDate.getFullYear() === previousYear
+    })
+    .reduce((sum, expense) => sum + (expense.amount || 0), 0)
+
+  // Despesas do mês anterior = transações + faturas + despesas recorrentes que venceram no mês anterior
+  const previousMonthExpenses = previousMonthTransactionExpenses + previousMonthInvoiceTotal + previousMonthRecurringExpenses
 
   // Calcula o total de investimentos
   const investmentAccounts = accounts.filter(account => account.type === 'investment')
@@ -402,19 +481,35 @@ export const Dashboard = () => {
 
         // Calcula datas da fatura baseado no dia de fechamento
         const purchaseDate = new Date(data.purchase_date)
-        const currentMonth = purchaseDate.getMonth()
-        const currentYear = purchaseDate.getFullYear()
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
         
-        // Se a compra foi feita antes do dia de fechamento, vai para o mês atual
-        // Se foi depois, vai para o próximo mês
-        const closingDate = new Date(currentYear, currentMonth, card.closing_day)
-        const invoiceMonth = purchaseDate.getDate() <= card.closing_day 
-          ? new Date(currentYear, currentMonth, 1)
-          : new Date(currentYear, currentMonth + 1, 1)
+        // Se a data da compra for no passado, usa a data atual para calcular as datas da fatura
+        const referenceDate = purchaseDate < today ? today : purchaseDate
+        const referenceMonth = referenceDate.getMonth()
+        const referenceYear = referenceDate.getFullYear()
         
-        const dueDate = new Date(currentYear, currentMonth, card.due_day)
+        // Calcula a data de fechamento baseada na data de referência
+        const closingDate = new Date(referenceYear, referenceMonth, card.closing_day)
+        
+        // Se já passou o dia de fechamento no mês de referência, a fatura é do próximo mês
+        const invoiceMonth = referenceDate.getDate() <= card.closing_day 
+          ? new Date(referenceYear, referenceMonth, 1)
+          : new Date(referenceYear, referenceMonth + 1, 1)
+        
+        // Calcula a data de vencimento
+        const dueDate = new Date(referenceYear, referenceMonth, card.due_day)
         if (dueDate < closingDate) {
           dueDate.setMonth(dueDate.getMonth() + 1)
+        }
+        
+        // Se a data de vencimento calculada já passou, ajusta para o próximo ciclo
+        if (dueDate < today) {
+          dueDate.setMonth(dueDate.getMonth() + 1)
+          // Ajusta o mês de referência também se necessário
+          if (invoiceMonth.getMonth() === referenceMonth && invoiceMonth.getFullYear() === referenceYear) {
+            invoiceMonth.setMonth(invoiceMonth.getMonth() + 1)
+          }
         }
 
         const { data: newInvoice, error: invoiceError } = await supabase
@@ -1267,6 +1362,18 @@ export const Dashboard = () => {
                       },
                     })
                   }}
+                  onUpdate={(id, data, callbacks) => {
+                    updateExpense({ id, data }, {
+                      onSuccess: () => {
+                        queryClient.invalidateQueries({ queryKey: ['recurring_expenses'] })
+                        callbacks?.onSuccess?.()
+                      },
+                      onError: (error: Error) => {
+                        callbacks?.onError?.(error)
+                      },
+                    })
+                  }}
+                  onToast={(message, type) => setToast({ message, type })}
                 />
               )
             })}
@@ -1313,10 +1420,18 @@ export const Dashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {cards.map((card) => {
               const cardInvoices = invoices.filter(inv => inv.card_id === card.id)
+              // Busca a última fatura (aberta ou paga) - prioriza aberta, mas mostra paga também
               const openInvoice = cardInvoices.find(inv => inv.status === 'open')
+              const paidInvoice = cardInvoices.find(inv => inv.status === 'paid')
+              // Usa a fatura aberta se existir, senão usa a paga
+              const currentInvoice = openInvoice || paidInvoice
+              // Busca a última fatura para mostrar informações quando não há fatura atual
+              const lastInvoice = cardInvoices.sort((a, b) => 
+                new Date(b.due_date).getTime() - new Date(a.due_date).getTime()
+              )[0]
               const cardPurchases = purchases.filter(p => p.card_id === card.id)
               const activePurchases = cardPurchases.filter(p => p.current_installment < p.installments)
-              const invoiceTotal = openInvoice?.total_amount || 0
+              const invoiceTotal = currentInvoice?.total_amount || 0
               const availableLimit = card.credit_limit - invoiceTotal
 
               return (
@@ -1330,6 +1445,48 @@ export const Dashboard = () => {
                       <span className="text-2xl">💳</span>
                       <h3 className="text-body font-semibold text-neutral-900">{card.name}</h3>
                     </div>
+                    {currentInvoice && (() => {
+                      const invoiceDueDate = new Date(currentInvoice.due_date)
+                      const invoiceMonth = invoiceDueDate.getMonth() + 1
+                      const invoiceDay = invoiceDueDate.getDate()
+                      
+                      const today = new Date()
+                      const todayDay = today.getDate()
+                      
+                      const isPaid = currentInvoice.status === 'paid'
+                      
+                      // Verifica se está atrasada baseado apenas em mês e dia (ignorando o ano)
+                      let isOverdue = false
+                      if (!isPaid) {
+                        const normalizedInvoiceDate = new Date(currentYear, invoiceMonth - 1, invoiceDay)
+                        const normalizedToday = new Date(currentYear, currentMonth - 1, todayDay)
+                        
+                        if (normalizedInvoiceDate < normalizedToday) {
+                          isOverdue = true
+                        }
+                      }
+                      
+                      // Determina qual badge mostrar
+                      let badgeText = ''
+                      let badgeColor = ''
+                      
+                      if (isPaid) {
+                        badgeText = 'PAGA'
+                        badgeColor = 'bg-success-100 text-success-700 border-success-300'
+                      } else if (isOverdue) {
+                        badgeText = 'ATRASADA'
+                        badgeColor = 'bg-danger-100 text-danger-700 border-danger-300'
+                      } else {
+                        badgeText = 'A PAGAR'
+                        badgeColor = 'bg-warning-100 text-warning-700 border-warning-300'
+                      }
+                      
+                      return (
+                        <span className={`px-2 py-1 text-caption font-semibold rounded-full border ${badgeColor}`}>
+                          {badgeText}
+                        </span>
+                      )
+                    })()}
                   </div>
                   
                   <div className="space-y-2">
@@ -1340,28 +1497,119 @@ export const Dashboard = () => {
                       </span>
                     </div>
                     
-                    {openInvoice ? (
-                      <>
-                        <div className="flex justify-between text-body-sm">
-                          <span className="text-neutral-600">Fatura atual:</span>
-                          <span className="font-bold text-danger-600">
-                            R$ {invoiceTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                          </span>
+                    {currentInvoice ? (() => {
+                      const invoiceDueDate = new Date(currentInvoice.due_date)
+                      const invoiceMonth = invoiceDueDate.getMonth() + 1
+                      const invoiceDay = invoiceDueDate.getDate()
+                      
+                      const today = new Date()
+                      const todayDay = today.getDate()
+                      
+                      const isPaid = currentInvoice.status === 'paid'
+                      
+                      // Verifica se está atrasada baseado apenas em mês e dia (ignorando o ano)
+                      // Cria datas normalizadas com o ano atual para comparar apenas mês e dia
+                      let isOverdue = false
+                      if (!isPaid) {
+                        const normalizedInvoiceDate = new Date(currentYear, invoiceMonth - 1, invoiceDay)
+                        const normalizedToday = new Date(currentYear, currentMonth - 1, todayDay)
+                        
+                        // Se a data normalizada da fatura já passou, está atrasada
+                        if (normalizedInvoiceDate < normalizedToday) {
+                          isOverdue = true
+                        }
+                      }
+                      
+                      // Determina qual badge mostrar
+                      let badgeText = ''
+                      let badgeColor = ''
+                      
+                      if (isPaid) {
+                        badgeText = 'PAGA'
+                        badgeColor = 'bg-success-100 text-success-700 border-success-300'
+                      } else if (isOverdue) {
+                        badgeText = 'ATRASADA'
+                        badgeColor = 'bg-danger-100 text-danger-700 border-danger-300'
+                      } else {
+                        badgeText = 'A PAGAR'
+                        badgeColor = 'bg-warning-100 text-warning-700 border-warning-300'
+                      }
+                      
+                      return (
+                        <>
+                          <div className="flex justify-between text-body-sm">
+                            <span className="text-neutral-600">Fatura atual:</span>
+                            <span className="font-bold text-danger-600">
+                              R$ {invoiceTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-body-sm">
+                            <span className="text-neutral-600">Disponível:</span>
+                            <span className="font-medium text-success-600">
+                              R$ {availableLimit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-caption text-neutral-500 mt-2 pt-2 border-t border-border">
+                            <div className="flex items-center gap-2">
+                              <span>Vence: {new Date(currentInvoice.due_date).toLocaleDateString('pt-BR')}</span>
+                              <span>•</span>
+                              <span>{activePurchases.length} compra(s)</span>
+                            </div>
+                            <label 
+                              className="flex items-center gap-1.5 cursor-pointer"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isPaid}
+                                onChange={(e) => {
+                                  e.stopPropagation()
+                                  updateInvoice(
+                                    { 
+                                      id: currentInvoice.id, 
+                                      data: { status: e.target.checked ? 'paid' : 'open' } 
+                                    },
+                                    {
+                                      onSuccess: () => {
+                                        // Invalida queries para atualizar a UI imediatamente
+                                        queryClient.invalidateQueries({ queryKey: ['card_invoices'] })
+                                        setToast({ 
+                                          message: e.target.checked 
+                                            ? 'Fatura marcada como paga' 
+                                            : 'Fatura reaberta', 
+                                          type: 'success' 
+                                        })
+                                      },
+                                      onError: (error: Error) => {
+                                        setToast({ 
+                                          message: error.message || 'Erro ao atualizar fatura', 
+                                          type: 'error' 
+                                        })
+                                      },
+                                    }
+                                  )
+                                }}
+                                disabled={isUpdatingInvoice}
+                                className="w-4 h-4 text-success-600 border-border rounded focus:ring-success-500 focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                              />
+                              <span className="text-caption text-neutral-600">
+                                Paga
+                              </span>
+                            </label>
+                          </div>
+                        </>
+                      )
+                    })() : (
+                      <div className="space-y-2">
+                        <div className="text-caption text-neutral-500">
+                          Nenhuma fatura aberta
                         </div>
-                        <div className="flex justify-between text-body-sm">
-                          <span className="text-neutral-600">Disponível:</span>
-                          <span className="font-medium text-success-600">
-                            R$ {availableLimit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                          </span>
-                        </div>
-                        <div className="flex justify-between text-caption text-neutral-500 mt-2 pt-2 border-t border-border">
-                          <span>Vence: {new Date(openInvoice.due_date).toLocaleDateString('pt-BR')}</span>
-                          <span>{activePurchases.length} compra(s)</span>
-                        </div>
-                      </>
-                    ) : (
-                      <div className="text-caption text-neutral-500">
-                        Nenhuma fatura aberta
+                        {lastInvoice && (
+                          <div className="text-caption text-neutral-400 pt-2 border-t border-border">
+                            Última fatura: {lastInvoice.status === 'paid' ? 'Paga' : lastInvoice.status === 'closed' ? 'Fechada' : 'Aberta'} 
+                            {lastInvoice.due_date && ` • Venceu em ${new Date(lastInvoice.due_date).toLocaleDateString('pt-BR')}`}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

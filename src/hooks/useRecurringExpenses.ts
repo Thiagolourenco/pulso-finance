@@ -38,18 +38,51 @@ export const useRecurringExpenses = () => {
     },
   })
 
+  // Wrapper para updateExpense que aceita callbacks
+  const updateExpense = (
+    { id, data }: { id: string; data: Parameters<typeof recurringExpenseService.update>[1] },
+    callbacks?: { onSuccess?: () => void; onError?: (error: Error) => void }
+  ) => {
+    updateMutation.mutate({ id, data }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['recurring_expenses'] })
+        callbacks?.onSuccess?.()
+      },
+      onError: (error: Error) => {
+        callbacks?.onError?.(error)
+      },
+    })
+  }
+
+  // Wrapper para deleteExpense que aceita callbacks
+  const deleteExpense = (
+    id: string,
+    callbacks?: { onSuccess?: () => void; onError?: (error: Error) => void }
+  ) => {
+    deleteMutation.mutate(id, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['recurring_expenses'] })
+        callbacks?.onSuccess?.()
+      },
+      onError: (error: Error) => {
+        callbacks?.onError?.(error)
+      },
+    })
+  }
+
   return {
     expenses: expenses || [],
     isLoading,
     error,
     createExpense: createMutation.mutate,
-    updateExpense: updateMutation.mutate,
-    deleteExpense: deleteMutation.mutate,
+    updateExpense,
+    deleteExpense,
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
     isDeleting: deleteMutation.isPending,
   }
 }
+
 
 
 

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import type { CardPurchase } from '@/types'
 
 interface PurchaseItemProps {
-  purchase: CardPurchase
+  purchase: CardPurchase & { is_paid_current_month?: boolean }
   onUpdate: (id: string, data: { current_installment?: number; is_recurring?: boolean }, callbacks?: { onSuccess?: () => void; onError?: (error: Error) => void }) => void
   onToast: (message: string, type: 'success' | 'error') => void
 }
@@ -89,18 +89,20 @@ export const PurchaseItem = ({ purchase, onUpdate, onToast }: PurchaseItemProps)
               {purchase.current_installment}/{purchase.installments}x • 
               Comprado em {new Date(purchase.purchase_date).toLocaleDateString('pt-BR')}
             </p>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isRecurring}
-                onChange={(e) => handleToggleRecurring(e.target.checked)}
-                disabled={isUpdatingRecurring}
-                className="w-4 h-4 text-primary-600 border-border rounded focus:ring-primary-500 focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              />
-              <span className="text-caption text-neutral-600">
-                Recorrente
-              </span>
-            </label>
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isRecurring}
+                  onChange={(e) => handleToggleRecurring(e.target.checked)}
+                  disabled={isUpdatingRecurring}
+                  className="w-4 h-4 text-primary-600 border-border rounded focus:ring-primary-500 focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+                <span className="text-caption text-neutral-600">
+                  Recorrente
+                </span>
+              </label>
+            </div>
           </div>
           <div className="mt-2 flex items-center gap-2">
             <div className="flex-1 bg-neutral-100 rounded-full h-2 overflow-hidden">

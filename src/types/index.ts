@@ -187,6 +187,7 @@ export interface Database {
           purchase_date: string
           category_id: string | null
           is_recurring: boolean
+          is_paid_current_month?: boolean
           created_at: string
           updated_at: string
         }
@@ -202,6 +203,7 @@ export interface Database {
           purchase_date: string
           category_id?: string | null
           is_recurring?: boolean
+          is_paid_current_month?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -217,6 +219,7 @@ export interface Database {
           purchase_date?: string
           category_id?: string | null
           is_recurring?: boolean
+          is_paid_current_month?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -269,6 +272,7 @@ export interface Database {
           category_id: string | null
           account_id: string | null
           is_active: boolean
+          is_paid_current_month?: boolean
           description: string | null
           created_at: string
           updated_at: string
@@ -282,6 +286,7 @@ export interface Database {
           category_id?: string | null
           account_id?: string | null
           is_active?: boolean
+          is_paid_current_month?: boolean
           description?: string | null
           created_at?: string
           updated_at?: string
@@ -295,6 +300,7 @@ export interface Database {
           category_id?: string | null
           account_id?: string | null
           is_active?: boolean
+          is_paid_current_month?: boolean
           description?: string | null
           created_at?: string
           updated_at?: string
