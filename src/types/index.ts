@@ -273,6 +273,7 @@ export interface Database {
           account_id: string | null
           is_active: boolean
           is_paid_current_month?: boolean
+          transaction_id?: string | null
           description: string | null
           created_at: string
           updated_at: string
@@ -287,6 +288,7 @@ export interface Database {
           account_id?: string | null
           is_active?: boolean
           is_paid_current_month?: boolean
+          transaction_id?: string | null
           description?: string | null
           created_at?: string
           updated_at?: string
@@ -301,6 +303,7 @@ export interface Database {
           account_id?: string | null
           is_active?: boolean
           is_paid_current_month?: boolean
+          transaction_id?: string | null
           description?: string | null
           created_at?: string
           updated_at?: string

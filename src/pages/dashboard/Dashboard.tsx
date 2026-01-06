@@ -51,7 +51,7 @@ export const Dashboard = () => {
       
       // Faturas atrasadas
       const overdueInvoices = invoices.filter(invoice => {
-        if (invoice.status !== 'open' || invoice.status === 'paid') return false
+        if (invoice.status !== 'open') return false
         
         const dueDate = new Date(invoice.due_date)
         dueDate.setHours(0, 0, 0, 0)
@@ -61,7 +61,7 @@ export const Dashboard = () => {
       
       // Faturas que vencem hoje
       const dueTodayInvoices = invoices.filter(invoice => {
-        if (invoice.status !== 'open' || invoice.status === 'paid') return false
+        if (invoice.status !== 'open') return false
         
         const dueDate = new Date(invoice.due_date)
         dueDate.setHours(0, 0, 0, 0)
@@ -1498,42 +1498,7 @@ export const Dashboard = () => {
                     </div>
                     
                     {currentInvoice ? (() => {
-                      const invoiceDueDate = new Date(currentInvoice.due_date)
-                      const invoiceMonth = invoiceDueDate.getMonth() + 1
-                      const invoiceDay = invoiceDueDate.getDate()
-                      
-                      const today = new Date()
-                      const todayDay = today.getDate()
-                      
                       const isPaid = currentInvoice.status === 'paid'
-                      
-                      // Verifica se está atrasada baseado apenas em mês e dia (ignorando o ano)
-                      // Cria datas normalizadas com o ano atual para comparar apenas mês e dia
-                      let isOverdue = false
-                      if (!isPaid) {
-                        const normalizedInvoiceDate = new Date(currentYear, invoiceMonth - 1, invoiceDay)
-                        const normalizedToday = new Date(currentYear, currentMonth - 1, todayDay)
-                        
-                        // Se a data normalizada da fatura já passou, está atrasada
-                        if (normalizedInvoiceDate < normalizedToday) {
-                          isOverdue = true
-                        }
-                      }
-                      
-                      // Determina qual badge mostrar
-                      let badgeText = ''
-                      let badgeColor = ''
-                      
-                      if (isPaid) {
-                        badgeText = 'PAGA'
-                        badgeColor = 'bg-success-100 text-success-700 border-success-300'
-                      } else if (isOverdue) {
-                        badgeText = 'ATRASADA'
-                        badgeColor = 'bg-danger-100 text-danger-700 border-danger-300'
-                      } else {
-                        badgeText = 'A PAGAR'
-                        badgeColor = 'bg-warning-100 text-warning-700 border-warning-300'
-                      }
                       
                       return (
                         <>

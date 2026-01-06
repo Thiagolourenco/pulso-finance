@@ -21,6 +21,16 @@ export const Transactions = () => {
   const [filterAccount, setFilterAccount] = useState<string>('all')
   const [searchTerm, setSearchTerm] = useState('')
   const [showFilters, setShowFilters] = useState(false)
+  
+  // Filtros de data
+  const currentDate = new Date()
+  const [filterYear, setFilterYear] = useState<number>(currentDate.getFullYear())
+  const [filterMonth, setFilterMonth] = useState<number>(currentDate.getMonth() + 1)
+  const [filterByDate, setFilterByDate] = useState<boolean>(false)
+  
+  // Filtros de valor
+  const [minValue, setMinValue] = useState<string>('')
+  const [maxValue, setMaxValue] = useState<string>('')
 
   // Filtra transações
   const filteredTransactions = useMemo(() => {
@@ -37,9 +47,32 @@ export const Transactions = () => {
       // Busca por descrição
       if (searchTerm && !transaction.description.toLowerCase().includes(searchTerm.toLowerCase())) return false
 
+      // Filtro por mês/ano
+      if (filterByDate) {
+        const transactionDate = new Date(transaction.date)
+        const transactionMonth = transactionDate.getMonth() + 1
+        const transactionYear = transactionDate.getFullYear()
+        
+        if (transactionMonth !== filterMonth || transactionYear !== filterYear) return false
+      }
+
+      // Filtro por valor mínimo
+      if (minValue) {
+        const min = parseFloat(minValue.replace(/[^\d,-]/g, '').replace(',', '.')) || 0
+        const transactionAmount = Math.abs(Number(transaction.amount) || 0)
+        if (transactionAmount < min) return false
+      }
+
+      // Filtro por valor máximo
+      if (maxValue) {
+        const max = parseFloat(maxValue.replace(/[^\d,-]/g, '').replace(',', '.')) || Infinity
+        const transactionAmount = Math.abs(Number(transaction.amount) || 0)
+        if (transactionAmount > max) return false
+      }
+
       return true
     }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-  }, [transactions, filterType, filterCategory, filterAccount, searchTerm])
+  }, [transactions, filterType, filterCategory, filterAccount, searchTerm, filterByDate, filterMonth, filterYear, minValue, maxValue])
 
   const handleDelete = async (id: string) => {
     if (!confirm('Tem certeza que deseja excluir esta transação?')) return
@@ -151,7 +184,7 @@ export const Transactions = () => {
 
         {showFilters && (
           <div className="p-4 bg-white rounded-card-lg border border-border">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div>
                 <label className="block text-caption text-neutral-600 mb-2">Tipo</label>
                 <select
@@ -189,6 +222,111 @@ export const Transactions = () => {
                     <option key={account.id} value={account.id}>{account.name}</option>
                   ))}
                 </select>
+              </div>
+            </div>
+            
+            {/* Filtros de Data */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 pt-4 border-t border-border">
+              <div className="md:col-span-1">
+                <label className="flex items-center gap-2 mb-2">
+                  <input
+                    type="checkbox"
+                    checked={filterByDate}
+                    onChange={(e) => setFilterByDate(e.target.checked)}
+                    className="w-4 h-4 text-primary-600 border-border rounded focus:ring-primary-500"
+                  />
+                  <span className="text-caption text-neutral-600">Filtrar por data</span>
+                </label>
+              </div>
+              {filterByDate && (
+                <>
+                  <div>
+                    <label className="block text-caption text-neutral-600 mb-2">Mês</label>
+                    <select
+                      value={filterMonth}
+                      onChange={(e) => setFilterMonth(Number(e.target.value))}
+                      className="w-full px-4 py-2 border border-border rounded-lg text-body-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    >
+                      <option value={1}>Janeiro</option>
+                      <option value={2}>Fevereiro</option>
+                      <option value={3}>Março</option>
+                      <option value={4}>Abril</option>
+                      <option value={5}>Maio</option>
+                      <option value={6}>Junho</option>
+                      <option value={7}>Julho</option>
+                      <option value={8}>Agosto</option>
+                      <option value={9}>Setembro</option>
+                      <option value={10}>Outubro</option>
+                      <option value={11}>Novembro</option>
+                      <option value={12}>Dezembro</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-caption text-neutral-600 mb-2">Ano</label>
+                    <select
+                      value={filterYear}
+                      onChange={(e) => setFilterYear(Number(e.target.value))}
+                      className="w-full px-4 py-2 border border-border rounded-lg text-body-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    >
+                      {Array.from({ length: 5 }, (_, i) => {
+                        const year = currentDate.getFullYear() - 2 + i
+                        return (
+                          <option key={year} value={year}>{year}</option>
+                        )
+                      })}
+                    </select>
+                  </div>
+                </>
+              )}
+            </div>
+            
+            {/* Filtros de Valor */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-border">
+              <div>
+                <label className="block text-caption text-neutral-600 mb-2">Valor Mínimo (R$)</label>
+                <input
+                  type="text"
+                  placeholder="Ex: 100,00"
+                  value={minValue}
+                  onChange={(e) => {
+                    // Permite apenas números e vírgula
+                    let value = e.target.value.replace(/[^\d,]/g, '')
+                    // Garante apenas uma vírgula
+                    const parts = value.split(',')
+                    if (parts.length > 2) {
+                      value = parts[0] + ',' + parts.slice(1).join('')
+                    }
+                    // Limita a 2 casas decimais após a vírgula
+                    if (parts[1] && parts[1].length > 2) {
+                      value = parts[0] + ',' + parts[1].substring(0, 2)
+                    }
+                    setMinValue(value)
+                  }}
+                  className="w-full px-4 py-2 border border-border rounded-lg text-body-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+              <div>
+                <label className="block text-caption text-neutral-600 mb-2">Valor Máximo (R$)</label>
+                <input
+                  type="text"
+                  placeholder="Ex: 1000,00"
+                  value={maxValue}
+                  onChange={(e) => {
+                    // Permite apenas números e vírgula
+                    let value = e.target.value.replace(/[^\d,]/g, '')
+                    // Garante apenas uma vírgula
+                    const parts = value.split(',')
+                    if (parts.length > 2) {
+                      value = parts[0] + ',' + parts.slice(1).join('')
+                    }
+                    // Limita a 2 casas decimais após a vírgula
+                    if (parts[1] && parts[1].length > 2) {
+                      value = parts[0] + ',' + parts[1].substring(0, 2)
+                    }
+                    setMaxValue(value)
+                  }}
+                  className="w-full px-4 py-2 border border-border rounded-lg text-body-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
               </div>
             </div>
           </div>
@@ -278,11 +416,11 @@ export const Transactions = () => {
         ) : (
           <div className="p-12 text-center">
             <p className="text-body text-neutral-500 mb-4">
-              {searchTerm || filterType !== 'all' || filterCategory !== 'all' || filterAccount !== 'all'
+              {searchTerm || filterType !== 'all' || filterCategory !== 'all' || filterAccount !== 'all' || filterByDate || minValue || maxValue
                 ? 'Nenhuma transação encontrada com os filtros aplicados'
                 : 'Nenhuma transação cadastrada ainda'}
             </p>
-            {!searchTerm && filterType === 'all' && filterCategory === 'all' && filterAccount === 'all' && (
+            {!searchTerm && filterType === 'all' && filterCategory === 'all' && filterAccount === 'all' && !filterByDate && !minValue && !maxValue && (
               <Button onClick={() => setShowAddModal(true)}>
                 Criar Primeira Transação
               </Button>

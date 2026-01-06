@@ -9,7 +9,7 @@ export const recurringExpenseService = {
     // Tenta buscar com is_paid_current_month primeiro
     const { data, error } = await supabase
       .from('recurring_expenses')
-      .select('id, user_id, name, amount, due_day, category_id, account_id, is_active, description, created_at, updated_at, is_paid_current_month')
+      .select('id, user_id, name, amount, due_day, category_id, account_id, is_active, description, created_at, updated_at, is_paid_current_month, transaction_id')
       .eq('user_id', userId)
       .order('due_day', { ascending: true })
 
@@ -42,7 +42,7 @@ export const recurringExpenseService = {
     // Tenta buscar com is_paid_current_month primeiro
     const { data, error } = await supabase
       .from('recurring_expenses')
-      .select('id, user_id, name, amount, due_day, category_id, account_id, is_active, description, created_at, updated_at, is_paid_current_month')
+      .select('id, user_id, name, amount, due_day, category_id, account_id, is_active, description, created_at, updated_at, is_paid_current_month, transaction_id')
       .eq('user_id', userId)
       .eq('is_active', true)
       .order('due_day', { ascending: true })
@@ -85,13 +85,47 @@ export const recurringExpenseService = {
   },
 
   async update(id: string, expense: RecurringExpenseUpdate) {
+    // Busca a despesa atual para verificar mudanças
+    // Tenta primeiro com todas as colunas, depois sem as colunas opcionais se falhar
+    let currentExpense: any
+    
+    const { data: dataWithColumns, error: errorWithColumns } = await supabase
+      .from('recurring_expenses')
+      .select('id, user_id, name, amount, due_day, category_id, account_id, is_active, is_paid_current_month, transaction_id')
+      .eq('id', id)
+      .single()
+
+    if (errorWithColumns && (errorWithColumns.message?.includes('is_paid_current_month') || errorWithColumns.message?.includes('transaction_id') || errorWithColumns.message?.includes('schema cache'))) {
+      // Se falhar por causa das colunas, tenta sem elas
+      const { data: dataWithoutColumns, error: errorWithoutColumns } = await supabase
+        .from('recurring_expenses')
+        .select('id, user_id, name, amount, due_day, category_id, account_id, is_active')
+        .eq('id', id)
+        .single()
+      
+      if (errorWithoutColumns) throw errorWithoutColumns
+      currentExpense = { ...dataWithoutColumns, is_paid_current_month: false, transaction_id: null }
+    } else {
+      if (errorWithColumns) throw errorWithColumns
+      currentExpense = dataWithColumns
+    }
+
+    // Limpa transaction_id se existir (transações antigas que possam ter sido criadas)
+    if (currentExpense.transaction_id && expense.transaction_id === undefined) {
+      // Remove transaction_id do update para limpar referências antigas
+      expense.transaction_id = null
+    }
+
+    // O checkbox "paga" é apenas um booleano para validar se foi paga no mês correspondente
+    // NÃO cria transações para evitar duplicação, pois as despesas recorrentes
+    // já são incluídas no cálculo de despesas do mês
     const updateData = { ...expense, updated_at: new Date().toISOString() }
     
     const { data, error } = await supabase
       .from('recurring_expenses')
       .update(updateData)
       .eq('id', id)
-      .select('id, user_id, name, amount, due_day, category_id, account_id, is_active, description, created_at, updated_at, is_paid_current_month')
+      .select('id, user_id, name, amount, due_day, category_id, account_id, is_active, description, created_at, updated_at, is_paid_current_month, transaction_id')
       .single()
 
     if (error) {
