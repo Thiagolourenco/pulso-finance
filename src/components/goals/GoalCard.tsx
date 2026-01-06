@@ -81,12 +81,12 @@ export const GoalCard = ({ goal }: GoalCardProps) => {
       )}
 
       <div
-        className="p-5 bg-white rounded-card-lg border-2 border-border hover:border-primary-400 hover:shadow-lg transition-all duration-fast relative overflow-hidden"
+        className="p-5 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border-2 border-border dark:border-border-dark hover:border-primary-400 dark:hover:border-primary-500/70 hover:shadow-lg transition-all duration-fast relative overflow-hidden"
       >
         {/* Badge de concluída */}
         {isCompleted && (
           <div className="absolute top-3 right-3 z-10">
-            <span className="px-3 py-1 bg-success-100 text-success-700 text-caption font-semibold rounded-full flex items-center gap-1">
+            <span className="px-3 py-1 bg-success-100 dark:bg-success-900/40 text-success-700 dark:text-success-300 text-caption font-semibold rounded-full flex items-center gap-1">
               <span className="text-sm">🎉</span>
               Concluída!
             </span>
@@ -94,16 +94,16 @@ export const GoalCard = ({ goal }: GoalCardProps) => {
         )}
 
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-body font-semibold text-neutral-900 pr-20">{goal.name}</h3>
+          <h3 className="text-body font-semibold text-neutral-900 dark:text-neutral-50 pr-20">{goal.name}</h3>
         </div>
         
         {/* Barra de progresso animada */}
         <div className="mb-4">
-          <div className="flex justify-between text-caption text-neutral-600 mb-2">
+          <div className="flex justify-between text-caption text-neutral-600 dark:text-neutral-300 mb-2">
             <span>Progresso</span>
             <span className="font-semibold">{progress.toFixed(1)}%</span>
           </div>
-          <div className="w-full bg-neutral-100 rounded-full h-3 overflow-hidden relative">
+          <div className="w-full bg-neutral-100 dark:bg-neutral-800 rounded-full h-3 overflow-hidden relative">
             <div
               className={`h-full transition-all duration-1000 ease-out ${
                 isCompleted ? 'bg-success-500' : 'bg-primary-500'
@@ -116,7 +116,7 @@ export const GoalCard = ({ goal }: GoalCardProps) => {
             {/* Efeito de brilho quando completa */}
             {isCompleted && (
               <div 
-                className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-30 animate-shimmer"
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/70 to-transparent opacity-30 animate-shimmer"
                 style={{ animation: 'shimmer 2s infinite' }}
               />
             )}
@@ -125,21 +125,21 @@ export const GoalCard = ({ goal }: GoalCardProps) => {
 
         <div className="space-y-2 mb-4">
           <div className="flex justify-between text-body-sm">
-            <span className="text-neutral-600">Atual:</span>
-            <span className="font-medium text-neutral-900">
+            <span className="text-neutral-600 dark:text-neutral-300">Atual:</span>
+            <span className="font-medium text-neutral-900 dark:text-neutral-50">
               R$ {(goal.current_amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </span>
           </div>
           <div className="flex justify-between text-body-sm">
-            <span className="text-neutral-600">Meta:</span>
-            <span className="font-medium text-neutral-900">
+            <span className="text-neutral-600 dark:text-neutral-300">Meta:</span>
+            <span className="font-medium text-neutral-900 dark:text-neutral-50">
               R$ {goal.target_amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </span>
           </div>
           {!isCompleted && (
             <div className="flex justify-between text-body-sm">
-              <span className="text-neutral-600">Falta:</span>
-              <span className="font-semibold text-warning-600">
+              <span className="text-neutral-600 dark:text-neutral-300">Falta:</span>
+              <span className="font-semibold text-warning-600 dark:text-warning-400">
                 R$ {remaining.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </span>
             </div>
@@ -147,24 +147,24 @@ export const GoalCard = ({ goal }: GoalCardProps) => {
         </div>
 
         {goal.target_date && !isCompleted && (
-          <div className="pt-3 border-t border-border">
+          <div className="pt-3 border-t border-border dark:border-border-dark">
             <div className="flex items-center justify-between text-caption">
-              <span className="text-neutral-500">Prazo:</span>
-              <span className="font-medium text-neutral-700">
+              <span className="text-neutral-500 dark:text-neutral-400">Prazo:</span>
+              <span className="font-medium text-neutral-700 dark:text-neutral-200">
                 {new Date(goal.target_date).toLocaleDateString('pt-BR')}
               </span>
             </div>
             {daysRemaining !== null && daysRemaining > 0 && (
               <div className="flex items-center justify-between text-caption mt-1">
-                <span className="text-neutral-500">Restam:</span>
-                <span className="font-medium text-neutral-700">
+                <span className="text-neutral-500 dark:text-neutral-400">Restam:</span>
+                <span className="font-medium text-neutral-700 dark:text-neutral-200">
                   {daysRemaining} {daysRemaining === 1 ? 'dia' : 'dias'}
                 </span>
               </div>
             )}
             {monthlyNeeded !== null && monthlyNeeded > 0 && (
-              <div className="mt-2 p-2 bg-primary-50 rounded-lg">
-                <p className="text-caption text-primary-700">
+              <div className="mt-2 p-2 bg-primary-50 dark:bg-primary-500/10 rounded-lg border border-primary-200 dark:border-primary-500/20">
+                <p className="text-caption text-primary-700 dark:text-primary-300">
                   <span className="font-semibold">R$ {monthlyNeeded.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                   {' '}por mês para alcançar
                 </p>

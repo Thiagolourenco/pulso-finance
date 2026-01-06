@@ -39,27 +39,27 @@ export const NextMonthExpensesModal = ({
       <div className="space-y-6">
         {/* Resumo */}
         <div className="grid grid-cols-3 gap-4">
-          <div className="p-4 bg-white rounded-lg border border-border">
-            <p className="text-caption text-neutral-600 mb-1">Valor já gasto</p>
-            <p className="text-body font-bold text-danger-600">
+          <div className="p-4 bg-white dark:bg-neutral-900/30 rounded-lg border border-border dark:border-border-dark/70">
+            <p className="text-caption text-neutral-600 dark:text-neutral-300 mb-1">Valor já gasto</p>
+            <p className="text-body font-bold text-danger-600 dark:text-danger-400">
               R$ {nextMonthExpenses.toLocaleString('pt-BR', { 
                 minimumFractionDigits: 2, 
                 maximumFractionDigits: 2 
               })}
             </p>
           </div>
-          <div className="p-4 bg-white rounded-lg border border-border">
-            <p className="text-caption text-neutral-600 mb-1">Valores fixos</p>
-            <p className="text-body font-bold text-warning-600">
+          <div className="p-4 bg-white dark:bg-neutral-900/30 rounded-lg border border-border dark:border-border-dark/70">
+            <p className="text-caption text-neutral-600 dark:text-neutral-300 mb-1">Valores fixos</p>
+            <p className="text-body font-bold text-warning-600 dark:text-warning-400">
               R$ {(nextMonthFixedExpenses + nextMonthRecurringExpenses).toLocaleString('pt-BR', { 
                 minimumFractionDigits: 2, 
                 maximumFractionDigits: 2 
               })}
             </p>
           </div>
-          <div className="p-4 bg-danger-50 rounded-lg border-2 border-danger-200">
-            <p className="text-caption text-neutral-700 mb-1 font-medium">Total previsto</p>
-            <p className="text-h3 font-bold text-danger-600">
+          <div className="p-4 bg-danger-50 dark:bg-danger-900/20 rounded-lg border-2 border-danger-200 dark:border-danger-700/50">
+            <p className="text-caption text-neutral-700 dark:text-neutral-200 mb-1 font-medium">Total previsto</p>
+            <p className="text-h3 font-bold text-danger-600 dark:text-danger-200">
               R$ {totalNextMonth.toLocaleString('pt-BR', { 
                 minimumFractionDigits: 2, 
                 maximumFractionDigits: 2 
@@ -71,24 +71,24 @@ export const NextMonthExpensesModal = ({
         {/* Despesas já registradas */}
         {transactionsDetails.length > 0 && (
           <div>
-            <h3 className="text-body font-semibold text-neutral-900 mb-3">
+            <h3 className="text-body font-semibold text-neutral-900 dark:text-neutral-50 mb-3">
               Despesas já registradas ({transactionsDetails.length})
             </h3>
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {transactionsDetails.map((transaction) => (
                 <div
                   key={transaction.id}
-                  className="p-3 bg-white rounded-lg border border-border flex items-center justify-between"
+                  className="p-3 bg-white dark:bg-neutral-900/30 rounded-lg border border-border dark:border-border-dark/70 flex items-center justify-between"
                 >
                   <div>
-                    <p className="text-body-sm font-medium text-neutral-900">
+                    <p className="text-body-sm font-medium text-neutral-900 dark:text-neutral-50">
                       {transaction.description}
                     </p>
-                    <p className="text-caption text-neutral-500">
+                    <p className="text-caption text-neutral-500 dark:text-neutral-400">
                       {new Date(transaction.date).toLocaleDateString('pt-BR')}
                     </p>
                   </div>
-                  <p className="text-body font-semibold text-danger-600">
+                  <p className="text-body font-semibold text-danger-600 dark:text-danger-400">
                     R$ {Math.abs(Number(transaction.amount)).toLocaleString('pt-BR', { 
                       minimumFractionDigits: 2 
                     })}
@@ -100,13 +100,13 @@ export const NextMonthExpensesModal = ({
         )}
 
         {/* Menu de tabs */}
-        <div className="flex gap-2 border-b border-border">
+        <div className="flex gap-2 border-b border-border dark:border-border-dark">
           <button
             onClick={() => setActiveTab('installments')}
             className={`px-4 py-2 text-body-sm font-medium transition-colors border-b-2 ${
               activeTab === 'installments'
-                ? 'border-primary-600 text-primary-600'
-                : 'border-transparent text-neutral-500 hover:text-neutral-700'
+                ? 'border-primary-600 text-primary-600 dark:text-primary-400'
+                : 'border-transparent text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200'
             }`}
           >
             Parcelas ({fixedExpensesDetails.length})
@@ -115,8 +115,8 @@ export const NextMonthExpensesModal = ({
             onClick={() => setActiveTab('recurring')}
             className={`px-4 py-2 text-body-sm font-medium transition-colors border-b-2 ${
               activeTab === 'recurring'
-                ? 'border-primary-600 text-primary-600'
-                : 'border-transparent text-neutral-500 hover:text-neutral-700'
+                ? 'border-primary-600 text-primary-600 dark:text-primary-400'
+                : 'border-transparent text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200'
             }`}
           >
             Recorrentes ({recurringExpensesDetails.length})
@@ -128,25 +128,25 @@ export const NextMonthExpensesModal = ({
           <div>
             {fixedExpensesDetails.length > 0 ? (
               <>
-                <h3 className="text-body font-semibold text-neutral-900 mb-3">
+                <h3 className="text-body font-semibold text-neutral-900 dark:text-neutral-50 mb-3">
                   Despesas fixas - Parcelas ({fixedExpensesDetails.length})
                 </h3>
                 <div className="space-y-2 max-h-64 overflow-y-auto">
                   {fixedExpensesDetails.map((purchase) => (
                     <div
                       key={purchase.id}
-                      className="p-3 bg-white rounded-lg border border-border flex items-center justify-between"
+                      className="p-3 bg-white dark:bg-neutral-900/30 rounded-lg border border-border dark:border-border-dark/70 flex items-center justify-between"
                     >
                       <div>
-                        <p className="text-body-sm font-medium text-neutral-900">
+                        <p className="text-body-sm font-medium text-neutral-900 dark:text-neutral-50">
                           {purchase.description}
                         </p>
-                        <p className="text-caption text-neutral-500">
+                        <p className="text-caption text-neutral-500 dark:text-neutral-400">
                           Parcela {purchase.current_installment}/{purchase.installments} • 
                           Comprado em {new Date(purchase.purchase_date).toLocaleDateString('pt-BR')}
                         </p>
                       </div>
-                      <p className="text-body font-semibold text-warning-600">
+                      <p className="text-body font-semibold text-warning-600 dark:text-warning-400">
                         R$ {purchase.installment_amount.toLocaleString('pt-BR', { 
                           minimumFractionDigits: 2 
                         })}
@@ -156,8 +156,8 @@ export const NextMonthExpensesModal = ({
                 </div>
               </>
             ) : (
-              <div className="p-8 text-center bg-neutral-50 rounded-lg border border-border">
-                <p className="text-body-sm text-neutral-500">
+              <div className="p-8 text-center bg-neutral-50 dark:bg-neutral-900/20 rounded-lg border border-border dark:border-border-dark">
+                <p className="text-body-sm text-neutral-500 dark:text-neutral-300">
                   Nenhuma parcela prevista para o próximo mês
                 </p>
               </div>
@@ -169,7 +169,7 @@ export const NextMonthExpensesModal = ({
           <div>
             {recurringExpensesDetails.length > 0 ? (
               <>
-                <h3 className="text-body font-semibold text-neutral-900 mb-3">
+                <h3 className="text-body font-semibold text-neutral-900 dark:text-neutral-50 mb-3">
                   Despesas recorrentes ({recurringExpensesDetails.length})
                 </h3>
                 <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -188,17 +188,17 @@ export const NextMonthExpensesModal = ({
                     return (
                       <div
                         key={expense.id}
-                        className="p-3 bg-white rounded-lg border border-border flex items-center justify-between"
+                        className="p-3 bg-white dark:bg-neutral-900/30 rounded-lg border border-border dark:border-border-dark/70 flex items-center justify-between"
                       >
                         <div>
-                          <p className="text-body-sm font-medium text-neutral-900">
+                          <p className="text-body-sm font-medium text-neutral-900 dark:text-neutral-50">
                             {expense.name}
                           </p>
-                          <p className="text-caption text-neutral-500">
+                          <p className="text-caption text-neutral-500 dark:text-neutral-400">
                             Vence dia {expense.due_day} • Próximo: {nextDueDate.toLocaleDateString('pt-BR')}
                           </p>
                         </div>
-                        <p className="text-body font-semibold text-warning-600">
+                        <p className="text-body font-semibold text-warning-600 dark:text-warning-400">
                           R$ {expense.amount.toLocaleString('pt-BR', { 
                             minimumFractionDigits: 2 
                           })}
@@ -209,8 +209,8 @@ export const NextMonthExpensesModal = ({
                 </div>
               </>
             ) : (
-              <div className="p-8 text-center bg-neutral-50 rounded-lg border border-border">
-                <p className="text-body-sm text-neutral-500">
+              <div className="p-8 text-center bg-neutral-50 dark:bg-neutral-900/20 rounded-lg border border-border dark:border-border-dark">
+                <p className="text-body-sm text-neutral-500 dark:text-neutral-300">
                   Nenhuma despesa recorrente prevista para o próximo mês
                 </p>
               </div>
@@ -219,8 +219,8 @@ export const NextMonthExpensesModal = ({
         )}
 
         {transactionsDetails.length === 0 && fixedExpensesDetails.length === 0 && recurringExpensesDetails.length === 0 && (
-          <div className="p-8 text-center bg-neutral-50 rounded-lg border border-border">
-            <p className="text-body-sm text-neutral-500">
+          <div className="p-8 text-center bg-neutral-50 dark:bg-neutral-900/20 rounded-lg border border-border dark:border-border-dark">
+            <p className="text-body-sm text-neutral-500 dark:text-neutral-300">
               Nenhuma despesa prevista para o próximo mês
             </p>
           </div>

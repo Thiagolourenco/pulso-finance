@@ -56,10 +56,10 @@ export const Login = () => {
 
   return (
     <div className="animate-fade-in">
-      <h2 className="text-h1 font-bold text-neutral-900 mb-6">Entrar</h2>
+      <h2 className="text-h1 font-bold text-neutral-900 dark:text-neutral-50 mb-6">Entrar</h2>
 
       {error && (
-        <div className="mb-6 p-4 bg-danger-50 border border-danger-200 text-danger-700 rounded-input animate-shake">
+        <div className="mb-6 p-4 bg-danger-50 dark:bg-danger-950 border border-danger-200 dark:border-danger-800 text-danger-700 dark:text-danger-300 rounded-input animate-shake">
           {error}
         </div>
       )}

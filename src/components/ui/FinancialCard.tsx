@@ -34,7 +34,7 @@ export const FinancialCard = ({
   return (
     <div
       className={cn(
-        'bg-white dark:bg-neutral-950 rounded-card-lg p-6 border border-border dark:border-border-dark shadow-card',
+        'bg-white dark:bg-neutral-900/40 rounded-card-lg p-6 border border-border dark:border-border-dark/70 shadow-card dark:backdrop-blur-xl',
         'hover:shadow-card-hover hover:scale-[1.02] transition-all duration-fast',
         'animate-fade-in',
         className

@@ -731,7 +731,7 @@ export const Dashboard = () => {
   return (
     <div className="animate-fade-in">
       {/* Header com gradiente sutil */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6 lg:mb-8 pb-4 lg:pb-6 border-b border-border">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6 lg:mb-8 pb-4 lg:pb-6 border-b border-border dark:border-border-dark">
         <div>
           <h1 className="text-xl lg:text-h1 font-bold text-neutral-900 dark:text-neutral-50 mb-1 lg:mb-2">Dashboard</h1>
           <p className="text-sm lg:text-body-sm text-neutral-500 dark:text-neutral-400">
@@ -1094,23 +1094,23 @@ export const Dashboard = () => {
           }}
         />
 
-        <div className="bg-gradient-to-br from-white to-neutral-50 rounded-card-lg p-6 border border-border shadow-card hover:shadow-card-hover transition-all duration-fast">
+        <div className="bg-gradient-to-br from-white to-neutral-50 dark:from-neutral-900/40 dark:to-neutral-950/40 rounded-card-lg p-6 border border-border dark:border-border-dark/70 shadow-card hover:shadow-card-hover transition-all duration-fast dark:backdrop-blur-xl">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-lg bg-success-100 flex items-center justify-center">
               <span className="text-xl">📊</span>
             </div>
-            <h2 className="text-h3 font-semibold text-neutral-900">Saúde do mês</h2>
+            <h2 className="text-h3 font-semibold text-neutral-900 dark:text-neutral-50">Saúde do mês</h2>
           </div>
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 bg-white dark:bg-neutral-800 rounded-lg border border-border dark:border-neutral-700">
+            <div className="flex items-center justify-between p-3 bg-white dark:bg-neutral-900/40 rounded-lg border border-border dark:border-border-dark/70">
               <div className="flex flex-col">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">📈</span>
-                  <span className="text-body-sm text-neutral-600">Sobra prevista</span>
+                  <span className="text-body-sm text-neutral-600 dark:text-neutral-300">Sobra prevista</span>
                 </div>
                 {previousMonthSurplus !== 0 && (
                   <span className={`text-caption ml-7 ${
-                    surplusVariation >= 0 ? 'text-success-600' : 'text-danger-600'
+                    surplusVariation >= 0 ? 'text-success-600 dark:text-success-500' : 'text-danger-600 dark:text-danger-400'
                   }`}>
                     {surplusVariation >= 0 ? '↑' : '↓'} {Math.abs(surplusVariation).toFixed(1)}% vs mês anterior
                   </span>
@@ -1118,7 +1118,7 @@ export const Dashboard = () => {
               </div>
               <div className="flex flex-col items-end">
                 <span className={`text-body font-bold ${
-                  expectedSurplus >= 0 ? 'text-success-600' : 'text-danger-600'
+                  expectedSurplus >= 0 ? 'text-success-600 dark:text-success-500' : 'text-danger-600 dark:text-danger-400'
                 }`}>
                   {expectedSurplus >= 0 ? '+' : ''}R$ {expectedSurplus.toLocaleString('pt-BR', { 
                     minimumFractionDigits: 2, 
@@ -1126,7 +1126,7 @@ export const Dashboard = () => {
                   })}
                 </span>
                 {previousMonthSurplus !== 0 && (
-                  <span className="text-caption text-neutral-500">
+                  <span className="text-caption text-neutral-500 dark:text-neutral-400">
                     Mês anterior: R$ {previousMonthSurplus.toLocaleString('pt-BR', { 
                       minimumFractionDigits: 2, 
                       maximumFractionDigits: 2 
@@ -1135,15 +1135,15 @@ export const Dashboard = () => {
                 )}
               </div>
             </div>
-            <div className="flex items-center justify-between p-3 bg-white dark:bg-neutral-800 rounded-lg border border-border dark:border-neutral-700">
+            <div className="flex items-center justify-between p-3 bg-white dark:bg-neutral-900/40 rounded-lg border border-border dark:border-border-dark/70">
               <div className="flex flex-col">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">💰</span>
-                  <span className="text-body-sm text-neutral-600">Receitas</span>
+                  <span className="text-body-sm text-neutral-600 dark:text-neutral-300">Receitas</span>
                 </div>
                 {previousMonthIncome > 0 && (
                   <span className={`text-caption ml-7 ${
-                    monthlyIncome >= previousMonthIncome ? 'text-success-600' : 'text-danger-600'
+                    monthlyIncome >= previousMonthIncome ? 'text-success-600 dark:text-success-500' : 'text-danger-600 dark:text-danger-400'
                   }`}>
                     {monthlyIncome >= previousMonthIncome ? '↑' : '↓'} {
                       previousMonthIncome > 0 
@@ -1154,14 +1154,14 @@ export const Dashboard = () => {
                 )}
               </div>
               <div className="flex flex-col items-end">
-                <span className="text-body font-bold text-success-600">
+                <span className="text-body font-bold text-success-600 dark:text-success-500">
                   R$ {monthlyIncome.toLocaleString('pt-BR', { 
                     minimumFractionDigits: 2, 
                     maximumFractionDigits: 2 
                   })}
                 </span>
                 {previousMonthIncome > 0 && (
-                  <span className="text-caption text-neutral-500">
+                  <span className="text-caption text-neutral-500 dark:text-neutral-400">
                     Mês anterior: R$ {previousMonthIncome.toLocaleString('pt-BR', { 
                       minimumFractionDigits: 2, 
                       maximumFractionDigits: 2 
@@ -1170,15 +1170,15 @@ export const Dashboard = () => {
                 )}
               </div>
             </div>
-            <div className="flex items-center justify-between p-3 bg-white dark:bg-neutral-800 rounded-lg border border-border dark:border-neutral-700">
+            <div className="flex items-center justify-between p-3 bg-white dark:bg-neutral-900/40 rounded-lg border border-border dark:border-border-dark/70">
               <div className="flex flex-col">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">💸</span>
-                  <span className="text-body-sm text-neutral-600">Despesas</span>
+                  <span className="text-body-sm text-neutral-600 dark:text-neutral-300">Despesas</span>
                 </div>
                 {previousMonthExpenses > 0 && (
                   <span className={`text-caption ml-7 ${
-                    monthlyExpenses <= previousMonthExpenses ? 'text-success-600' : 'text-danger-600'
+                    monthlyExpenses <= previousMonthExpenses ? 'text-success-600 dark:text-success-500' : 'text-danger-600 dark:text-danger-400'
                   }`}>
                     {monthlyExpenses <= previousMonthExpenses ? '↓' : '↑'} {
                       previousMonthExpenses > 0
@@ -1189,14 +1189,14 @@ export const Dashboard = () => {
                 )}
               </div>
               <div className="flex flex-col items-end">
-                <span className="text-body font-bold text-danger-600">
+                <span className="text-body font-bold text-danger-600 dark:text-danger-400">
                   R$ {monthlyExpenses.toLocaleString('pt-BR', { 
                     minimumFractionDigits: 2, 
                     maximumFractionDigits: 2 
                   })}
                 </span>
                 {previousMonthExpenses > 0 && (
-                  <span className="text-caption text-neutral-500">
+                  <span className="text-caption text-neutral-500 dark:text-neutral-400">
                     Mês anterior: R$ {previousMonthExpenses.toLocaleString('pt-BR', { 
                       minimumFractionDigits: 2, 
                       maximumFractionDigits: 2 
@@ -1283,10 +1283,10 @@ export const Dashboard = () => {
       {goals.length > 0 && (
         <div className="mb-8 mt-8">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-h3 font-semibold text-neutral-900">Minhas Metas</h2>
+            <h2 className="text-h3 font-semibold text-neutral-900 dark:text-neutral-50">Minhas Metas</h2>
             <button
               onClick={() => navigate('/goals')}
-              className="text-body-sm text-primary-600 hover:text-primary-700 font-medium"
+              className="text-body-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium"
             >
               Ver todas →
             </button>
@@ -1300,7 +1300,7 @@ export const Dashboard = () => {
             <div className="mt-4 text-center">
               <button
                 onClick={() => navigate('/goals')}
-                className="text-body-sm text-primary-600 hover:text-primary-700 font-medium"
+                className="text-body-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium"
               >
                 Ver mais {goals.length - 3} meta{goals.length - 3 > 1 ? 's' : ''} →
               </button>
@@ -1313,13 +1313,13 @@ export const Dashboard = () => {
       {recurringExpenses.length > 0 && (
         <div className="mb-8 mt-8">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-h3 font-semibold text-neutral-900">Financiamentos e Despesas Recorrentes</h2>
+            <h2 className="text-h3 font-semibold text-neutral-900 dark:text-neutral-50">Financiamentos e Despesas Recorrentes</h2>
             <button
               onClick={() => {
                 setEditingRecurringExpense(null)
                 setModalType('recurringExpense')
               }}
-              className="text-body-sm text-primary-600 hover:text-primary-700 font-medium"
+              className="text-body-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium"
             >
               + Adicionar
             </button>
@@ -1385,19 +1385,19 @@ export const Dashboard = () => {
       {recurringExpenses.length === 0 && (
         <div className="mb-8 mt-8">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-h3 font-semibold text-neutral-900">Financiamentos e Despesas Recorrentes</h2>
+            <h2 className="text-h3 font-semibold text-neutral-900 dark:text-neutral-50">Financiamentos e Despesas Recorrentes</h2>
             <button
               onClick={() => {
                 setEditingRecurringExpense(null)
                 setModalType('recurringExpense')
               }}
-              className="text-body-sm text-primary-600 hover:text-primary-700 font-medium"
+              className="text-body-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium"
             >
               + Adicionar
             </button>
           </div>
-          <div className="p-8 bg-neutral-50 rounded-lg border border-border text-center">
-            <p className="text-body-sm text-neutral-500 mb-4">
+          <div className="p-8 bg-neutral-50 dark:bg-neutral-900/30 rounded-lg border border-border dark:border-border-dark text-center">
+            <p className="text-body-sm text-neutral-500 dark:text-neutral-300 mb-4">
               Adicione financiamentos, internet, aluguel e outras despesas recorrentes fixas
             </p>
             <Button
@@ -1416,7 +1416,7 @@ export const Dashboard = () => {
       {/* Lista de cartões */}
       {cards.length > 0 && (
         <div className="mb-8 mt-8">
-          <h2 className="text-h3 font-semibold text-neutral-900 mb-4">Meus cartões</h2>
+          <h2 className="text-h3 font-semibold text-neutral-900 dark:text-neutral-50 mb-4">Meus cartões</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {cards.map((card) => {
               const cardInvoices = invoices.filter(inv => inv.card_id === card.id)
@@ -1438,12 +1438,12 @@ export const Dashboard = () => {
                 <div
                   key={card.id}
                   onClick={() => setSelectedCardForModal(card.id)}
-                  className="p-5 bg-white rounded-card-lg border-2 border-border hover:border-primary-400 hover:shadow-lg cursor-pointer transition-all duration-fast"
+                  className="p-5 bg-white dark:bg-neutral-900/40 rounded-card-lg border-2 border-border dark:border-border-dark hover:border-primary-400 dark:hover:border-primary-500/70 hover:shadow-lg cursor-pointer transition-all duration-fast dark:backdrop-blur-xl"
                 >
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <span className="text-2xl">💳</span>
-                      <h3 className="text-body font-semibold text-neutral-900">{card.name}</h3>
+                      <h3 className="text-body font-semibold text-neutral-900 dark:text-neutral-50">{card.name}</h3>
                     </div>
                     {currentInvoice && (() => {
                       const invoiceDueDate = new Date(currentInvoice.due_date)
@@ -1491,8 +1491,8 @@ export const Dashboard = () => {
                   
                   <div className="space-y-2">
                     <div className="flex justify-between text-body-sm">
-                      <span className="text-neutral-600">Limite:</span>
-                      <span className="font-medium text-neutral-900">
+                      <span className="text-neutral-600 dark:text-neutral-300">Limite:</span>
+                      <span className="font-medium text-neutral-900 dark:text-neutral-50">
                         R$ {card.credit_limit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </span>
                     </div>
@@ -1503,14 +1503,14 @@ export const Dashboard = () => {
                       return (
                         <>
                           <div className="flex justify-between text-body-sm">
-                            <span className="text-neutral-600">Fatura atual:</span>
-                            <span className="font-bold text-danger-600">
+                            <span className="text-neutral-600 dark:text-neutral-300">Fatura atual:</span>
+                            <span className="font-bold text-danger-600 dark:text-danger-400">
                               R$ {invoiceTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </span>
                           </div>
                           <div className="flex justify-between text-body-sm">
-                            <span className="text-neutral-600">Disponível:</span>
-                            <span className="font-medium text-success-600">
+                            <span className="text-neutral-600 dark:text-neutral-300">Disponível:</span>
+                            <span className="font-medium text-success-600 dark:text-success-500">
                               R$ {availableLimit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </span>
                           </div>

@@ -1,9 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { signOut } from '@/lib/supabase/middleware'
 import { cn } from '@/lib/utils'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
+import { supabase } from '@/lib/supabase/client'
+import { getOnboardingStatus, setOnboardingCompleted, SKIP_ONBOARDING_EMAILS } from '@/services/userProfileService'
+import { Onboarding } from '@/pages/onboarding/Onboarding'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: '📊' },
@@ -22,6 +25,7 @@ export const DashboardLayout = () => {
   const location = useLocation()
   const queryClient = useQueryClient()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(false)
 
   const handleSignOut = async () => {
     try {
@@ -38,10 +42,55 @@ export const DashboardLayout = () => {
     setMobileMenuOpen(false)
   }
 
+  useEffect(() => {
+    let isMounted = true
+
+    const refresh = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        const userId = user?.id ?? null
+
+        // Usuários antigos (allowlist): não precisam ver onboarding
+        const email = (user?.email || '').toLowerCase()
+        if (email && SKIP_ONBOARDING_EMAILS.has(email)) {
+          await setOnboardingCompleted(userId, true)
+          if (isMounted) setShowOnboarding(false)
+          return
+        }
+
+        const status = await getOnboardingStatus(userId)
+        if (isMounted) setShowOnboarding(status.completed === false)
+      } catch {
+        const status = await getOnboardingStatus(null)
+        if (isMounted) setShowOnboarding(status.completed === false)
+      }
+    }
+
+    refresh()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      refresh()
+    })
+
+    return () => {
+      isMounted = false
+      subscription.unsubscribe()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!showOnboarding) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [showOnboarding])
+
   return (
-    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 transition-colors">
+    <div className="min-h-screen bg-neutral-50 dark:bg-transparent transition-colors">
       {/* Mobile Header */}
-      <header className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-white dark:bg-neutral-950 border-b border-border dark:border-border-dark z-40 flex items-center justify-between px-4">
+      <header className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-white dark:bg-neutral-950/70 dark:backdrop-blur-xl border-b border-border dark:border-border-dark z-40 flex items-center justify-between px-4">
         <button
           onClick={() => setMobileMenuOpen(true)}
           className="p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
@@ -76,7 +125,7 @@ export const DashboardLayout = () => {
       {/* Sidebar - Desktop fixa, Mobile drawer */}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 w-64 bg-white dark:bg-neutral-950 border-r border-border dark:border-border-dark z-50 transition-transform duration-300',
+          'fixed inset-y-0 left-0 w-64 bg-white dark:bg-neutral-950/70 dark:backdrop-blur-xl border-r border-border dark:border-border-dark z-50 transition-transform duration-300',
           'lg:translate-x-0',
           mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
@@ -152,6 +201,16 @@ export const DashboardLayout = () => {
           <Outlet />
         </div>
       </main>
+
+      {/* Onboarding modal overlay (primeiro acesso) */}
+      {showOnboarding && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 lg:p-8">
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
+          <div className="relative w-full max-w-5xl">
+            <Onboarding onCompleted={() => setShowOnboarding(false)} />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

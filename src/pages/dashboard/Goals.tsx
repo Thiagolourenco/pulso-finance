@@ -94,7 +94,7 @@ export const Goals = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-gray-600">Carregando metas...</div>
+        <div className="text-neutral-600 dark:text-neutral-300">Carregando metas...</div>
       </div>
     )
   }
@@ -102,10 +102,10 @@ export const Goals = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Metas</h1>
+        <h1 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50">Metas</h1>
         <button
           onClick={() => handleOpenForm()}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors"
+          className="bg-primary-600 hover:bg-primary-700 text-white font-medium px-4 py-2 rounded-lg transition-colors"
         >
           + Nova Meta
         </button>
@@ -131,11 +131,11 @@ export const Goals = () => {
       </Modal>
 
       {goals.length === 0 ? (
-        <div className="bg-white rounded-lg shadow p-12 text-center">
-          <p className="text-gray-600 mb-4">Você ainda não tem metas cadastradas</p>
+        <div className="bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-lg shadow p-12 text-center border border-border dark:border-border-dark/70">
+          <p className="text-neutral-600 dark:text-neutral-300 mb-4">Você ainda não tem metas cadastradas</p>
           <button
             onClick={() => handleOpenForm()}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors"
+            className="bg-primary-600 hover:bg-primary-700 text-white font-medium px-4 py-2 rounded-lg transition-colors"
           >
             Criar Primeira Meta
           </button>
@@ -161,7 +161,7 @@ export const Goals = () => {
                 </button>
               </div>
               <div className="mt-3 pt-3 border-t border-border">
-                <label className="block text-body-sm font-medium text-neutral-700 mb-2">
+                <label className="block text-body-sm font-medium text-neutral-700 dark:text-neutral-300 mb-2">
                   Adicionar Valor
                 </label>
                 <div className="flex gap-2">
@@ -172,7 +172,7 @@ export const Goals = () => {
                     value={amountToAdd[goal.id] || ''}
                     onChange={(e) => setAmountToAdd({ ...amountToAdd, [goal.id]: e.target.value })}
                     placeholder="0,00"
-                    className="flex-1 px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-body-sm"
+                    className="flex-1 px-3 py-2 border border-border dark:border-border-dark rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent text-body-sm bg-white dark:bg-neutral-950/40 text-neutral-900 dark:text-neutral-50 placeholder:text-neutral-400 dark:placeholder:text-neutral-500"
                   />
                   <button
                     onClick={() => handleAddAmount(goal.id)}

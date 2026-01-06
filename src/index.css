@@ -6,7 +6,8 @@
 
 @layer base {
   body {
-    @apply bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-50 font-sans antialiased;
+    /* Fundo padrão do app (light e dark) */
+    @apply bg-neutral-50 dark:bg-gradient-to-br dark:from-neutral-950 dark:via-[#0b1220] dark:to-neutral-950 text-neutral-900 dark:text-neutral-50 font-sans antialiased;
   }
 
   /* Focus states para acessibilidade */

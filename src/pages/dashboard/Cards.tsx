@@ -68,10 +68,10 @@ export const Cards = () => {
   return (
     <div className="animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8 pb-6 border-b border-border">
+      <div className="flex items-center justify-between mb-8 pb-6 border-b border-border dark:border-border-dark">
         <div>
-          <h1 className="text-h1 font-bold text-neutral-900 mb-2">Cartões</h1>
-          <p className="text-body-sm text-neutral-500">
+          <h1 className="text-h1 font-bold text-neutral-900 dark:text-neutral-50 mb-2">Cartões</h1>
+          <p className="text-body-sm text-neutral-500 dark:text-neutral-400">
             Gerencie seus cartões de crédito e débito
           </p>
         </div>
@@ -95,19 +95,19 @@ export const Cards = () => {
             return (
               <div
                 key={card.id}
-                className="p-6 bg-white rounded-card-lg border border-border hover:shadow-lg transition-all cursor-pointer"
+                className="p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70 hover:shadow-lg transition-all cursor-pointer"
                 onClick={() => handleCardClick(card.id)}
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-lg bg-primary-100 flex items-center justify-center text-2xl">
+                    <div className="w-12 h-12 rounded-lg bg-primary-100 dark:bg-primary-500/10 flex items-center justify-center text-2xl">
                       💳
                     </div>
                     <div>
-                      <h3 className="text-body font-semibold text-neutral-900">
+                      <h3 className="text-body font-semibold text-neutral-900 dark:text-neutral-50">
                         {card.name}
                       </h3>
-                      <p className="text-caption text-neutral-500">
+                      <p className="text-caption text-neutral-500 dark:text-neutral-400">
                         Limite: R$ {card.credit_limit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </p>
                     </div>
@@ -115,7 +115,7 @@ export const Cards = () => {
                   <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => handleEdit(card)}
-                      className="p-2 rounded-lg hover:bg-primary-50 transition-colors text-primary-600"
+                      className="p-2 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-500/10 transition-colors text-primary-600 dark:text-primary-400"
                       title="Editar"
                     >
                       ✏️
@@ -123,7 +123,7 @@ export const Cards = () => {
                     <button
                       onClick={() => handleDelete(card.id)}
                       disabled={isDeleting}
-                      className="p-2 rounded-lg hover:bg-danger-50 transition-colors disabled:opacity-50 text-danger-600"
+                      className="p-2 rounded-lg hover:bg-danger-50 dark:hover:bg-danger-500/10 transition-colors disabled:opacity-50 text-danger-600 dark:text-danger-400"
                       title="Excluir"
                     >
                       🗑️
@@ -135,12 +135,12 @@ export const Cards = () => {
                   {/* Barra de uso do limite */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <p className="text-caption text-neutral-600">Uso do Limite</p>
-                      <p className={`text-caption font-medium ${usagePercentage > 80 ? 'text-danger-600' : usagePercentage > 50 ? 'text-warning-600' : 'text-success-600'}`}>
+                      <p className="text-caption text-neutral-600 dark:text-neutral-300">Uso do Limite</p>
+                      <p className={`text-caption font-medium ${usagePercentage > 80 ? 'text-danger-600 dark:text-danger-400' : usagePercentage > 50 ? 'text-warning-600 dark:text-warning-400' : 'text-success-600 dark:text-success-500'}`}>
                         {usagePercentage.toFixed(0)}%
                       </p>
                     </div>
-                    <div className="w-full bg-neutral-100 rounded-full h-2">
+                    <div className="w-full bg-neutral-100 dark:bg-neutral-800 rounded-full h-2">
                       <div
                         className={`h-2 rounded-full transition-all ${
                           usagePercentage > 80 ? 'bg-danger-600' :
@@ -153,28 +153,28 @@ export const Cards = () => {
                   </div>
 
                   {/* Informações */}
-                  <div className="pt-3 border-t border-border space-y-2">
+                  <div className="pt-3 border-t border-border dark:border-border-dark space-y-2">
                     <div className="flex items-center justify-between">
-                      <p className="text-caption text-neutral-600">Faturas Abertas</p>
-                      <p className="text-body-sm font-semibold text-neutral-900">
+                      <p className="text-caption text-neutral-600 dark:text-neutral-300">Faturas Abertas</p>
+                      <p className="text-body-sm font-semibold text-neutral-900 dark:text-neutral-50">
                         R$ {stats.totalOpenInvoices.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </p>
                     </div>
                     <div className="flex items-center justify-between">
-                      <p className="text-caption text-neutral-600">Limite Disponível</p>
-                      <p className={`text-body-sm font-semibold ${availableLimit >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
+                      <p className="text-caption text-neutral-600 dark:text-neutral-300">Limite Disponível</p>
+                      <p className={`text-body-sm font-semibold ${availableLimit >= 0 ? 'text-success-600 dark:text-success-500' : 'text-danger-600 dark:text-danger-400'}`}>
                         R$ {availableLimit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </p>
                     </div>
                     <div className="flex items-center justify-between">
-                      <p className="text-caption text-neutral-600">Fechamento</p>
-                      <p className="text-body-sm text-neutral-500">
+                      <p className="text-caption text-neutral-600 dark:text-neutral-300">Fechamento</p>
+                      <p className="text-body-sm text-neutral-500 dark:text-neutral-400">
                         Dia {card.closing_day}
                       </p>
                     </div>
                     <div className="flex items-center justify-between">
-                      <p className="text-caption text-neutral-600">Vencimento</p>
-                      <p className="text-body-sm text-neutral-500">
+                      <p className="text-caption text-neutral-600 dark:text-neutral-300">Vencimento</p>
+                      <p className="text-body-sm text-neutral-500 dark:text-neutral-400">
                         Dia {card.due_day}
                       </p>
                     </div>
@@ -184,8 +184,8 @@ export const Cards = () => {
             )
           })
         ) : (
-          <div className="col-span-full p-12 text-center bg-white rounded-card-lg border border-border">
-            <p className="text-body text-neutral-500 mb-4">
+          <div className="col-span-full p-12 text-center bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
+            <p className="text-body text-neutral-500 dark:text-neutral-300 mb-4">
               Nenhum cartão cadastrado ainda
             </p>
             <Button onClick={() => setShowAddModal(true)}>

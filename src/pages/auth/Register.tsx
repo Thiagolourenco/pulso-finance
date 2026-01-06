@@ -16,12 +16,21 @@ export const Register = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    console.log('🔵 [Register] Iniciando cadastro...')
 
     try {
       const formData: RegisterFormData = { email, password, confirmPassword }
+      console.log('🔵 [Register] Dados do formulário:', { email, passwordLength: password.length, confirmPasswordLength: confirmPassword.length })
+      
+      console.log('🔵 [Register] Validando schema...')
       registerSchema.parse(formData)
+      console.log('✅ [Register] Schema validado com sucesso')
 
       setIsLoading(true)
+      console.log('🔵 [Register] Chamando supabase.auth.signUp...')
+      console.log('🔵 [Register] Email:', email)
+      console.log('🔵 [Register] EmailRedirectTo:', `${window.location.origin}/confirmation/signUp`)
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -30,26 +39,67 @@ export const Register = () => {
         },
       })
 
-      if (error) throw error
+      console.log('🔵 [Register] Resposta do signUp:', { 
+        hasData: !!data, 
+        hasUser: !!data?.user, 
+        hasSession: !!data?.session,
+        userId: data?.user?.id,
+        userEmail: data?.user?.email,
+        error: error ? { message: error.message, status: error.status, name: error.name } : null
+      })
+
+      if (error) {
+        console.error('❌ [Register] Erro do Supabase:', error)
+        console.error('❌ [Register] Detalhes do erro:', {
+          message: error.message,
+          status: error.status,
+          name: error.name,
+          stack: error.stack
+        })
+        throw error
+      }
+
+      console.log('✅ [Register] SignUp executado sem erros')
 
       // Verifica se precisa confirmar email
       if (data.user && !data.session) {
+        console.log('🔵 [Register] Usuário criado, mas precisa confirmar email')
+        console.log('🔵 [Register] User ID:', data.user.id)
+        console.log('🔵 [Register] User Email:', data.user.email)
         // Email precisa ser confirmado
         setSuccess('Conta criada! Verifique seu email para confirmar a conta.')
         // Aguarda um pouco e redireciona para login
         setTimeout(() => {
+          console.log('🔵 [Register] Redirecionando para /login após 3s')
           navigate('/login')
         }, 3000)
       } else if (data.session) {
+        console.log('🔵 [Register] Login automático - sessão criada')
+        console.log('🔵 [Register] Session:', data.session?.user?.id)
         // Login automático (quando email confirmation está desabilitado)
         navigate('/dashboard')
       } else {
+        console.warn('⚠️ [Register] Caso inesperado: sem user e sem session')
+        console.warn('⚠️ [Register] Data completo:', JSON.stringify(data, null, 2))
         navigate('/login')
       }
     } catch (err: any) {
-      setError(err.message || 'Erro ao criar conta')
+      console.error('❌ [Register] Erro capturado no catch:', err)
+      console.error('❌ [Register] Tipo do erro:', typeof err)
+      console.error('❌ [Register] Nome do erro:', err?.name)
+      console.error('❌ [Register] Mensagem do erro:', err?.message)
+      console.error('❌ [Register] Stack do erro:', err?.stack)
+      
+      if (err?.issues) {
+        console.error('❌ [Register] Erros de validação Zod:', err.issues)
+      }
+      
+      const errorMessage = err?.message || err?.toString() || 'Erro ao criar conta'
+      console.error('❌ [Register] Mensagem de erro final:', errorMessage)
+      setError(errorMessage)
     } finally {
       setIsLoading(false)
+      console.log('🔵 [Register] Finalizando handleSubmit (isLoading = false)')
     }
   }
 

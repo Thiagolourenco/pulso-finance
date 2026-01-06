@@ -118,10 +118,10 @@ export const Transactions = () => {
   return (
     <div className="animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8 pb-6 border-b border-border">
+      <div className="flex items-center justify-between mb-8 pb-6 border-b border-border dark:border-border-dark">
         <div>
-          <h1 className="text-h1 font-bold text-neutral-900 mb-2">Transações</h1>
-          <p className="text-body-sm text-neutral-500">
+          <h1 className="text-h1 font-bold text-neutral-900 dark:text-neutral-50 mb-2">Transações</h1>
+          <p className="text-body-sm text-neutral-500 dark:text-neutral-400">
             Gerencie todas as suas transações financeiras
           </p>
         </div>
@@ -135,27 +135,27 @@ export const Transactions = () => {
 
       {/* Estatísticas */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="p-6 bg-white rounded-card-lg border border-border">
-          <p className="text-caption text-neutral-600 mb-2">Total de Receitas</p>
+        <div className="p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
+          <p className="text-caption text-neutral-600 dark:text-neutral-300 mb-2">Total de Receitas</p>
           <p className="text-h2 font-bold text-success-600">
             R$ {stats.income.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
         </div>
-        <div className="p-6 bg-white rounded-card-lg border border-border">
-          <p className="text-caption text-neutral-600 mb-2">Total de Despesas</p>
+        <div className="p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
+          <p className="text-caption text-neutral-600 dark:text-neutral-300 mb-2">Total de Despesas</p>
           <p className="text-h2 font-bold text-danger-600">
             R$ {stats.expenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
         </div>
-        <div className="p-6 bg-white rounded-card-lg border border-border">
-          <p className="text-caption text-neutral-600 mb-2">Saldo</p>
-          <p className={`text-h2 font-bold ${stats.balance >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
+        <div className="p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
+          <p className="text-caption text-neutral-600 dark:text-neutral-300 mb-2">Saldo</p>
+          <p className={`text-h2 font-bold ${stats.balance >= 0 ? 'text-success-600 dark:text-success-500' : 'text-danger-600 dark:text-danger-400'}`}>
             {stats.balance >= 0 ? '+' : ''}R$ {stats.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
         </div>
-        <div className="p-6 bg-white rounded-card-lg border border-border">
-          <p className="text-caption text-neutral-600 mb-2">Transações</p>
-          <p className="text-h2 font-bold text-neutral-900">
+        <div className="p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
+          <p className="text-caption text-neutral-600 dark:text-neutral-300 mb-2">Transações</p>
+          <p className="text-h2 font-bold text-neutral-900 dark:text-neutral-50">
             {stats.count}
           </p>
         </div>
@@ -170,7 +170,7 @@ export const Transactions = () => {
               placeholder="Buscar por descrição..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-2 border border-border rounded-lg text-body-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="w-full px-4 py-2 border border-border dark:border-border-dark rounded-lg text-body-sm bg-white dark:bg-neutral-950/40 text-neutral-900 dark:text-neutral-50 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
           <Button
@@ -183,14 +183,14 @@ export const Transactions = () => {
         </div>
 
         {showFilters && (
-          <div className="p-4 bg-white rounded-card-lg border border-border">
+          <div className="p-4 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div>
-                <label className="block text-caption text-neutral-600 mb-2">Tipo</label>
+                <label className="block text-caption text-neutral-600 dark:text-neutral-300 mb-2">Tipo</label>
                 <select
                   value={filterType}
                   onChange={(e) => setFilterType(e.target.value as 'all' | 'income' | 'expense')}
-                  className="w-full px-4 py-2 border border-border rounded-lg text-body-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full px-4 py-2 border border-border dark:border-border-dark rounded-lg text-body-sm bg-white dark:bg-neutral-950/40 text-neutral-900 dark:text-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="all">Todos</option>
                   <option value="income">Receitas</option>
@@ -198,11 +198,11 @@ export const Transactions = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-caption text-neutral-600 mb-2">Categoria</label>
+                <label className="block text-caption text-neutral-600 dark:text-neutral-300 mb-2">Categoria</label>
                 <select
                   value={filterCategory}
                   onChange={(e) => setFilterCategory(e.target.value)}
-                  className="w-full px-4 py-2 border border-border rounded-lg text-body-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full px-4 py-2 border border-border dark:border-border-dark rounded-lg text-body-sm bg-white dark:bg-neutral-950/40 text-neutral-900 dark:text-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="all">Todas</option>
                   {categories.map(category => (
@@ -211,11 +211,11 @@ export const Transactions = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-caption text-neutral-600 mb-2">Conta</label>
+                <label className="block text-caption text-neutral-600 dark:text-neutral-300 mb-2">Conta</label>
                 <select
                   value={filterAccount}
                   onChange={(e) => setFilterAccount(e.target.value)}
-                  className="w-full px-4 py-2 border border-border rounded-lg text-body-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full px-4 py-2 border border-border dark:border-border-dark rounded-lg text-body-sm bg-white dark:bg-neutral-950/40 text-neutral-900 dark:text-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="all">Todas</option>
                   {accounts.map(account => (
@@ -226,26 +226,26 @@ export const Transactions = () => {
             </div>
             
             {/* Filtros de Data */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 pt-4 border-t border-border">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4 pt-4 border-t border-border dark:border-border-dark">
               <div className="md:col-span-1">
                 <label className="flex items-center gap-2 mb-2">
                   <input
                     type="checkbox"
                     checked={filterByDate}
                     onChange={(e) => setFilterByDate(e.target.checked)}
-                    className="w-4 h-4 text-primary-600 border-border rounded focus:ring-primary-500"
+                    className="w-4 h-4 text-primary-600 border-border dark:border-border-dark rounded focus:ring-primary-500"
                   />
-                  <span className="text-caption text-neutral-600">Filtrar por data</span>
+                  <span className="text-caption text-neutral-600 dark:text-neutral-300">Filtrar por data</span>
                 </label>
               </div>
               {filterByDate && (
                 <>
                   <div>
-                    <label className="block text-caption text-neutral-600 mb-2">Mês</label>
+                    <label className="block text-caption text-neutral-600 dark:text-neutral-300 mb-2">Mês</label>
                     <select
                       value={filterMonth}
                       onChange={(e) => setFilterMonth(Number(e.target.value))}
-                      className="w-full px-4 py-2 border border-border rounded-lg text-body-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      className="w-full px-4 py-2 border border-border dark:border-border-dark rounded-lg text-body-sm bg-white dark:bg-neutral-950/40 text-neutral-900 dark:text-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     >
                       <option value={1}>Janeiro</option>
                       <option value={2}>Fevereiro</option>
@@ -262,11 +262,11 @@ export const Transactions = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-caption text-neutral-600 mb-2">Ano</label>
+                    <label className="block text-caption text-neutral-600 dark:text-neutral-300 mb-2">Ano</label>
                     <select
                       value={filterYear}
                       onChange={(e) => setFilterYear(Number(e.target.value))}
-                      className="w-full px-4 py-2 border border-border rounded-lg text-body-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      className="w-full px-4 py-2 border border-border dark:border-border-dark rounded-lg text-body-sm bg-white dark:bg-neutral-950/40 text-neutral-900 dark:text-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     >
                       {Array.from({ length: 5 }, (_, i) => {
                         const year = currentDate.getFullYear() - 2 + i
@@ -281,9 +281,9 @@ export const Transactions = () => {
             </div>
             
             {/* Filtros de Valor */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-border">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-border dark:border-border-dark">
               <div>
-                <label className="block text-caption text-neutral-600 mb-2">Valor Mínimo (R$)</label>
+                <label className="block text-caption text-neutral-600 dark:text-neutral-300 mb-2">Valor Mínimo (R$)</label>
                 <input
                   type="text"
                   placeholder="Ex: 100,00"
@@ -302,11 +302,11 @@ export const Transactions = () => {
                     }
                     setMinValue(value)
                   }}
-                  className="w-full px-4 py-2 border border-border rounded-lg text-body-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full px-4 py-2 border border-border dark:border-border-dark rounded-lg text-body-sm bg-white dark:bg-neutral-950/40 text-neutral-900 dark:text-neutral-50 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
-                <label className="block text-caption text-neutral-600 mb-2">Valor Máximo (R$)</label>
+                <label className="block text-caption text-neutral-600 dark:text-neutral-300 mb-2">Valor Máximo (R$)</label>
                 <input
                   type="text"
                   placeholder="Ex: 1000,00"
@@ -325,7 +325,7 @@ export const Transactions = () => {
                     }
                     setMaxValue(value)
                   }}
-                  className="w-full px-4 py-2 border border-border rounded-lg text-body-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  className="w-full px-4 py-2 border border-border dark:border-border-dark rounded-lg text-body-sm bg-white dark:bg-neutral-950/40 text-neutral-900 dark:text-neutral-50 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
             </div>
@@ -334,9 +334,9 @@ export const Transactions = () => {
       </div>
 
       {/* Lista de Transações */}
-      <div className="bg-white rounded-card-lg border border-border overflow-hidden">
+      <div className="bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70 overflow-hidden">
         {filteredTransactions.length > 0 ? (
-          <div className="divide-y divide-border">
+          <div className="divide-y divide-border dark:divide-border-dark">
             {filteredTransactions.map(transaction => {
               const category = categories.find(c => c.id === transaction.category_id)
               const account = accounts.find(a => a.id === transaction.account_id)
@@ -345,38 +345,38 @@ export const Transactions = () => {
               return (
                 <div
                   key={transaction.id}
-                  className="p-4 hover:bg-neutral-50 transition-colors"
+                  className="p-4 hover:bg-neutral-50 dark:hover:bg-neutral-950/30 transition-colors"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4 flex-1 min-w-0">
                       <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                        transaction.type === 'income' ? 'bg-success-100' : 'bg-danger-100'
+                        transaction.type === 'income' ? 'bg-success-100 dark:bg-success-900/30' : 'bg-danger-100 dark:bg-danger-900/30'
                       }`}>
                         {category?.icon && (
                           <span className="text-2xl">{category.icon}</span>
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-body font-medium text-neutral-900 truncate">
+                        <p className="text-body font-medium text-neutral-900 dark:text-neutral-50 truncate">
                           {transaction.description}
                         </p>
                         <div className="flex items-center gap-2 mt-1">
                           {category && (
-                            <span className="text-caption text-neutral-500">
+                            <span className="text-caption text-neutral-500 dark:text-neutral-400">
                               {category.icon} {category.name}
                             </span>
                           )}
                           {account && (
-                            <span className="text-caption text-neutral-500">
+                            <span className="text-caption text-neutral-500 dark:text-neutral-400">
                               • {account.name}
                             </span>
                           )}
                           {card && (
-                            <span className="text-caption text-neutral-500">
+                            <span className="text-caption text-neutral-500 dark:text-neutral-400">
                               • {card.name}
                             </span>
                           )}
-                          <span className="text-caption text-neutral-500">
+                          <span className="text-caption text-neutral-500 dark:text-neutral-400">
                             • {new Date(transaction.date).toLocaleDateString('pt-BR')}
                           </span>
                         </div>
@@ -385,7 +385,7 @@ export const Transactions = () => {
                     <div className="flex items-center gap-4 ml-4">
                       <div className="text-right">
                         <p className={`text-body font-bold ${
-                          transaction.type === 'income' ? 'text-success-600' : 'text-danger-600'
+                          transaction.type === 'income' ? 'text-success-600 dark:text-success-500' : 'text-danger-600 dark:text-danger-400'
                         }`}>
                           {transaction.type === 'income' ? '+' : '-'}R$ {Math.abs(Number(transaction.amount) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </p>
@@ -393,7 +393,7 @@ export const Transactions = () => {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleEdit(transaction)}
-                          className="p-2 rounded-lg hover:bg-primary-50 transition-colors text-primary-600"
+                          className="p-2 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-500/10 transition-colors text-primary-600 dark:text-primary-400"
                           title="Editar"
                         >
                           ✏️
@@ -401,7 +401,7 @@ export const Transactions = () => {
                         <button
                           onClick={() => handleDelete(transaction.id)}
                           disabled={isDeleting}
-                          className="p-2 rounded-lg hover:bg-danger-50 transition-colors disabled:opacity-50 text-danger-600"
+                          className="p-2 rounded-lg hover:bg-danger-50 dark:hover:bg-danger-500/10 transition-colors disabled:opacity-50 text-danger-600 dark:text-danger-400"
                           title="Excluir"
                         >
                           🗑️
@@ -415,7 +415,7 @@ export const Transactions = () => {
           </div>
         ) : (
           <div className="p-12 text-center">
-            <p className="text-body text-neutral-500 mb-4">
+            <p className="text-body text-neutral-500 dark:text-neutral-300 mb-4">
               {searchTerm || filterType !== 'all' || filterCategory !== 'all' || filterAccount !== 'all' || filterByDate || minValue || maxValue
                 ? 'Nenhuma transação encontrada com os filtros aplicados'
                 : 'Nenhuma transação cadastrada ainda'}

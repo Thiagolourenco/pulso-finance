@@ -78,10 +78,10 @@ export const Categories = () => {
   return (
     <div className="animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8 pb-6 border-b border-border">
+      <div className="flex items-center justify-between mb-8 pb-6 border-b border-border dark:border-border-dark">
         <div>
-          <h1 className="text-h1 font-bold text-neutral-900 mb-2">Categorias</h1>
-          <p className="text-body-sm text-neutral-500">
+          <h1 className="text-h1 font-bold text-neutral-900 dark:text-neutral-50 mb-2">Categorias</h1>
+          <p className="text-body-sm text-neutral-500 dark:text-neutral-400">
             Organize suas transações por categorias personalizadas
           </p>
         </div>
@@ -102,20 +102,20 @@ export const Categories = () => {
             return (
               <div
                 key={category.id}
-                className="p-6 bg-white rounded-card-lg border border-border hover:shadow-lg transition-all"
+                className="p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70 hover:shadow-lg transition-all"
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3 flex-1">
                     {category.icon && (
-                      <div className="w-12 h-12 rounded-lg bg-primary-100 flex items-center justify-center text-2xl">
+                      <div className="w-12 h-12 rounded-lg bg-primary-100 dark:bg-primary-500/10 flex items-center justify-center text-2xl">
                         {category.icon}
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-body font-semibold text-neutral-900 truncate">
+                      <h3 className="text-body font-semibold text-neutral-900 dark:text-neutral-50 truncate">
                         {category.name}
                       </h3>
-                      <span className={`inline-block mt-1 px-2 py-1 rounded-full text-caption font-medium ${getCategoryTypeColor(category.type)}`}>
+                      <span className={`inline-block mt-1 px-2 py-1 rounded-full text-caption font-medium ${getCategoryTypeColor(category.type)} dark:opacity-90`}>
                         {getCategoryTypeLabel(category.type)}
                       </span>
                     </div>
@@ -123,7 +123,7 @@ export const Categories = () => {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleEdit(category)}
-                      className="p-2 rounded-lg hover:bg-primary-50 transition-colors text-primary-600"
+                      className="p-2 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-500/10 transition-colors text-primary-600 dark:text-primary-400"
                       title="Editar"
                     >
                       ✏️
@@ -131,7 +131,7 @@ export const Categories = () => {
                     <button
                       onClick={() => handleDelete(category.id)}
                       disabled={isDeleting}
-                      className="p-2 rounded-lg hover:bg-danger-50 transition-colors disabled:opacity-50 text-danger-600"
+                      className="p-2 rounded-lg hover:bg-danger-50 dark:hover:bg-danger-500/10 transition-colors disabled:opacity-50 text-danger-600 dark:text-danger-400"
                       title="Excluir"
                     >
                       🗑️
@@ -139,16 +139,16 @@ export const Categories = () => {
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-border">
+                <div className="pt-4 border-t border-border dark:border-border-dark">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-caption text-neutral-600">Transações</p>
-                    <p className="text-body-sm font-semibold text-neutral-900">
+                    <p className="text-caption text-neutral-600 dark:text-neutral-300">Transações</p>
+                    <p className="text-body-sm font-semibold text-neutral-900 dark:text-neutral-50">
                       {stats.transactionCount}
                     </p>
                   </div>
                   <div className="flex items-center justify-between">
-                    <p className="text-caption text-neutral-600">Total Gasto</p>
-                    <p className="text-body-sm font-semibold text-neutral-900">
+                    <p className="text-caption text-neutral-600 dark:text-neutral-300">Total Gasto</p>
+                    <p className="text-body-sm font-semibold text-neutral-900 dark:text-neutral-50">
                       R$ {stats.totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
                   </div>
@@ -157,8 +157,8 @@ export const Categories = () => {
             )
           })
         ) : (
-          <div className="col-span-full p-12 text-center bg-white rounded-card-lg border border-border">
-            <p className="text-body text-neutral-500 mb-4">
+          <div className="col-span-full p-12 text-center bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
+            <p className="text-body text-neutral-500 dark:text-neutral-300 mb-4">
               Nenhuma categoria cadastrada ainda
             </p>
             <Button onClick={() => setShowAddModal(true)}>

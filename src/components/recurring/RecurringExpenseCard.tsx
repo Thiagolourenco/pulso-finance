@@ -76,13 +76,13 @@ export const RecurringExpenseCard = ({
   
   if (isPaidCurrentMonth) {
     badgeText = 'PAGA'
-    badgeColor = 'bg-success-100 text-success-700 border-success-300'
+    badgeColor = 'bg-success-100 text-success-700 border-success-300 dark:bg-success-900/40 dark:text-success-300 dark:border-success-700/60'
   } else if (isOverdue) {
     badgeText = 'ATRASADA'
-    badgeColor = 'bg-danger-100 text-danger-700 border-danger-300'
+    badgeColor = 'bg-danger-100 text-danger-700 border-danger-300 dark:bg-danger-900/40 dark:text-danger-300 dark:border-danger-700/60'
   } else {
     badgeText = 'A PAGAR'
-    badgeColor = 'bg-warning-100 text-warning-700 border-warning-300'
+    badgeColor = 'bg-warning-100 text-warning-700 border-warning-300 dark:bg-warning-900/40 dark:text-warning-300 dark:border-warning-700/60'
   }
   
   const handleTogglePaid = (checked: boolean) => {
@@ -108,13 +108,19 @@ export const RecurringExpenseCard = ({
   }
 
   return (
-    <div className={`p-5 bg-white rounded-card-lg border-2 ${expense.is_active ? 'border-border hover:border-primary-400 hover:shadow-lg' : 'border-neutral-200 opacity-60'} transition-all duration-fast relative`}>
+    <div
+      className={`p-5 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border-2 ${
+        expense.is_active
+          ? 'border-border dark:border-border-dark hover:border-primary-400 dark:hover:border-primary-500/70 hover:shadow-lg'
+          : 'border-neutral-200 dark:border-neutral-800 opacity-60'
+      } transition-all duration-fast relative`}
+    >
       {/* Botões de ação no canto superior direito */}
       <div className="absolute top-3 right-3 flex items-center gap-1">
         {onEdit && (
           <button
             onClick={() => onEdit(expense)}
-            className="p-1.5 text-neutral-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+            className="p-1.5 text-neutral-400 hover:text-primary-600 dark:hover:text-primary-300 hover:bg-primary-50 dark:hover:bg-primary-500/10 rounded-lg transition-colors"
             title="Editar"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -126,7 +132,7 @@ export const RecurringExpenseCard = ({
           <button
             onClick={handleDelete}
             disabled={isDeleting}
-            className="p-1.5 text-neutral-400 hover:text-danger-600 hover:bg-danger-50 rounded-lg transition-colors disabled:opacity-50"
+            className="p-1.5 text-neutral-400 hover:text-danger-600 dark:hover:text-danger-300 hover:bg-danger-50 dark:hover:bg-danger-500/10 rounded-lg transition-colors disabled:opacity-50"
             title="Excluir"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -140,16 +146,16 @@ export const RecurringExpenseCard = ({
       <div className="flex items-start justify-between mb-4 pr-16">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-2">
-            <h3 className="text-body font-semibold text-neutral-900 truncate">
+            <h3 className="text-body font-semibold text-neutral-900 dark:text-neutral-50 truncate">
               {expense.name}
             </h3>
             {expense.is_active && (
-              <span className="px-2 py-0.5 bg-success-100 text-success-700 text-caption font-medium rounded-full flex-shrink-0">
+              <span className="px-2 py-0.5 bg-success-100 dark:bg-success-900/40 text-success-700 dark:text-success-300 text-caption font-medium rounded-full flex-shrink-0">
                 Ativo
               </span>
             )}
             {!expense.is_active && (
-              <span className="px-2 py-0.5 bg-neutral-100 text-neutral-600 text-caption font-medium rounded-full flex-shrink-0">
+              <span className="px-2 py-0.5 bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 text-caption font-medium rounded-full flex-shrink-0">
                 Inativo
               </span>
             )}
@@ -159,40 +165,40 @@ export const RecurringExpenseCard = ({
               {category.icon && (
                 <span className="text-body-sm">{category.icon}</span>
               )}
-              <span className="text-caption text-neutral-600">{category.name}</span>
+              <span className="text-caption text-neutral-600 dark:text-neutral-300">{category.name}</span>
             </div>
           )}
           {expense.description && (
-            <p className="text-caption text-neutral-500 line-clamp-2">
+            <p className="text-caption text-neutral-500 dark:text-neutral-400 line-clamp-2">
               {expense.description}
             </p>
           )}
         </div>
         <div className="text-right ml-4 flex-shrink-0">
-          <p className="text-h2 font-bold text-danger-600">
+          <p className="text-h2 font-bold text-danger-600 dark:text-danger-400">
             R$ {expense.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
-          <p className="text-caption text-neutral-500">
+          <p className="text-caption text-neutral-500 dark:text-neutral-400">
             / mês
           </p>
         </div>
       </div>
 
       {/* Informações de vencimento */}
-      <div className="grid grid-cols-2 gap-4 p-3 bg-neutral-50 rounded-lg mb-3">
+      <div className="grid grid-cols-2 gap-4 p-3 bg-neutral-50 dark:bg-neutral-950/30 rounded-lg mb-3 border border-border dark:border-border-dark/70">
         <div>
-          <p className="text-caption text-neutral-500 mb-1">Vence dia</p>
-          <p className="text-body font-semibold text-neutral-900">
+          <p className="text-caption text-neutral-500 dark:text-neutral-400 mb-1">Vence dia</p>
+          <p className="text-body font-semibold text-neutral-900 dark:text-neutral-50">
             {expense.due_day}
           </p>
         </div>
         <div>
-          <p className="text-caption text-neutral-500 mb-1">Próximo vencimento</p>
-          <p className="text-body-sm font-semibold text-neutral-900">
+          <p className="text-caption text-neutral-500 dark:text-neutral-400 mb-1">Próximo vencimento</p>
+          <p className="text-body-sm font-semibold text-neutral-900 dark:text-neutral-50">
             {nextDueDate.toLocaleDateString('pt-BR')}
           </p>
           {daysUntilDue >= 0 && (
-            <p className="text-caption text-neutral-600 mt-0.5">
+            <p className="text-caption text-neutral-600 dark:text-neutral-300 mt-0.5">
               {daysUntilDue === 0 ? 'Hoje' : daysUntilDue === 1 ? '1 dia' : `${daysUntilDue} dias`}
             </p>
           )}
@@ -201,7 +207,7 @@ export const RecurringExpenseCard = ({
       
       {/* Badge e Checkbox para marcar como paga */}
       {expense.is_active && onUpdate && (
-        <div className="flex items-center justify-between pt-2 border-t border-border">
+        <div className="flex items-center justify-between pt-2 border-t border-border dark:border-border-dark">
           <span className={`px-2 py-1 text-caption font-semibold rounded-full border ${badgeColor}`}>
             {badgeText}
           </span>
@@ -211,9 +217,9 @@ export const RecurringExpenseCard = ({
               checked={isPaidCurrentMonth}
               onChange={(e) => handleTogglePaid(e.target.checked)}
               disabled={isUpdatingPaid}
-              className="w-4 h-4 text-success-600 border-border rounded focus:ring-success-500 focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-4 h-4 text-success-600 border-border dark:border-border-dark rounded focus:ring-success-500 focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
             />
-            <span className="text-caption text-neutral-600">
+            <span className="text-caption text-neutral-600 dark:text-neutral-300">
               Paga
             </span>
           </label>

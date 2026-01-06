@@ -8,10 +8,32 @@ import { useCategories } from '@/hooks/useCategories'
 import { useRecurringExpenses } from '@/hooks/useRecurringExpenses'
 import { PieChart, Pie, Cell, BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts'
 import { Button, Modal } from '@/components/ui'
+import { useTheme } from '@/contexts/ThemeProvider'
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16']
 
 export const Reports = () => {
+  const { theme } = useTheme()
+  const isDark = theme === 'dark'
+
+  const chartAxisStroke = isDark ? '#CBD5E1' : '#64748B' // neutral-300 / neutral-500
+  const chartGridStroke = isDark ? 'rgba(148, 163, 184, 0.18)' : '#E5E7EB' // neutral-400/alpha / border
+  const tooltipContentStyle: React.CSSProperties = {
+    backgroundColor: isDark ? 'rgba(2, 6, 23, 0.92)' : '#FFFFFF',
+    border: isDark ? '1px solid rgba(51, 65, 85, 0.7)' : '1px solid #E5E7EB',
+    borderRadius: 12,
+    color: isDark ? '#F8FAFC' : '#0F172A',
+    backdropFilter: 'blur(12px)',
+  }
+  const tooltipLabelStyle: React.CSSProperties = {
+    color: isDark ? '#CBD5E1' : '#475569',
+    fontWeight: 600,
+  }
+  const tooltipItemStyle: React.CSSProperties = {
+    color: isDark ? '#F8FAFC' : '#0F172A',
+  }
+  const legendStyle: React.CSSProperties = { color: chartAxisStroke }
+
   const { transactions, isLoading: isLoadingTransactions } = useTransactions()
   const { isLoading: isLoadingAccounts } = useAccounts()
   const { cards, isLoading: isLoadingCards } = useCards()
@@ -544,7 +566,7 @@ export const Reports = () => {
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-            <p className="text-body text-neutral-500">Carregando relatórios...</p>
+            <p className="text-body text-neutral-500 dark:text-neutral-300">Carregando relatórios...</p>
           </div>
         </div>
       </div>
@@ -611,37 +633,37 @@ export const Reports = () => {
 
       {/* Resumo geral */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6 lg:mb-8">
-        <div className="p-4 lg:p-6 bg-white dark:bg-neutral-950 rounded-card-lg border border-border dark:border-border-dark">
-          <p className="text-caption text-neutral-600 mb-2">Total de Receitas</p>
+        <div className="p-4 lg:p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
+          <p className="text-caption text-neutral-600 dark:text-neutral-300 mb-2">Total de Receitas</p>
           <p className="text-h2 font-bold text-success-600">
             R$ {summary.totalIncome.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
           {monthComparison.incomeChange !== 0 && (
-            <p className={`text-caption mt-1 ${monthComparison.incomeChange >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
+            <p className={`text-caption mt-1 ${monthComparison.incomeChange >= 0 ? 'text-success-600 dark:text-success-500' : 'text-danger-600 dark:text-danger-400'}`}>
               {monthComparison.incomeChange >= 0 ? '↑' : '↓'} {Math.abs(monthComparison.incomeChange).toFixed(1)}% vs mês anterior
             </p>
           )}
         </div>
-        <div className="p-4 lg:p-6 bg-white dark:bg-neutral-950 rounded-card-lg border border-border dark:border-border-dark">
-          <p className="text-caption text-neutral-600 mb-2">Total de Despesas</p>
+        <div className="p-4 lg:p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
+          <p className="text-caption text-neutral-600 dark:text-neutral-300 mb-2">Total de Despesas</p>
           <p className="text-h2 font-bold text-danger-600">
             R$ {summary.totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
           {monthComparison.expensesChange !== 0 && (
-            <p className={`text-caption mt-1 ${monthComparison.expensesChange <= 0 ? 'text-success-600' : 'text-danger-600'}`}>
+            <p className={`text-caption mt-1 ${monthComparison.expensesChange <= 0 ? 'text-success-600 dark:text-success-500' : 'text-danger-600 dark:text-danger-400'}`}>
               {monthComparison.expensesChange <= 0 ? '↓' : '↑'} {Math.abs(monthComparison.expensesChange).toFixed(1)}% vs mês anterior
             </p>
           )}
         </div>
-        <div className="p-4 lg:p-6 bg-white dark:bg-neutral-950 rounded-card-lg border border-border dark:border-border-dark">
-          <p className="text-caption text-neutral-600 mb-2">Saldo</p>
-          <p className={`text-h2 font-bold ${summary.totalBalance >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
+        <div className="p-4 lg:p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
+          <p className="text-caption text-neutral-600 dark:text-neutral-300 mb-2">Saldo</p>
+          <p className={`text-h2 font-bold ${summary.totalBalance >= 0 ? 'text-success-600 dark:text-success-500' : 'text-danger-600 dark:text-danger-400'}`}>
             {summary.totalBalance >= 0 ? '+' : ''}R$ {summary.totalBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
         </div>
-        <div className="p-4 lg:p-6 bg-white dark:bg-neutral-950 rounded-card-lg border border-border dark:border-border-dark">
-          <p className="text-caption text-neutral-600 mb-2">Transações</p>
-          <p className="text-h2 font-bold text-neutral-900">
+        <div className="p-4 lg:p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
+          <p className="text-caption text-neutral-600 dark:text-neutral-300 mb-2">Transações</p>
+          <p className="text-h2 font-bold text-neutral-900 dark:text-neutral-50">
             {summary.transactionCount}
           </p>
         </div>
@@ -650,8 +672,8 @@ export const Reports = () => {
       {/* Comparativo Mês Atual vs Anterior */}
       {selectedPeriod === 'month' && (
         <div className="mb-8">
-          <div className="p-6 bg-white rounded-card-lg border border-border">
-            <h2 className="text-h3 font-semibold text-neutral-900 mb-4">Comparativo: Mês Atual vs Anterior</h2>
+          <div className="p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
+            <h2 className="text-h3 font-semibold text-neutral-900 dark:text-neutral-50 mb-4">Comparativo: Mês Atual vs Anterior</h2>
             <ResponsiveContainer width="100%" height={250}>
               <BarChart data={[
                 {
@@ -665,13 +687,16 @@ export const Reports = () => {
                   despesas: monthComparison.current.expenses
                 }
               ]}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                <XAxis dataKey="periodo" stroke="#64748B" />
-                <YAxis stroke="#64748B" />
+                <CartesianGrid strokeDasharray="3 3" stroke={chartGridStroke} />
+                <XAxis dataKey="periodo" stroke={chartAxisStroke} tick={{ fill: chartAxisStroke }} />
+                <YAxis stroke={chartAxisStroke} tick={{ fill: chartAxisStroke }} />
                 <Tooltip
                   formatter={(value: number | undefined) => `R$ ${(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                  contentStyle={tooltipContentStyle}
+                  labelStyle={tooltipLabelStyle}
+                  itemStyle={tooltipItemStyle}
                 />
-                <Legend />
+                <Legend wrapperStyle={legendStyle} />
                 <Bar dataKey="receitas" fill="#10B981" radius={[8, 8, 0, 0]} />
                 <Bar dataKey="despesas" fill="#EF4444" radius={[8, 8, 0, 0]} />
               </BarChart>
@@ -683,8 +708,8 @@ export const Reports = () => {
       {/* Gráficos principais */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         {/* Gastos por Categoria */}
-        <div className="p-6 bg-white rounded-card-lg border border-border">
-          <h2 className="text-h3 font-semibold text-neutral-900 mb-4">Gastos por Categoria</h2>
+        <div className="p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
+          <h2 className="text-h3 font-semibold text-neutral-900 dark:text-neutral-50 mb-4">Gastos por Categoria</h2>
           {expensesByCategory.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
@@ -693,7 +718,26 @@ export const Reports = () => {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={(props: { name?: string; percent?: number }) => `${props.name || ''} ${((props.percent || 0) * 100).toFixed(0)}%`}
+                  label={(props: any) => {
+                    const name = props?.name || ''
+                    const percent = ((props?.percent || 0) * 100).toFixed(0)
+                    // Recharts passa x/y para label default
+                    if (typeof props?.x === 'number' && typeof props?.y === 'number') {
+                      return (
+                        <text
+                          x={props.x}
+                          y={props.y}
+                          fill={chartAxisStroke}
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fontSize={12}
+                        >
+                          {`${name} ${percent}%`}
+                        </text>
+                      )
+                    }
+                    return `${name} ${percent}%`
+                  }}
                   outerRadius={100}
                   fill="#8884d8"
                   dataKey="amount"
@@ -708,11 +752,14 @@ export const Reports = () => {
                 </Pie>
                 <Tooltip
                   formatter={(value: number | undefined) => `R$ ${(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                  contentStyle={tooltipContentStyle}
+                  labelStyle={tooltipLabelStyle}
+                  itemStyle={tooltipItemStyle}
                 />
               </PieChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-300 flex items-center justify-center text-neutral-500">
+            <div className="h-300 flex items-center justify-center text-neutral-500 dark:text-neutral-300">
               <p>Nenhum dado disponível para o período selecionado</p>
             </div>
           )}
@@ -720,15 +767,18 @@ export const Reports = () => {
 
         {/* Receitas por Categoria */}
         {incomeByCategory.length > 0 && (
-          <div className="p-6 bg-white rounded-card-lg border border-border">
-            <h2 className="text-h3 font-semibold text-neutral-900 mb-4">Receitas por Categoria</h2>
+          <div className="p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
+            <h2 className="text-h3 font-semibold text-neutral-900 dark:text-neutral-50 mb-4">Receitas por Categoria</h2>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={incomeByCategory}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                <XAxis dataKey="name" stroke="#64748B" />
-                <YAxis stroke="#64748B" />
+                <CartesianGrid strokeDasharray="3 3" stroke={chartGridStroke} />
+                <XAxis dataKey="name" stroke={chartAxisStroke} tick={{ fill: chartAxisStroke }} />
+                <YAxis stroke={chartAxisStroke} tick={{ fill: chartAxisStroke }} />
                 <Tooltip
                   formatter={(value: number | undefined) => `R$ ${(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                  contentStyle={tooltipContentStyle}
+                  labelStyle={tooltipLabelStyle}
+                  itemStyle={tooltipItemStyle}
                 />
                 <Bar 
                   dataKey="amount" 
@@ -748,47 +798,53 @@ export const Reports = () => {
         )}
 
         {/* Evolução Mensal */}
-        <div className="p-6 bg-white rounded-card-lg border border-border">
-          <h2 className="text-h3 font-semibold text-neutral-900 mb-4">Evolução Mensal</h2>
+        <div className="p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
+          <h2 className="text-h3 font-semibold text-neutral-900 dark:text-neutral-50 mb-4">Evolução Mensal</h2>
           {monthlyEvolution.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <AreaChart data={monthlyEvolution}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                <XAxis dataKey="month" stroke="#64748B" />
-                <YAxis stroke="#64748B" />
+                <CartesianGrid strokeDasharray="3 3" stroke={chartGridStroke} />
+                <XAxis dataKey="month" stroke={chartAxisStroke} tick={{ fill: chartAxisStroke }} />
+                <YAxis stroke={chartAxisStroke} tick={{ fill: chartAxisStroke }} />
                 <Tooltip
                   formatter={(value: number | undefined) => `R$ ${(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                  contentStyle={tooltipContentStyle}
+                  labelStyle={tooltipLabelStyle}
+                  itemStyle={tooltipItemStyle}
                 />
-                <Legend />
+                <Legend wrapperStyle={legendStyle} />
                 <Area type="monotone" dataKey="receitas" stackId="1" stroke="#10B981" fill="#10B981" fillOpacity={0.6} name="Receitas" />
                 <Area type="monotone" dataKey="despesas" stackId="2" stroke="#EF4444" fill="#EF4444" fillOpacity={0.6} name="Despesas" />
                 <Line type="monotone" dataKey="saldo" stroke="#3B82F6" strokeWidth={2} name="Saldo" />
               </AreaChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-300 flex items-center justify-center text-neutral-500">
+            <div className="h-300 flex items-center justify-center text-neutral-500 dark:text-neutral-300">
               <p>Nenhum dado disponível para o período selecionado</p>
             </div>
           )}
         </div>
 
         {/* Gastos por Dia da Semana */}
-        <div className="p-6 bg-white rounded-card-lg border border-border">
-          <h2 className="text-h3 font-semibold text-neutral-900 mb-4">Gastos por Dia da Semana</h2>
+        <div className="p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
+          <h2 className="text-h3 font-semibold text-neutral-900 dark:text-neutral-50 mb-4">Gastos por Dia da Semana</h2>
           {expensesByDayOfWeek.some(d => d.gasto > 0) ? (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={expensesByDayOfWeek}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                <XAxis dataKey="dia" stroke="#64748B" />
-                <YAxis stroke="#64748B" />
+                <CartesianGrid strokeDasharray="3 3" stroke={chartGridStroke} />
+                <XAxis dataKey="dia" stroke={chartAxisStroke} tick={{ fill: chartAxisStroke }} />
+                <YAxis stroke={chartAxisStroke} tick={{ fill: chartAxisStroke }} />
                 <Tooltip
                   formatter={(value: number | undefined) => `R$ ${(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                  contentStyle={tooltipContentStyle}
+                  labelStyle={tooltipLabelStyle}
+                  itemStyle={tooltipItemStyle}
                 />
                 <Bar dataKey="gasto" fill="#3B82F6" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-300 flex items-center justify-center text-neutral-500">
+            <div className="h-300 flex items-center justify-center text-neutral-500 dark:text-neutral-300">
               <p>Nenhum dado disponível para o período selecionado</p>
             </div>
           )}
@@ -796,22 +852,25 @@ export const Reports = () => {
 
         {/* Gastos por Semana do Mês */}
         {selectedPeriod === 'month' && (
-          <div className="p-6 bg-white rounded-card-lg border border-border">
-            <h2 className="text-h3 font-semibold text-neutral-900 mb-4">Gastos por Semana do Mês</h2>
+          <div className="p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
+            <h2 className="text-h3 font-semibold text-neutral-900 dark:text-neutral-50 mb-4">Gastos por Semana do Mês</h2>
             {expensesByWeekOfMonth.some(w => w.gasto > 0) ? (
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={expensesByWeekOfMonth}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                  <XAxis dataKey="semana" stroke="#64748B" />
-                  <YAxis stroke="#64748B" />
+                  <CartesianGrid strokeDasharray="3 3" stroke={chartGridStroke} />
+                  <XAxis dataKey="semana" stroke={chartAxisStroke} tick={{ fill: chartAxisStroke }} />
+                  <YAxis stroke={chartAxisStroke} tick={{ fill: chartAxisStroke }} />
                   <Tooltip
                     formatter={(value: number | undefined) => `R$ ${(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                    contentStyle={tooltipContentStyle}
+                    labelStyle={tooltipLabelStyle}
+                    itemStyle={tooltipItemStyle}
                   />
                   <Bar dataKey="gasto" fill="#8B5CF6" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-300 flex items-center justify-center text-neutral-500">
+              <div className="h-300 flex items-center justify-center text-neutral-500 dark:text-neutral-300">
                 <p>Nenhum dado disponível</p>
               </div>
             )}
@@ -819,22 +878,25 @@ export const Reports = () => {
         )}
 
         {/* Faturas de Cartão */}
-        <div className="p-6 bg-white rounded-card-lg border border-border">
-          <h2 className="text-h3 font-semibold text-neutral-900 mb-4">Faturas de Cartão</h2>
+        <div className="p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
+          <h2 className="text-h3 font-semibold text-neutral-900 dark:text-neutral-50 mb-4">Faturas de Cartão</h2>
           {cardInvoicesByMonth.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={cardInvoicesByMonth}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                <XAxis dataKey="mes" stroke="#64748B" />
-                <YAxis stroke="#64748B" />
+                <CartesianGrid strokeDasharray="3 3" stroke={chartGridStroke} />
+                <XAxis dataKey="mes" stroke={chartAxisStroke} tick={{ fill: chartAxisStroke }} />
+                <YAxis stroke={chartAxisStroke} tick={{ fill: chartAxisStroke }} />
                 <Tooltip
                   formatter={(value: number | undefined) => `R$ ${(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                  contentStyle={tooltipContentStyle}
+                  labelStyle={tooltipLabelStyle}
+                  itemStyle={tooltipItemStyle}
                 />
                 <Bar dataKey="total" fill="#F59E0B" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div className="h-300 flex items-center justify-center text-neutral-500">
+            <div className="h-300 flex items-center justify-center text-neutral-500 dark:text-neutral-300">
               <p>Nenhuma fatura disponível para o período selecionado</p>
             </div>
           )}
@@ -845,22 +907,22 @@ export const Reports = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         {/* Comparativo de Cartões */}
         {cardsComparison.length > 0 && (
-          <div className="p-6 bg-white rounded-card-lg border border-border">
-            <h2 className="text-h3 font-semibold text-neutral-900 mb-4">Uso dos Cartões</h2>
+          <div className="p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
+            <h2 className="text-h3 font-semibold text-neutral-900 dark:text-neutral-50 mb-4">Uso dos Cartões</h2>
             <div className="space-y-4">
               {cardsComparison.map((card, index) => (
-                <div key={index} className="p-4 bg-neutral-50 rounded-lg border border-border">
+                <div key={index} className="p-4 bg-neutral-50 dark:bg-neutral-800/50 rounded-lg border border-border dark:border-neutral-800">
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-body font-semibold text-neutral-900">{card.name}</h3>
+                    <h3 className="text-body font-semibold text-neutral-900 dark:text-neutral-50">{card.name}</h3>
                     <span className={`text-caption font-medium ${
-                      card.usage > 80 ? 'text-danger-600' :
-                      card.usage > 50 ? 'text-warning-600' :
-                      'text-success-600'
+                      card.usage > 80 ? 'text-danger-600 dark:text-danger-400' :
+                      card.usage > 50 ? 'text-warning-600 dark:text-warning-400' :
+                      'text-success-600 dark:text-success-400'
                     }`}>
                       {card.usage.toFixed(0)}% usado
                     </span>
                   </div>
-                  <div className="w-full bg-neutral-200 rounded-full h-2 mb-2">
+                  <div className="w-full bg-neutral-200 dark:bg-neutral-700 rounded-full h-2 mb-2">
                     <div
                       className={`h-2 rounded-full transition-all ${
                         card.usage > 80 ? 'bg-danger-600' :
@@ -870,7 +932,7 @@ export const Reports = () => {
                       style={{ width: `${Math.min(card.usage, 100)}%` }}
                     />
                   </div>
-                  <div className="flex items-center justify-between text-caption text-neutral-600">
+                  <div className="flex items-center justify-between text-caption text-neutral-600 dark:text-neutral-400">
                     <span>Usado: R$ {card.used.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                     <span>Disponível: R$ {card.available.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                   </div>
@@ -882,27 +944,27 @@ export const Reports = () => {
 
         {/* Despesas Recorrentes */}
         {recurringExpensesAnalysis.count > 0 && (
-          <div className="p-6 bg-white rounded-card-lg border border-border">
-            <h2 className="text-h3 font-semibold text-neutral-900 mb-4">Despesas Recorrentes</h2>
-            <div className="mb-4 p-4 bg-primary-50 rounded-lg border border-primary-200">
+          <div className="p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
+            <h2 className="text-h3 font-semibold text-neutral-900 dark:text-neutral-50 mb-4">Despesas Recorrentes</h2>
+            <div className="mb-4 p-4 bg-primary-50 dark:bg-primary-950/20 rounded-lg border border-primary-200 dark:border-primary-800">
               <div className="flex items-center justify-between">
-                <p className="text-caption text-neutral-600">Total Mensal</p>
-                <p className="text-h3 font-bold text-primary-600">
+                <p className="text-caption text-neutral-600 dark:text-neutral-400">Total Mensal</p>
+                <p className="text-h3 font-bold text-primary-600 dark:text-primary-400">
                   R$ {recurringExpensesAnalysis.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </p>
               </div>
-              <p className="text-caption text-neutral-500 mt-1">
+              <p className="text-caption text-neutral-500 dark:text-neutral-400 mt-1">
                 {recurringExpensesAnalysis.count} despesas ativas • Média: R$ {recurringExpensesAnalysis.average.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </p>
             </div>
             <div className="space-y-2">
               {recurringExpensesAnalysis.expenses.slice(0, 5).map((expense, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg">
+                <div key={index} className="flex items-center justify-between p-3 bg-neutral-50 dark:bg-neutral-800/50 rounded-lg">
                   <div>
-                    <p className="text-body-sm font-medium text-neutral-900">{expense.name}</p>
-                    <p className="text-caption text-neutral-500">Vence dia {expense.due_day}</p>
+                    <p className="text-body-sm font-medium text-neutral-900 dark:text-neutral-50">{expense.name}</p>
+                    <p className="text-caption text-neutral-500 dark:text-neutral-400">Vence dia {expense.due_day}</p>
                   </div>
-                  <p className="text-body font-semibold text-danger-600">
+                  <p className="text-body font-semibold text-danger-600 dark:text-danger-400">
                     R$ {expense.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </p>
                 </div>
@@ -913,22 +975,22 @@ export const Reports = () => {
 
         {/* Top 5 Dias que Mais Gasta */}
         {expensesByDayOfMonth.length > 0 && selectedPeriod === 'month' && (
-          <div className="p-6 bg-white rounded-card-lg border border-border">
-            <h2 className="text-h3 font-semibold text-neutral-900 mb-4">Dias que Mais Gasta</h2>
+          <div className="p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
+            <h2 className="text-h3 font-semibold text-neutral-900 dark:text-neutral-50 mb-4">Dias que Mais Gasta</h2>
             <div className="space-y-3">
               {expensesByDayOfMonth.map((day, index) => (
-                <div key={index} className="flex items-center justify-between p-4 bg-neutral-50 rounded-lg border border-border">
+                <div key={index} className="flex items-center justify-between p-4 bg-neutral-50 dark:bg-neutral-800/50 rounded-lg border border-border dark:border-neutral-800">
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center">
-                      <span className="text-body font-bold text-primary-600">#{index + 1}</span>
+                    <div className="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                      <span className="text-body font-bold text-primary-600 dark:text-primary-400">#{index + 1}</span>
                     </div>
                     <div>
-                      <p className="text-body-sm font-medium text-neutral-900">{day.dia}</p>
-                      <p className="text-caption text-neutral-500">{day.transacoes} transações</p>
+                      <p className="text-body-sm font-medium text-neutral-900 dark:text-neutral-50">{day.dia}</p>
+                      <p className="text-caption text-neutral-500 dark:text-neutral-400">{day.transacoes} transações</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-body font-bold text-danger-600">
+                    <p className="text-body font-bold text-danger-600 dark:text-danger-400">
                       R$ {day.gasto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
                   </div>
@@ -941,28 +1003,28 @@ export const Reports = () => {
 
       {/* Top 5 Transações */}
       <div className="mb-8">
-        <div className="p-6 bg-white rounded-card-lg border border-border">
-          <h2 className="text-h3 font-semibold text-neutral-900 mb-4">Top 5 Transações</h2>
+        <div className="p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
+          <h2 className="text-h3 font-semibold text-neutral-900 dark:text-neutral-50 mb-4">Top 5 Transações</h2>
           {topTransactions.length > 0 ? (
             <div className="space-y-3">
               {topTransactions.map((transaction, index) => (
                 <div
                   key={transaction.id}
-                  className="flex items-center justify-between p-4 bg-neutral-50 rounded-lg border border-border"
+                  className="flex items-center justify-between p-4 bg-neutral-50 dark:bg-neutral-800/50 rounded-lg border border-border dark:border-neutral-800"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center">
-                      <span className="text-body font-bold text-primary-600">#{index + 1}</span>
+                    <div className="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+                      <span className="text-body font-bold text-primary-600 dark:text-primary-400">#{index + 1}</span>
                     </div>
                     <div>
-                      <p className="text-body-sm font-medium text-neutral-900">{transaction.description}</p>
-                      <p className="text-caption text-neutral-500">
+                      <p className="text-body-sm font-medium text-neutral-900 dark:text-neutral-50">{transaction.description}</p>
+                      <p className="text-caption text-neutral-500 dark:text-neutral-400">
                         {transaction.categoryName} • {new Date(transaction.date).toLocaleDateString('pt-BR')}
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className={`text-body font-bold ${transaction.type === 'income' ? 'text-success-600' : 'text-danger-600'}`}>
+                    <p className={`text-body font-bold ${transaction.type === 'income' ? 'text-success-600 dark:text-success-400' : 'text-danger-600 dark:text-danger-400'}`}>
                       {transaction.type === 'income' ? '+' : '-'}R$ {transaction.amountValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
                   </div>
@@ -970,7 +1032,7 @@ export const Reports = () => {
               ))}
             </div>
           ) : (
-            <div className="text-center py-8 text-neutral-500">
+            <div className="text-center py-8 text-neutral-500 dark:text-neutral-400">
               <p>Nenhuma transação disponível para o período selecionado</p>
             </div>
           )}
@@ -986,17 +1048,17 @@ export const Reports = () => {
       >
         <div className="space-y-4">
           {/* Resumo da categoria */}
-          <div className={`p-4 rounded-lg border ${selectedCategory?.type === 'income' ? 'bg-success-50 border-success-200' : 'bg-danger-50 border-danger-200'}`}>
+          <div className={`p-4 rounded-lg border ${selectedCategory?.type === 'income' ? 'bg-success-50 dark:bg-success-950/20 border-success-200 dark:border-success-800' : 'bg-danger-50 dark:bg-danger-950/20 border-danger-200 dark:border-danger-800'}`}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-label text-neutral-600 mb-1">Total {selectedCategory?.type === 'income' ? 'de Receitas' : 'de Gastos'}</p>
-                <p className={`text-2xl font-bold ${selectedCategory?.type === 'income' ? 'text-success-600' : 'text-danger-600'}`}>
+                <p className="text-label text-neutral-600 dark:text-neutral-400 mb-1">Total {selectedCategory?.type === 'income' ? 'de Receitas' : 'de Gastos'}</p>
+                <p className={`text-2xl font-bold ${selectedCategory?.type === 'income' ? 'text-success-600 dark:text-success-400' : 'text-danger-600 dark:text-danger-400'}`}>
                   {selectedCategory?.type === 'income' ? '+' : '-'}R$ {categoryTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-label text-neutral-600 mb-1">Transações</p>
-                <p className="text-h3 font-semibold text-neutral-900">{categoryTransactions.length}</p>
+                <p className="text-label text-neutral-600 dark:text-neutral-400 mb-1">Transações</p>
+                <p className="text-h3 font-semibold text-neutral-900 dark:text-neutral-50">{categoryTransactions.length}</p>
               </div>
             </div>
           </div>
@@ -1004,7 +1066,7 @@ export const Reports = () => {
           {/* Lista de transações */}
           <div className="max-h-96 overflow-y-auto space-y-2">
             {categoryTransactions.length === 0 ? (
-              <div className="p-8 text-center text-neutral-500">
+              <div className="p-8 text-center text-neutral-500 dark:text-neutral-400">
                 <p>Nenhuma transação encontrada nesta categoria</p>
               </div>
             ) : (
@@ -1015,13 +1077,13 @@ export const Reports = () => {
                 return (
                   <div
                     key={transaction.id}
-                    className="flex items-center justify-between p-4 bg-neutral-50 rounded-lg border border-border hover:border-primary-300 transition-colors"
+                    className="flex items-center justify-between p-4 bg-neutral-50 dark:bg-neutral-800/50 rounded-lg border border-border dark:border-neutral-800 hover:border-primary-300 dark:hover:border-primary-600 transition-colors"
                   >
                     <div className="flex-1">
-                      <p className="text-body-sm font-medium text-neutral-900 mb-1">
+                      <p className="text-body-sm font-medium text-neutral-900 dark:text-neutral-50 mb-1">
                         {transaction.description}
                       </p>
-                      <div className="flex items-center gap-2 text-caption text-neutral-500">
+                      <div className="flex items-center gap-2 text-caption text-neutral-500 dark:text-neutral-400">
                         <span>{new Date(transaction.date).toLocaleDateString('pt-BR')}</span>
                         {category && (
                           <>
@@ -1037,7 +1099,7 @@ export const Reports = () => {
                       </div>
                     </div>
                     <div className="text-right ml-4">
-                      <p className={`text-body font-bold ${transaction.type === 'income' ? 'text-success-600' : 'text-danger-600'}`}>
+                      <p className={`text-body font-bold ${transaction.type === 'income' ? 'text-success-600 dark:text-success-400' : 'text-danger-600 dark:text-danger-400'}`}>
                         {transaction.type === 'income' ? '+' : '-'}R$ {amountValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </p>
                     </div>

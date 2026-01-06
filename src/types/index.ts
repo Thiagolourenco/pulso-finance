@@ -2,6 +2,32 @@
 export interface Database {
   public: {
     Tables: {
+      user_profiles: {
+        Row: {
+          user_id: string
+          full_name: string | null
+          monthly_spending_limit: number | null
+          onboarding_completed: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          full_name?: string | null
+          monthly_spending_limit?: number | null
+          onboarding_completed?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          full_name?: string | null
+          monthly_spending_limit?: number | null
+          onboarding_completed?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
       transactions: {
         Row: {
           id: string
@@ -315,6 +341,7 @@ export interface Database {
 
 // Type helpers
 export type Transaction = Database['public']['Tables']['transactions']['Row']
+export type UserProfile = Database['public']['Tables']['user_profiles']['Row']
 export type Account = Database['public']['Tables']['accounts']['Row']
 export type Card = Database['public']['Tables']['cards']['Row']
 export type Category = Database['public']['Tables']['categories']['Row']

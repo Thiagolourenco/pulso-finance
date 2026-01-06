@@ -199,29 +199,29 @@ export const CardDetailsModal = ({
       >
         <div className="space-y-6">
           {/* Informações do cartão */}
-          <div className="p-4 bg-primary-50 rounded-lg border border-primary-200">
+          <div className="p-4 bg-primary-50 dark:bg-primary-500/10 rounded-lg border border-primary-200 dark:border-primary-500/30">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-caption text-neutral-600 mb-1">Limite</p>
-                <p className="text-body font-semibold text-neutral-900">
+                <p className="text-caption text-neutral-600 dark:text-neutral-300 mb-1">Limite</p>
+                <p className="text-body font-semibold text-neutral-900 dark:text-neutral-50">
                   R$ {card.credit_limit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </p>
               </div>
               <div>
-                <p className="text-caption text-neutral-600 mb-1">Fechamento</p>
-                <p className="text-body font-semibold text-neutral-900">
+                <p className="text-caption text-neutral-600 dark:text-neutral-300 mb-1">Fechamento</p>
+                <p className="text-body font-semibold text-neutral-900 dark:text-neutral-50">
                   Dia {card.closing_day}
                 </p>
               </div>
               <div>
-                <p className="text-caption text-neutral-600 mb-1">Vencimento</p>
-                <p className="text-body font-semibold text-neutral-900">
+                <p className="text-caption text-neutral-600 dark:text-neutral-300 mb-1">Vencimento</p>
+                <p className="text-body font-semibold text-neutral-900 dark:text-neutral-50">
                   Dia {card.due_day}
                 </p>
               </div>
               <div>
-                <p className="text-caption text-neutral-600 mb-1">Limite disponível</p>
-                <p className="text-body font-semibold text-success-600">
+                <p className="text-caption text-neutral-600 dark:text-neutral-300 mb-1">Limite disponível</p>
+                <p className="text-body font-semibold text-success-600 dark:text-success-500">
                   R$ {(card.credit_limit - (invoiceTotal || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </p>
               </div>
@@ -230,16 +230,16 @@ export const CardDetailsModal = ({
 
           {/* Fatura atual */}
           {openInvoice ? (
-            <div className="p-4 bg-white rounded-lg border-2 border-danger-200">
+            <div className="p-4 bg-white dark:bg-neutral-900/30 rounded-lg border-2 border-danger-200 dark:border-danger-700/50">
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <h3 className="text-h3 font-semibold text-neutral-900">Próxima fatura</h3>
-                  <p className="text-caption text-neutral-500">
+                  <h3 className="text-h3 font-semibold text-neutral-900 dark:text-neutral-50">Próxima fatura</h3>
+                  <p className="text-caption text-neutral-500 dark:text-neutral-400">
                     Vencimento: {new Date(openInvoice.due_date).toLocaleDateString('pt-BR')}
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-h2 font-bold text-danger-600">
+                  <p className="text-h2 font-bold text-danger-600 dark:text-danger-400">
                     R$ {(openInvoice.total_amount || 0).toLocaleString('pt-BR', { 
                       minimumFractionDigits: 2, 
                       maximumFractionDigits: 2 
@@ -255,7 +255,7 @@ export const CardDetailsModal = ({
                 const isCurrentMonth = invoiceMonth === currentMonth && invoiceYear === currentYear
                 
                 return isCurrentMonth ? (
-                  <div className="mt-3 pt-3 border-t border-border">
+                  <div className="mt-3 pt-3 border-t border-border dark:border-border-dark">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
@@ -286,9 +286,9 @@ export const CardDetailsModal = ({
                           )
                         }}
                         disabled={isUpdatingInvoice}
-                        className="w-4 h-4 text-success-600 border-border rounded focus:ring-success-500 focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-4 h-4 text-success-600 border-border dark:border-border-dark rounded focus:ring-success-500 focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
                       />
-                      <span className="text-body-sm text-neutral-700 font-medium">
+                      <span className="text-body-sm text-neutral-700 dark:text-neutral-300 font-medium">
                         Fatura paga
                       </span>
                     </label>
@@ -297,8 +297,8 @@ export const CardDetailsModal = ({
               })()}
             </div>
           ) : (
-            <div className="p-4 bg-neutral-50 rounded-lg border border-border text-center">
-              <p className="text-body-sm text-neutral-500">Nenhuma fatura aberta</p>
+            <div className="p-4 bg-neutral-50 dark:bg-neutral-900/20 rounded-lg border border-border dark:border-border-dark text-center">
+              <p className="text-body-sm text-neutral-500 dark:text-neutral-300">Nenhuma fatura aberta</p>
             </div>
           )}
 
@@ -307,7 +307,7 @@ export const CardDetailsModal = ({
             <div className="mb-6">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-h3 font-semibold text-neutral-900">Compras Recorrentes</h3>
+                  <h3 className="text-h3 font-semibold text-neutral-900 dark:text-neutral-50">Compras Recorrentes</h3>
                   <span className="px-2 py-1 text-caption font-medium bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300 rounded-full">
                     {recurringPurchases.length}
                   </span>
@@ -342,7 +342,7 @@ export const CardDetailsModal = ({
           {/* Lista de compras */}
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-h3 font-semibold text-neutral-900">
+              <h3 className="text-h3 font-semibold text-neutral-900 dark:text-neutral-50">
                 {recurringPurchases.length > 0 ? 'Outras Compras' : 'Compras'}
               </h3>
               <Button
@@ -356,7 +356,7 @@ export const CardDetailsModal = ({
 
             {/* Formulário de adicionar compra */}
             {showAddPurchase && (
-              <div className="p-4 bg-neutral-50 rounded-lg border border-border mb-4 space-y-3">
+              <div className="p-4 bg-neutral-50 dark:bg-neutral-900/20 rounded-lg border border-border dark:border-border-dark mb-4 space-y-3">
                 <Input
                   label="Descrição"
                   value={description}
@@ -372,7 +372,7 @@ export const CardDetailsModal = ({
                     required
                   />
                   <div>
-                    <label className="block text-label font-medium text-neutral-900 mb-1.5">
+                    <label className="block text-label font-medium text-neutral-900 dark:text-neutral-50 mb-1.5">
                       Parcelas
                     </label>
                     <Input
@@ -384,7 +384,7 @@ export const CardDetailsModal = ({
                       required
                     />
                     {installments > 1 && totalAmount > 0 && (
-                      <p className="mt-1 text-caption text-neutral-500">
+                      <p className="mt-1 text-caption text-neutral-500 dark:text-neutral-400">
                         R$ {(totalAmount / installments).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} por parcela
                       </p>
                     )}
@@ -403,9 +403,9 @@ export const CardDetailsModal = ({
                     id="isRecurring"
                     checked={isRecurring}
                     onChange={(e) => setIsRecurring(e.target.checked)}
-                    className="w-4 h-4 text-primary-600 border-border rounded focus:ring-primary-500 focus:ring-2"
+                    className="w-4 h-4 text-primary-600 border-border dark:border-border-dark rounded focus:ring-primary-500 focus:ring-2"
                   />
-                  <label htmlFor="isRecurring" className="text-body-sm text-neutral-700 cursor-pointer">
+                  <label htmlFor="isRecurring" className="text-body-sm text-neutral-700 dark:text-neutral-300 cursor-pointer">
                     Compra recorrente
                   </label>
                 </div>
@@ -423,12 +423,12 @@ export const CardDetailsModal = ({
             {/* Lista de compras */}
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {nonRecurringPurchases.length === 0 && recurringPurchases.length === 0 ? (
-                <div className="p-8 text-center bg-neutral-50 rounded-lg border border-border">
-                  <p className="text-body-sm text-neutral-500">Nenhuma compra registrada</p>
+                <div className="p-8 text-center bg-neutral-50 dark:bg-neutral-900/20 rounded-lg border border-border dark:border-border-dark">
+                  <p className="text-body-sm text-neutral-500 dark:text-neutral-300">Nenhuma compra registrada</p>
                 </div>
               ) : nonRecurringPurchases.length === 0 ? (
-                <div className="p-8 text-center bg-neutral-50 rounded-lg border border-border">
-                  <p className="text-body-sm text-neutral-500">Nenhuma outra compra registrada</p>
+                <div className="p-8 text-center bg-neutral-50 dark:bg-neutral-900/20 rounded-lg border border-border dark:border-border-dark">
+                  <p className="text-body-sm text-neutral-500 dark:text-neutral-300">Nenhuma outra compra registrada</p>
                 </div>
               ) : (
                 nonRecurringPurchases.map((purchase: CardPurchase) => (

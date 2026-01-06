@@ -11,9 +11,9 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
     const baseStyles = 'rounded-card p-6 transition-all duration-fast'
     
     const variants = {
-      default: 'bg-white border border-border shadow-card hover:shadow-card-hover',
-      outlined: 'bg-white border-2 border-border',
-      elevated: 'bg-white shadow-card-hover',
+      default: 'bg-white dark:bg-neutral-900/40 border border-border dark:border-border-dark shadow-card hover:shadow-card-hover dark:backdrop-blur-xl',
+      outlined: 'bg-white dark:bg-neutral-900/30 border-2 border-border dark:border-border-dark dark:backdrop-blur-xl',
+      elevated: 'bg-white dark:bg-neutral-900/50 shadow-card-hover dark:backdrop-blur-xl border border-transparent dark:border-border-dark/60',
     }
 
     return (
@@ -45,7 +45,7 @@ export const CardTitle = forwardRef<HTMLHeadingElement, HTMLAttributes<HTMLHeadi
   ({ className, ...props }, ref) => (
     <h3
       ref={ref}
-      className={cn('text-h3 font-semibold text-neutral-900', className)}
+      className={cn('text-h3 font-semibold text-neutral-900 dark:text-neutral-50', className)}
       {...props}
     />
   )
@@ -56,7 +56,7 @@ export const CardDescription = forwardRef<HTMLParagraphElement, HTMLAttributes<H
   ({ className, ...props }, ref) => (
     <p
       ref={ref}
-      className={cn('text-body-sm text-neutral-500', className)}
+      className={cn('text-body-sm text-neutral-500 dark:text-neutral-300', className)}
       {...props}
     />
   )

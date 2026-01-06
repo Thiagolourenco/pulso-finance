@@ -52,13 +52,13 @@ export const InsightsCard = ({ monthlyData }: InsightsCardProps) => {
   const getTypeStyles = (type: Insight['type']) => {
     switch (type) {
       case 'success':
-        return 'bg-success-50 border-success-200 text-success-800'
+        return 'bg-success-50 border-success-200 text-success-800 dark:bg-success-900/20 dark:border-success-700/50 dark:text-success-200'
       case 'warning':
-        return 'bg-warning-50 border-warning-200 text-warning-800'
+        return 'bg-warning-50 border-warning-200 text-warning-800 dark:bg-warning-900/20 dark:border-warning-700/50 dark:text-warning-200'
       case 'danger':
-        return 'bg-danger-50 border-danger-200 text-danger-800'
+        return 'bg-danger-50 border-danger-200 text-danger-800 dark:bg-danger-900/20 dark:border-danger-700/50 dark:text-danger-200'
       default:
-        return 'bg-primary-50 border-primary-200 text-primary-800'
+        return 'bg-primary-50 border-primary-200 text-primary-800 dark:bg-primary-500/10 dark:border-primary-500/30 dark:text-primary-200'
     }
   }
 
@@ -77,16 +77,16 @@ export const InsightsCard = ({ monthlyData }: InsightsCardProps) => {
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-card-lg p-6 border border-border">
+      <div className="bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg p-6 border border-border dark:border-border-dark/70">
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-lg bg-primary-100 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-500/10 flex items-center justify-center">
             <span className="text-xl">🤖</span>
           </div>
-          <h2 className="text-h3 font-semibold text-neutral-900">Insights Inteligentes</h2>
+          <h2 className="text-h3 font-semibold text-neutral-900 dark:text-neutral-50">Insights Inteligentes</h2>
         </div>
         <div className="flex items-center justify-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-          <span className="ml-3 text-body-sm text-neutral-600">Gerando insights...</span>
+          <span className="ml-3 text-body-sm text-neutral-600 dark:text-neutral-300">Gerando insights...</span>
         </div>
       </div>
     )
@@ -97,14 +97,14 @@ export const InsightsCard = ({ monthlyData }: InsightsCardProps) => {
   }
 
   return (
-    <div className="bg-white rounded-card-lg p-6 border border-border">
+    <div className="bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg p-6 border border-border dark:border-border-dark/70">
       <div className="flex items-center gap-3 mb-4">
-        <div className="w-10 h-10 rounded-lg bg-primary-100 flex items-center justify-center">
+        <div className="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-500/10 flex items-center justify-center">
           <span className="text-xl">🤖</span>
         </div>
-        <h2 className="text-h3 font-semibold text-neutral-900">Insights Inteligentes</h2>
+        <h2 className="text-h3 font-semibold text-neutral-900 dark:text-neutral-50">Insights Inteligentes</h2>
         {import.meta.env.VITE_OPENAI_API_KEY && (
-          <span className="px-2 py-1 bg-primary-100 text-primary-700 text-caption font-medium rounded-full">
+          <span className="px-2 py-1 bg-primary-100 dark:bg-primary-500/10 text-primary-700 dark:text-primary-300 text-caption font-medium rounded-full">
             IA
           </span>
         )}

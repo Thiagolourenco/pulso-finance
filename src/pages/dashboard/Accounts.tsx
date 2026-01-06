@@ -45,12 +45,12 @@ export const Accounts = () => {
 
   const getAccountTypeColor = (type: string) => {
     const colors: { [key: string]: string } = {
-      bank: 'bg-primary-100 text-primary-700',
-      cash: 'bg-success-100 text-success-700',
-      investment: 'bg-warning-100 text-warning-700',
-      wallet: 'bg-purple-100 text-purple-700'
+      bank: 'bg-primary-100 text-primary-700 dark:bg-primary-500/10 dark:text-primary-300',
+      cash: 'bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-300',
+      investment: 'bg-warning-100 text-warning-700 dark:bg-warning-900/30 dark:text-warning-300',
+      wallet: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
     }
-    return colors[type] || 'bg-neutral-100 text-neutral-700'
+    return colors[type] || 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300'
   }
 
   // Estatísticas
@@ -59,10 +59,10 @@ export const Accounts = () => {
   return (
     <div className="animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8 pb-6 border-b border-border">
+      <div className="flex items-center justify-between mb-8 pb-6 border-b border-border dark:border-border-dark">
         <div>
-          <h1 className="text-h1 font-bold text-neutral-900 mb-2">Contas</h1>
-          <p className="text-body-sm text-neutral-500">
+          <h1 className="text-h1 font-bold text-neutral-900 dark:text-neutral-50 mb-2">Contas</h1>
+          <p className="text-body-sm text-neutral-500 dark:text-neutral-400">
             Gerencie suas contas bancárias, carteiras e investimentos
           </p>
         </div>
@@ -76,9 +76,9 @@ export const Accounts = () => {
 
       {/* Resumo */}
       <div className="mb-8">
-        <div className="p-6 bg-white rounded-card-lg border border-border">
-          <p className="text-caption text-neutral-600 mb-2">Saldo Total</p>
-          <p className={`text-h1 font-bold ${totalBalance >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
+        <div className="p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
+          <p className="text-caption text-neutral-600 dark:text-neutral-300 mb-2">Saldo Total</p>
+          <p className={`text-h1 font-bold ${totalBalance >= 0 ? 'text-success-600 dark:text-success-500' : 'text-danger-600 dark:text-danger-400'}`}>
             R$ {totalBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
           </p>
         </div>
@@ -90,11 +90,11 @@ export const Accounts = () => {
           accounts.map(account => (
             <div
               key={account.id}
-              className="p-6 bg-white rounded-card-lg border border-border hover:shadow-lg transition-all"
+              className="p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70 hover:shadow-lg transition-all"
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
-                  <h3 className="text-body font-semibold text-neutral-900 mb-2">
+                  <h3 className="text-body font-semibold text-neutral-900 dark:text-neutral-50 mb-2">
                     {account.name}
                   </h3>
                   <span className={`inline-block px-2 py-1 rounded-full text-caption font-medium ${getAccountTypeColor(account.type)}`}>
@@ -104,7 +104,7 @@ export const Accounts = () => {
                 <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleEdit(account)}
-                      className="p-2 rounded-lg hover:bg-primary-50 transition-colors text-primary-600"
+                      className="p-2 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-500/10 transition-colors text-primary-600 dark:text-primary-400"
                       title="Editar"
                     >
                       ✏️
@@ -112,23 +112,23 @@ export const Accounts = () => {
                     <button
                       onClick={() => handleDelete(account.id)}
                       disabled={isDeleting}
-                      className="p-2 rounded-lg hover:bg-danger-50 transition-colors disabled:opacity-50 text-danger-600"
+                      className="p-2 rounded-lg hover:bg-danger-50 dark:hover:bg-danger-500/10 transition-colors disabled:opacity-50 text-danger-600 dark:text-danger-400"
                       title="Excluir"
                     >
                       🗑️
                     </button>
                 </div>
               </div>
-              <div className="pt-4 border-t border-border">
+              <div className="pt-4 border-t border-border dark:border-border-dark">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-caption text-neutral-600">Saldo Atual</p>
-                  <p className={`text-h3 font-bold ${account.current_balance >= 0 ? 'text-success-600' : 'text-danger-600'}`}>
+                  <p className="text-caption text-neutral-600 dark:text-neutral-300">Saldo Atual</p>
+                  <p className={`text-h3 font-bold ${account.current_balance >= 0 ? 'text-success-600 dark:text-success-500' : 'text-danger-600 dark:text-danger-400'}`}>
                     R$ {account.current_balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </p>
                 </div>
                 <div className="flex items-center justify-between">
-                  <p className="text-caption text-neutral-600">Saldo Inicial</p>
-                  <p className="text-body-sm text-neutral-500">
+                  <p className="text-caption text-neutral-600 dark:text-neutral-300">Saldo Inicial</p>
+                  <p className="text-body-sm text-neutral-500 dark:text-neutral-400">
                     R$ {account.initial_balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </p>
                 </div>
@@ -136,8 +136,8 @@ export const Accounts = () => {
             </div>
           ))
         ) : (
-          <div className="col-span-full p-12 text-center bg-white rounded-card-lg border border-border">
-            <p className="text-body text-neutral-500 mb-4">
+          <div className="col-span-full p-12 text-center bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
+            <p className="text-body text-neutral-500 dark:text-neutral-300 mb-4">
               Nenhuma conta cadastrada ainda
             </p>
             <Button onClick={() => setShowAddModal(true)}>

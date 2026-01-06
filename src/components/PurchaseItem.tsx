@@ -71,21 +71,21 @@ export const PurchaseItem = ({ purchase, onUpdate, onToast }: PurchaseItemProps)
   }
 
   return (
-    <div className="p-3 bg-white rounded-lg border border-border hover:border-primary-300 transition-colors">
+    <div className="p-3 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-lg border border-border dark:border-border-dark/70 hover:border-primary-300 dark:hover:border-primary-500/60 transition-colors">
       <div className="flex items-center justify-between">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
-            <p className="text-body-sm font-medium text-neutral-900">
+            <p className="text-body-sm font-medium text-neutral-900 dark:text-neutral-50">
               {purchase.description}
             </p>
             {isRecurring && (
-              <span className="px-2 py-0.5 bg-primary-100 text-primary-700 text-caption font-medium rounded-full">
+              <span className="px-2 py-0.5 bg-primary-100 dark:bg-primary-500/10 text-primary-700 dark:text-primary-300 text-caption font-medium rounded-full">
                 🔄 Recorrente
               </span>
             )}
           </div>
           <div className="flex items-center justify-between mt-1">
-            <p className="text-caption text-neutral-500">
+            <p className="text-caption text-neutral-500 dark:text-neutral-400">
               {purchase.current_installment}/{purchase.installments}x • 
               Comprado em {new Date(purchase.purchase_date).toLocaleDateString('pt-BR')}
             </p>
@@ -96,22 +96,22 @@ export const PurchaseItem = ({ purchase, onUpdate, onToast }: PurchaseItemProps)
                   checked={isRecurring}
                   onChange={(e) => handleToggleRecurring(e.target.checked)}
                   disabled={isUpdatingRecurring}
-                  className="w-4 h-4 text-primary-600 border-border rounded focus:ring-primary-500 focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-4 h-4 text-primary-600 border-border dark:border-border-dark rounded focus:ring-primary-500 focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
-                <span className="text-caption text-neutral-600">
+                <span className="text-caption text-neutral-600 dark:text-neutral-300">
                   Recorrente
                 </span>
               </label>
             </div>
           </div>
           <div className="mt-2 flex items-center gap-2">
-            <div className="flex-1 bg-neutral-100 rounded-full h-2 overflow-hidden">
+            <div className="flex-1 bg-neutral-100 dark:bg-neutral-800 rounded-full h-2 overflow-hidden">
               <div 
                 className="bg-primary-500 h-full transition-all duration-300"
                 style={{ width: `${progressPercentage}%` }}
               />
             </div>
-            <span className="text-caption text-neutral-600 font-medium">
+            <span className="text-caption text-neutral-600 dark:text-neutral-300 font-medium">
               {paidInstallments} paga{paidInstallments !== 1 ? 's' : ''} • {remainingInstallments} restante{remainingInstallments !== 1 ? 's' : ''}
             </span>
           </div>
@@ -125,11 +125,11 @@ export const PurchaseItem = ({ purchase, onUpdate, onToast }: PurchaseItemProps)
                 }
               }}
               disabled={isUpdatingInstallment || localInstallment <= 1}
-              className="w-6 h-6 rounded border border-border bg-white hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-caption text-neutral-600 hover:text-neutral-900 transition-colors"
+              className="w-6 h-6 rounded border border-border dark:border-border-dark bg-white dark:bg-neutral-950/40 hover:bg-neutral-50 dark:hover:bg-neutral-800/60 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-caption text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-neutral-50 transition-colors"
             >
               −
             </button>
-            <div className="flex items-center gap-1 px-2 py-0.5 bg-neutral-50 rounded border border-border">
+            <div className="flex items-center gap-1 px-2 py-0.5 bg-neutral-50 dark:bg-neutral-950/30 rounded border border-border dark:border-border-dark">
               <input
                 type="number"
                 min="1"
@@ -148,11 +148,11 @@ export const PurchaseItem = ({ purchase, onUpdate, onToast }: PurchaseItemProps)
                     setLocalInstallment(purchase.current_installment)
                   }
                 }}
-                className="w-8 text-center text-caption font-medium text-neutral-900 bg-transparent border-0 focus:outline-none focus:ring-0 p-0"
+                className="w-8 text-center text-caption font-medium text-neutral-900 dark:text-neutral-50 bg-transparent border-0 focus:outline-none focus:ring-0 p-0"
                 disabled={isUpdatingInstallment}
               />
               <span className="text-caption text-neutral-400">/</span>
-              <span className="text-caption text-neutral-500 font-medium">{purchase.installments}</span>
+              <span className="text-caption text-neutral-500 dark:text-neutral-300 font-medium">{purchase.installments}</span>
             </div>
             <button
               onClick={() => {
@@ -163,19 +163,19 @@ export const PurchaseItem = ({ purchase, onUpdate, onToast }: PurchaseItemProps)
                 }
               }}
               disabled={isUpdatingInstallment || localInstallment >= purchase.installments}
-              className="w-6 h-6 rounded border border-border bg-white hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-caption text-neutral-600 hover:text-neutral-900 transition-colors"
+              className="w-6 h-6 rounded border border-border dark:border-border-dark bg-white dark:bg-neutral-950/40 hover:bg-neutral-50 dark:hover:bg-neutral-800/60 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-caption text-neutral-600 dark:text-neutral-300 hover:text-neutral-900 dark:hover:text-neutral-50 transition-colors"
             >
               +
             </button>
           </div>
         </div>
         <div className="text-right ml-4">
-          <p className="text-body font-semibold text-neutral-900">
+          <p className="text-body font-semibold text-neutral-900 dark:text-neutral-50">
             R$ {purchase.installment_amount.toLocaleString('pt-BR', { 
               minimumFractionDigits: 2 
             })}
           </p>
-          <p className="text-caption text-neutral-500">
+          <p className="text-caption text-neutral-500 dark:text-neutral-400">
             Total: R$ {purchase.total_amount.toLocaleString('pt-BR', { 
               minimumFractionDigits: 2 
             })}

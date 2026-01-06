@@ -57,27 +57,27 @@ export const MonthlyExpensesModal = ({
     >
       <div className="space-y-6">
         {/* Resumo total */}
-        <div className="p-4 bg-danger-50 border border-danger-200 rounded-lg">
+        <div className="p-4 bg-danger-50 dark:bg-danger-900/20 border border-danger-200 dark:border-danger-700/50 rounded-lg">
           <div className="flex items-center justify-between">
-            <span className="text-body-sm text-danger-700 font-medium">Total de despesas:</span>
-            <span className="text-h3 font-bold text-danger-700">
+            <span className="text-body-sm text-danger-700 dark:text-danger-200 font-medium">Total de despesas:</span>
+            <span className="text-h3 font-bold text-danger-700 dark:text-danger-200">
               R$ {totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </span>
           </div>
-          <div className="mt-1 text-caption text-danger-600">
+          <div className="mt-1 text-caption text-danger-600 dark:text-danger-200/80">
             {expenses.length} {expenses.length === 1 ? 'despesa' : 'despesas'}
           </div>
         </div>
 
         {/* Lista de despesas por categoria */}
         {sortedCategories.length === 0 ? (
-          <div className="text-center py-8 text-neutral-500">
+          <div className="text-center py-8 text-neutral-500 dark:text-neutral-300">
             <p className="text-body">Nenhuma despesa registrada neste mês</p>
           </div>
         ) : (
           <div className="space-y-4">
             {sortedCategories.map((categoryGroup) => (
-              <div key={categoryGroup.categoryName} className="border border-border rounded-lg overflow-hidden">
+              <div key={categoryGroup.categoryName} className="border border-border dark:border-border-dark rounded-lg overflow-hidden">
                 {/* Header da categoria */}
                 <div 
                   className="p-3 flex items-center justify-between"
@@ -85,28 +85,28 @@ export const MonthlyExpensesModal = ({
                 >
                   <div className="flex items-center gap-2">
                     <span className="text-xl">{categoryGroup.categoryIcon}</span>
-                    <span className="text-body font-semibold text-neutral-900">
+                    <span className="text-body font-semibold text-neutral-900 dark:text-neutral-50">
                       {categoryGroup.categoryName}
                     </span>
                   </div>
-                  <span className="text-body-sm font-medium text-neutral-700">
+                  <span className="text-body-sm font-medium text-neutral-700 dark:text-neutral-200">
                     R$ {categoryGroup.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
 
                 {/* Lista de despesas da categoria */}
-                <div className="divide-y divide-border">
+                <div className="divide-y divide-border dark:divide-border-dark">
                   {categoryGroup.expenses.map((expense) => (
                     <div
                       key={expense.id}
-                      className="p-3 hover:bg-neutral-50 transition-colors"
+                      className="p-3 hover:bg-neutral-50 dark:hover:bg-neutral-950/30 transition-colors"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
-                          <p className="text-body-sm font-medium text-neutral-900">
+                          <p className="text-body-sm font-medium text-neutral-900 dark:text-neutral-50">
                             {expense.description || 'Sem descrição'}
                           </p>
-                          <p className="text-caption text-neutral-500 mt-1">
+                          <p className="text-caption text-neutral-500 dark:text-neutral-400 mt-1">
                             {new Date(expense.date).toLocaleDateString('pt-BR', {
                               day: '2-digit',
                               month: 'long',
@@ -115,7 +115,7 @@ export const MonthlyExpensesModal = ({
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="text-body-sm font-semibold text-danger-600">
+                          <p className="text-body-sm font-semibold text-danger-600 dark:text-danger-400">
                             R$ {Math.abs(Number(expense.amount) || 0).toLocaleString('pt-BR', {
                               minimumFractionDigits: 2,
                             })}

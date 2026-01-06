@@ -168,6 +168,18 @@ CREATE TABLE IF NOT EXISTS recurring_expenses (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- ============================================
+-- 9. Tabela: user_profiles (Onboarding / Preferências)
+-- ============================================
+CREATE TABLE IF NOT EXISTS user_profiles (
+  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  full_name TEXT,
+  monthly_spending_limit NUMERIC(12, 2),
+  onboarding_completed BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Índices para recurring_expenses
 CREATE INDEX IF NOT EXISTS idx_recurring_expenses_user_id ON recurring_expenses(user_id);
 CREATE INDEX IF NOT EXISTS idx_recurring_expenses_category_id ON recurring_expenses(category_id);
@@ -219,6 +231,10 @@ DROP TRIGGER IF EXISTS update_recurring_expenses_updated_at ON recurring_expense
 CREATE TRIGGER update_recurring_expenses_updated_at BEFORE UPDATE ON recurring_expenses
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_user_profiles_updated_at ON user_profiles;
+CREATE TRIGGER update_user_profiles_updated_at BEFORE UPDATE ON user_profiles
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 -- ============================================
 -- Row Level Security (RLS) Policies
 -- ============================================
@@ -232,6 +248,7 @@ ALTER TABLE card_purchases ENABLE ROW LEVEL SECURITY;
 ALTER TABLE card_invoices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE goals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE recurring_expenses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
 
 -- Policy: categories
 DROP POLICY IF EXISTS "Users can view their own categories" ON categories;
@@ -399,6 +416,22 @@ CREATE POLICY "Users can update their own recurring expenses"
 DROP POLICY IF EXISTS "Users can delete their own recurring expenses" ON recurring_expenses;
 CREATE POLICY "Users can delete their own recurring expenses"
   ON recurring_expenses FOR DELETE
+  USING (auth.uid() = user_id);
+
+-- Policy: user_profiles
+DROP POLICY IF EXISTS "Users can view their own profile" ON user_profiles;
+CREATE POLICY "Users can view their own profile"
+  ON user_profiles FOR SELECT
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert their own profile" ON user_profiles;
+CREATE POLICY "Users can insert their own profile"
+  ON user_profiles FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update their own profile" ON user_profiles;
+CREATE POLICY "Users can update their own profile"
+  ON user_profiles FOR UPDATE
   USING (auth.uid() = user_id);
 
 -- ============================================

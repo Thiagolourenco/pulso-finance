@@ -3,7 +3,7 @@ import { ThemeToggle } from '@/components/ui/ThemeToggle'
 
 export const AuthLayout = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-neutral-50 dark:bg-neutral-950 px-4 py-6 lg:py-0 transition-colors">
+    <div className="min-h-screen flex items-center justify-center bg-neutral-50 dark:bg-transparent px-4 py-6 lg:py-0 transition-colors">
       <div className="w-full max-w-md animate-fade-in">
         <div className="flex justify-end mb-3 lg:mb-4">
           <ThemeToggle />
