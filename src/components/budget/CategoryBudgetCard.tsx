@@ -18,7 +18,6 @@ export const CategoryBudgetCard = ({ budget, onEditLimit }: CategoryBudgetCardPr
   const remaining = limit - spent
   const isOverLimit = spent > limit
   const isNearLimit = percentage >= 80 && !isOverLimit
-  const isSafe = percentage < 80
 
   // Determina a cor baseada no status
   const getStatusColor = () => {

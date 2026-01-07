@@ -113,7 +113,6 @@ export const categoryService = {
     }
 
     // Se monthly_limit estiver no payload mas a coluna não existir, remove do payload
-    const hasMonthlyLimit = 'monthly_limit' in category && category.monthly_limit !== undefined
 
     // Tenta atualizar normalmente
     let { data, error } = await supabase
