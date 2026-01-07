@@ -15,11 +15,17 @@ import { Goals } from '@/pages/dashboard/Goals'
 import { Insights } from '@/pages/dashboard/Insights'
 import { Reports } from '@/pages/dashboard/Reports'
 import { Settings } from '@/pages/dashboard/Settings'
+import { Landing } from '@/pages/landing/Landing'
+import { AnalyticsListener } from '@/components/analytics/AnalyticsListener'
 
 function App() {
   return (
     <BrowserRouter>
+      <AnalyticsListener />
       <Routes>
+        {/* Landing pública */}
+        <Route path="/" element={<Landing />} />
+
         {/* Rotas públicas - redireciona para dashboard se já estiver logado */}
         <Route
           element={
@@ -53,7 +59,7 @@ function App() {
         </Route>
 
         {/* Redirecionamento padrão */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   )

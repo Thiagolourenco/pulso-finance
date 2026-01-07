@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase/client'
 import { loginSchema, type LoginFormData } from '@/lib/validations'
 import { Input, Button } from '@/components/ui'
+import { logAnalyticsEvent } from '@/lib/firebase/analytics'
 
 export const Login = () => {
   const navigate = useNavigate()
@@ -16,6 +17,8 @@ export const Login = () => {
     setError('')
 
     try {
+      void logAnalyticsEvent('auth_login_attempt', { email })
+
       const formData: LoginFormData = { email, password }
       loginSchema.parse(formData)
 
@@ -41,8 +44,10 @@ export const Login = () => {
         console.warn('Supabase não configurado, navegando para validação')
       }
 
+      void logAnalyticsEvent('auth_login_success')
       navigate('/dashboard')
     } catch (err: any) {
+      void logAnalyticsEvent('auth_login_error', { message: err?.message })
       // Só mostra erro se for erro de validação do formulário
       if (err.name === 'ZodError') {
         setError('Por favor, preencha todos os campos corretamente')

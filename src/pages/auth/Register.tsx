@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '@/lib/supabase/client'
 import { registerSchema, type RegisterFormData } from '@/lib/validations'
 import { Input, Button } from '@/components/ui'
+import { logAnalyticsEvent } from '@/lib/firebase/analytics'
 
 export const Register = () => {
   const navigate = useNavigate()
@@ -19,6 +20,8 @@ export const Register = () => {
     console.log('🔵 [Register] Iniciando cadastro...')
 
     try {
+      void logAnalyticsEvent('auth_register_attempt', { email })
+
       const formData: RegisterFormData = { email, password, confirmPassword }
       console.log('🔵 [Register] Dados do formulário:', { email, passwordLength: password.length, confirmPasswordLength: confirmPassword.length })
       
@@ -60,6 +63,7 @@ export const Register = () => {
       }
 
       console.log('✅ [Register] SignUp executado sem erros')
+      void logAnalyticsEvent('auth_register_success')
 
       // Verifica se precisa confirmar email
       if (data.user && !data.session) {
@@ -84,6 +88,7 @@ export const Register = () => {
         navigate('/login')
       }
     } catch (err: any) {
+      void logAnalyticsEvent('auth_register_error', { message: err?.message })
       console.error('❌ [Register] Erro capturado no catch:', err)
       console.error('❌ [Register] Tipo do erro:', typeof err)
       console.error('❌ [Register] Nome do erro:', err?.name)
