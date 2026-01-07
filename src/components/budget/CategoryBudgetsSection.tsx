@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Card, Modal, Toast } from '@/components/ui'
 import { CategoryBudgetCard } from './CategoryBudgetCard'
 import { EditCategoryLimitForm } from '@/components/forms/EditCategoryLimitForm'
 import { useCategories } from '@/hooks/useCategories'
 import type { Category, Transaction, CardPurchase, CardInvoice, RecurringExpense } from '@/types'
+import { supabase } from '@/lib/supabase/client'
+import { categoryPreferencesService } from '@/services/categoryPreferencesService'
 
 interface CategoryBudget {
   category: Category
@@ -31,22 +33,10 @@ export const CategoryBudgetsSection = ({
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
   const [showSelector, setShowSelector] = useState(false)
-  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>(() => {
-    try {
-      const stored = localStorage.getItem('budget_selected_categories')
-      return stored ? JSON.parse(stored) : []
-    } catch {
-      return []
-    }
-  })
-  const [showOnlyCritical, setShowOnlyCritical] = useState<boolean>(() => {
-    try {
-      const stored = localStorage.getItem('budget_show_only_critical')
-      return stored ? stored === 'true' : false
-    } catch {
-      return false
-    }
-  })
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
+  const [showOnlyCritical, setShowOnlyCritical] = useState<boolean>(false)
+  const [userId, setUserId] = useState<string | null>(null)
+  const saveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   const { updateCategory, isUpdating } = useCategories()
 
   // Referência vazia para marcar o prop como usado (mantemos para futura lógica)
@@ -54,14 +44,77 @@ export const CategoryBudgetsSection = ({
     // noop: invoices ainda não são usados no cálculo atual
   }, [_invoices])
 
+  // Captura userId
   useEffect(() => {
+    let isMounted = true
+    const fetchUser = async () => {
+      const { data } = await supabase.auth.getUser()
+      if (!isMounted) return
+      setUserId(data.user?.id ?? null)
+    }
+    fetchUser()
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  // Carrega preferências (Supabase -> fallback localStorage)
+  useEffect(() => {
+    let isMounted = true
+    const loadPrefs = async () => {
+      if (userId) {
+        const prefs = await categoryPreferencesService.get(userId)
+        if (prefs && isMounted) {
+          setSelectedCategoryIds(prefs.selected_category_ids || [])
+          setShowOnlyCritical(!!prefs.show_only_critical)
+          return
+        }
+      }
+      // fallback local
+      try {
+        const stored = localStorage.getItem('budget_selected_categories')
+        const storedCritical = localStorage.getItem('budget_show_only_critical')
+        if (isMounted) {
+          setSelectedCategoryIds(stored ? JSON.parse(stored) : [])
+          setShowOnlyCritical(storedCritical ? storedCritical === 'true' : false)
+        }
+      } catch {
+        // ignora
+      }
+    }
+    loadPrefs()
+    return () => {
+      isMounted = false
+    }
+  }, [userId])
+
+  // Salva preferências (Supabase + localStorage) com debounce
+  useEffect(() => {
+    // sempre salva local
     try {
       localStorage.setItem('budget_selected_categories', JSON.stringify(selectedCategoryIds))
       localStorage.setItem('budget_show_only_critical', showOnlyCritical ? 'true' : 'false')
     } catch {
       // ignora
     }
-  }, [selectedCategoryIds, showOnlyCritical])
+
+    if (!userId) return
+    if (saveTimeout.current) clearTimeout(saveTimeout.current)
+    saveTimeout.current = setTimeout(async () => {
+      try {
+        await categoryPreferencesService.upsert(userId, {
+          selected_category_ids: selectedCategoryIds,
+          show_only_critical: showOnlyCritical,
+        })
+      } catch (err) {
+        console.error('Erro ao salvar preferências:', err)
+      }
+    }, 400)
+
+    return () => {
+      if (saveTimeout.current) clearTimeout(saveTimeout.current)
+    }
+  }, [selectedCategoryIds, showOnlyCritical, userId])
 
   // Obtém o mês atual
   const currentDate = new Date()
