@@ -3,14 +3,16 @@ import { useCategories } from '@/hooks/useCategories'
 import { useTransactions } from '@/hooks/useTransactions'
 import { Button, Modal, Toast } from '@/components/ui'
 import { AddCategoryForm } from '@/components/forms/AddCategoryForm'
+import { EditCategoryLimitForm } from '@/components/forms/EditCategoryLimitForm'
 import type { Category } from '@/types'
 
 export const Categories = () => {
-  const { categories, deleteCategory, isDeleting } = useCategories()
+  const { categories, deleteCategory, isDeleting, updateCategory, isUpdating } = useCategories()
   const { transactions } = useTransactions()
 
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
+  const [editingLimitCategory, setEditingLimitCategory] = useState<Category | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
 
   const handleDelete = async (id: string) => {
@@ -45,6 +47,42 @@ export const Categories = () => {
   const handleCloseModal = () => {
     setShowAddModal(false)
     setEditingCategory(null)
+  }
+
+  const handleEditLimit = (category: Category) => {
+    setEditingLimitCategory(category)
+  }
+
+  const handleCloseLimitModal = () => {
+    setEditingLimitCategory(null)
+  }
+
+  const handleSaveLimit = async (limit: number | null) => {
+    if (!editingLimitCategory) return
+
+    updateCategory(
+      {
+        id: editingLimitCategory.id,
+        data: { monthly_limit: limit },
+      },
+      {
+        onSuccess: () => {
+          setToast({ 
+            message: limit === null 
+              ? 'Limite removido com sucesso!' 
+              : 'Limite atualizado com sucesso!', 
+            type: 'success' 
+          })
+          handleCloseLimitModal()
+        },
+        onError: (error: Error) => {
+          setToast({ 
+            message: error.message || 'Erro ao atualizar limite', 
+            type: 'error' 
+          })
+        },
+      }
+    )
   }
 
   const getCategoryTypeLabel = (type: string) => {
@@ -139,8 +177,8 @@ export const Categories = () => {
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-border dark:border-border-dark">
-                  <div className="flex items-center justify-between mb-2">
+                <div className="pt-4 border-t border-border dark:border-border-dark space-y-2">
+                  <div className="flex items-center justify-between">
                     <p className="text-caption text-neutral-600 dark:text-neutral-300">Transações</p>
                     <p className="text-body-sm font-semibold text-neutral-900 dark:text-neutral-50">
                       {stats.transactionCount}
@@ -152,6 +190,28 @@ export const Categories = () => {
                       R$ {stats.totalAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
                   </div>
+                  {category.type === 'expense' && (
+                    <div className="pt-2 border-t border-border dark:border-border-dark">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-caption text-neutral-600 dark:text-neutral-300">Limite mensal</p>
+                        {category.monthly_limit ? (
+                          <p className="text-body-sm font-semibold text-neutral-900 dark:text-neutral-50">
+                            R$ {category.monthly_limit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </p>
+                        ) : (
+                          <p className="text-caption text-neutral-400 dark:text-neutral-500">Não definido</p>
+                        )}
+                      </div>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleEditLimit(category)}
+                        className="w-full"
+                      >
+                        {category.monthly_limit ? '✏️ Editar limite' : '➕ Definir limite'}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             )
@@ -181,6 +241,23 @@ export const Categories = () => {
               handleCloseModal()
             }}
             onCancel={handleCloseModal}
+          />
+        </Modal>
+      )}
+
+      {/* Modal de Editar Limite */}
+      {editingLimitCategory && (
+        <Modal
+          isOpen={!!editingLimitCategory}
+          onClose={handleCloseLimitModal}
+          title="Editar Limite Mensal"
+          size="md"
+        >
+          <EditCategoryLimitForm
+            category={editingLimitCategory}
+            onSubmit={handleSaveLimit}
+            onCancel={handleCloseLimitModal}
+            isLoading={isUpdating}
           />
         </Modal>
       )}

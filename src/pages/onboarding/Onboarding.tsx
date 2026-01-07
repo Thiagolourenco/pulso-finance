@@ -161,6 +161,31 @@ export const Onboarding = ({ onCompleted }: { onCompleted?: () => void }) => {
             console.warn(`Categoria ${cat.name} já existe ou erro ao criar:`, err.message)
           }
         }
+
+        // Salvar limites por categoria definidos no onboarding
+        if (categoryLimits.length > 0) {
+          for (const catLimit of categoryLimits) {
+            try {
+              // Busca a categoria pelo nome
+              const { data: category } = await supabase
+                .from('categories')
+                .select('id')
+                .eq('user_id', userId)
+                .eq('name', catLimit.categoryName.trim())
+                .eq('type', 'expense')
+                .maybeSingle()
+
+              if (category?.id && catLimit.limit > 0) {
+                // Atualiza a categoria com o limite
+                await categoryService.update(category.id, {
+                  monthly_limit: catLimit.limit,
+                })
+              }
+            } catch (err: any) {
+              console.warn(`Erro ao salvar limite para categoria ${catLimit.categoryName}:`, err.message)
+            }
+          }
+        }
       }
 
       // Se o usuário informou investimentos, cria uma conta de investimento padrão

@@ -13,6 +13,7 @@ import { AddRecurringExpenseForm } from '@/components/forms/AddRecurringExpenseF
 import { GoalCard } from '@/components/goals/GoalCard'
 import { RecurringExpenseCard } from '@/components/recurring/RecurringExpenseCard'
 import { InsightsCard } from '@/components/insights/InsightsCard'
+import { CategoryBudgetsSection } from '@/components/budget/CategoryBudgetsSection'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTransactions } from '@/hooks/useTransactions'
@@ -1209,6 +1210,15 @@ export const Dashboard = () => {
         </div>
 
       </div>
+
+      {/* Seção de Orçamento por Categoria */}
+      <CategoryBudgetsSection
+        categories={categories}
+        transactions={transactions}
+        cardPurchases={purchases}
+        invoices={invoices}
+        recurringExpenses={recurringExpenses}
+      />
 
       {/* Seção de ações rápidas */}
       <div className="bg-gradient-to-r from-primary-50 to-primary-100 dark:from-primary-950 dark:to-primary-900 rounded-card-lg p-4 lg:p-6 border border-primary-200 dark:border-primary-800">

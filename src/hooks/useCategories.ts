@@ -54,12 +54,27 @@ export const useCategories = () => {
     })
   }
 
+  const updateCategory = (
+    { id, data }: { id: string; data: Parameters<typeof categoryService.update>[1] },
+    callbacks?: { onSuccess?: () => void; onError?: (error: Error) => void }
+  ) => {
+    updateMutation.mutate({ id, data }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['categories'] })
+        callbacks?.onSuccess?.()
+      },
+      onError: (error: Error) => {
+        callbacks?.onError?.(error)
+      },
+    })
+  }
+
   return {
     categories: categories || [],
     isLoading,
     error,
     createCategory,
-    updateCategory: updateMutation.mutate,
+    updateCategory,
     deleteCategory: deleteMutation.mutate,
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
