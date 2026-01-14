@@ -53,7 +53,7 @@ export async function upsertUserProfile(userId: string | null, profile: Partial<
 
   if (error) {
     // fallback
-    writeLocalProfile(profile)
+    // writeLocalProfile(profile)
   }
 }
 
