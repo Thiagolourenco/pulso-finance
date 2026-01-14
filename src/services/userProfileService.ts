@@ -15,38 +15,14 @@ export const SKIP_ONBOARDING_EMAILS = new Set<string>([
   'thiagolourencosaraiva123@gmail.com',
 ])
 
-const LS_KEY = 'pulso:user_profile'
-const LS_ONBOARDING_KEY = 'pulso:onboarding_completed'
-
 function isSupabaseConfigured() {
   const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
   return !!url && !url.includes('placeholder')
 }
 
-function readLocalProfile(): Partial<UserProfile> | null {
-  try {
-    const raw = localStorage.getItem(LS_KEY)
-    if (!raw) return null
-    return JSON.parse(raw) as Partial<UserProfile>
-  } catch {
-    return null
-  }
-}
-
-function writeLocalProfile(profile: Partial<UserProfile>) {
-  try {
-    localStorage.setItem(LS_KEY, JSON.stringify(profile))
-  } catch {
-    // ignore
-  }
-}
-
 export async function getOnboardingStatus(userId: string | null): Promise<{ completed: boolean }> {
-  // Fallback/local mode (sem Supabase real)
-  if (!isSupabaseConfigured() || !userId) {
-    const localFlag = localStorage.getItem(LS_ONBOARDING_KEY)
-    return { completed: localFlag === 'true' }
-  }
+  // Se não há usuário ou Supabase não configurado, considere não concluído
+  if (!isSupabaseConfigured() || !userId) return { completed: false }
 
   const { data, error } = await supabase
     .from('user_profiles')
@@ -54,20 +30,14 @@ export async function getOnboardingStatus(userId: string | null): Promise<{ comp
     .eq('user_id', userId)
     .maybeSingle()
 
-  // Se a tabela ainda não existir, ou ocorrer erro, cai pro localStorage para não travar o app
-  if (error) {
-    const localFlag = localStorage.getItem(LS_ONBOARDING_KEY)
-    return { completed: localFlag === 'true' }
-  }
+  // Em caso de erro ou ausência de linha, considere não concluído
+  if (error || !data) return { completed: false }
 
-  return { completed: !!data?.onboarding_completed }
+  return { completed: !!data.onboarding_completed }
 }
 
 export async function upsertUserProfile(userId: string | null, profile: Partial<UserProfile>) {
-  if (!userId || !isSupabaseConfigured()) {
-    writeLocalProfile(profile)
-    return
-  }
+  if (!userId || !isSupabaseConfigured()) return
 
   const payload = {
     user_id: userId,
@@ -88,15 +58,6 @@ export async function upsertUserProfile(userId: string | null, profile: Partial<
 }
 
 export async function setOnboardingCompleted(userId: string | null, completed: boolean) {
-  try {
-    localStorage.setItem(LS_ONBOARDING_KEY, completed ? 'true' : 'false')
-  } catch {
-    // ignore
-  }
-
-  const local = readLocalProfile() || {}
-  writeLocalProfile({ ...local, onboarding_completed: completed })
-
   if (!userId || !isSupabaseConfigured()) return
 
   const { error } = await supabase
