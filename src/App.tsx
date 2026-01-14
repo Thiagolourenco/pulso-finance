@@ -6,6 +6,8 @@ import { PublicRoute } from '@/components/auth/PublicRoute'
 import { Login } from '@/pages/auth/Login'
 import { Register } from '@/pages/auth/Register'
 import { Confirmation } from '@/pages/auth/Confirmation'
+import { ForgotPassword } from '@/pages/auth/ForgotPassword'
+import { ResetPassword } from '@/pages/auth/ResetPassword'
 import { Dashboard } from '@/pages/dashboard/Dashboard'
 import { Transactions } from '@/pages/dashboard/Transactions'
 import { Accounts } from '@/pages/dashboard/Accounts'
@@ -37,6 +39,8 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/confirmation/signUp" element={<Confirmation />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
         </Route>
 
         {/* Rotas protegidas - redireciona para login se não estiver autenticado */}

@@ -24,36 +24,38 @@ export const Login = () => {
 
       setIsLoading(true)
       
-      // Para validação: redireciona direto para o dashboard
-      // TODO: Remover este mock quando Supabase estiver configurado
-      await new Promise(resolve => setTimeout(resolve, 500)) // Simula delay de API
-      
-      // Tenta fazer login real, mas se falhar, permite navegação para validação
-      try {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        })
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
 
-        if (error) {
-          // Se Supabase não estiver configurado, permite navegação mesmo assim para validação
-          console.warn('Supabase não configurado, navegando para validação:', error.message)
-        }
-      } catch (supabaseError) {
-        // Ignora erro do Supabase se não estiver configurado
-        console.warn('Supabase não configurado, navegando para validação')
+      if (authError) {
+        throw authError
       }
 
       void logAnalyticsEvent('auth_login_success')
       navigate('/dashboard')
     } catch (err: any) {
       void logAnalyticsEvent('auth_login_error', { message: err?.message })
-      // Só mostra erro se for erro de validação do formulário
+      
+      // Mensagens de erro amigáveis
+      let errorMessage = 'Erro ao fazer login'
+      
       if (err.name === 'ZodError') {
-        setError('Por favor, preencha todos os campos corretamente')
-      } else {
-        setError(err.message || 'Erro ao fazer login')
+        errorMessage = 'Por favor, preencha todos os campos corretamente'
+      } else if (err?.message?.includes('Invalid login credentials') || err?.message?.includes('invalid_credentials')) {
+        errorMessage = 'Email ou senha incorretos. Verifique seus dados e tente novamente.'
+      } else if (err?.message?.includes('Email not confirmed')) {
+        errorMessage = 'Email não confirmado. Verifique sua caixa de entrada.'
+      } else if (err?.message?.includes('Too many requests') || err?.message?.includes('rate limit')) {
+        errorMessage = 'Muitas tentativas. Aguarde alguns minutos e tente novamente.'
+      } else if (err?.message?.includes('Network') || err?.message?.includes('fetch')) {
+        errorMessage = 'Erro de conexão. Verifique sua internet e tente novamente.'
+      } else if (err?.message) {
+        errorMessage = err.message
       }
+      
+      setError(errorMessage)
     } finally {
       setIsLoading(false)
     }
@@ -64,8 +66,13 @@ export const Login = () => {
       <h2 className="text-h1 font-bold text-neutral-900 dark:text-neutral-50 mb-6">Entrar</h2>
 
       {error && (
-        <div className="mb-6 p-4 bg-danger-50 dark:bg-danger-950 border border-danger-200 dark:border-danger-800 text-danger-700 dark:text-danger-300 rounded-input animate-shake">
-          {error}
+        <div className="mb-6 p-4 bg-danger-50 dark:bg-danger-900/30 border border-danger-200 dark:border-danger-800 rounded-lg animate-shake">
+          <div className="flex items-start gap-3">
+            <svg className="w-5 h-5 text-danger-600 dark:text-danger-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="text-body-sm text-danger-700 dark:text-danger-300">{error}</span>
+          </div>
         </div>
       )}
 
@@ -74,21 +81,33 @@ export const Login = () => {
           id="email"
           type="email"
           label="Email"
+          placeholder="seu@email.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           error={error && !email ? 'Email é obrigatório' : undefined}
           required
         />
 
-        <Input
-          id="password"
-          type="password"
-          label="Senha"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          error={error && !password ? 'Senha é obrigatória' : undefined}
-          required
-        />
+        <div>
+          <Input
+            id="password"
+            type="password"
+            label="Senha"
+            placeholder="••••••••"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            error={error && !password ? 'Senha é obrigatória' : undefined}
+            required
+          />
+          <div className="mt-2 text-right">
+            <Link
+              to="/forgot-password"
+              className="text-body-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium transition-colors"
+            >
+              Esqueceu a senha?
+            </Link>
+          </div>
+        </div>
 
         <Button
           type="submit"
@@ -101,11 +120,11 @@ export const Login = () => {
         </Button>
       </form>
 
-      <p className="mt-6 text-center text-body-sm text-neutral-600">
+      <p className="mt-6 text-center text-body-sm text-neutral-600 dark:text-neutral-400">
         Não tem uma conta?{' '}
         <Link
           to="/register"
-          className="text-primary-800 hover:text-primary-900 font-medium transition-colors duration-fast"
+          className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium transition-colors"
         >
           Cadastre-se
         </Link>
@@ -113,4 +132,3 @@ export const Login = () => {
     </div>
   )
 }
-

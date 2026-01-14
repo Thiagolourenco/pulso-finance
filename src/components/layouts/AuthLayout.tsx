@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
+import logoSvg from '@/assets/illus.svg'
 
 export const AuthLayout = () => {
   return (
@@ -9,6 +10,13 @@ export const AuthLayout = () => {
           <ThemeToggle />
         </div>
         <div className="text-center mb-6 lg:mb-8">
+          <div className="flex justify-center mb-4">
+            <img 
+              src={logoSvg} 
+              alt="Pulso Logo" 
+              className="w-14 h-14 lg:w-16 lg:h-16"
+            />
+          </div>
           <h1 className="text-3xl lg:text-display font-bold text-neutral-950 dark:text-neutral-50 mb-1 lg:mb-2">Pulso</h1>
           <p className="text-sm lg:text-body text-neutral-600 dark:text-neutral-300">Gerencie suas finanças pessoais</p>
         </div>
@@ -19,4 +27,3 @@ export const AuthLayout = () => {
     </div>
   )
 }
-
