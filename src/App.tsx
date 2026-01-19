@@ -26,7 +26,14 @@ function App() {
       <AnalyticsListener />
       <Routes>
         {/* Landing pública */}
-        <Route path="/" element={<Landing />} />
+        <Route
+          path="/"
+          element={
+            <PublicRoute>
+              <Landing />
+            </PublicRoute>
+          }
+        />
 
         {/* Rotas públicas - redireciona para dashboard se já estiver logado */}
         <Route

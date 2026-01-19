@@ -6,7 +6,7 @@ import { useCardInvoices } from '@/hooks/useCardInvoices'
 import { useCardPurchases } from '@/hooks/useCardPurchases'
 import { useCategories } from '@/hooks/useCategories'
 import { useRecurringExpenses } from '@/hooks/useRecurringExpenses'
-import { PieChart, Pie, Cell, BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts'
+import { PieChart, Pie, Cell, BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, type PieLabelRenderProps } from 'recharts'
 import { Button, Modal } from '@/components/ui'
 import { useTheme } from '@/contexts/ThemeProvider'
 
@@ -102,50 +102,116 @@ export const Reports = () => {
     return { startDate, endDate }
   }, [selectedPeriod, currentMonth, currentYear])
 
+  const periodBounds = useMemo(() => {
+    const start = new Date(periodData.startDate)
+    start.setHours(0, 0, 0, 0)
+    const end = new Date(periodData.endDate)
+    end.setHours(23, 59, 59, 999)
+    return { start, end }
+  }, [periodData])
+
+  const monthsInPeriod = useMemo(() => {
+    const months: { year: number; monthIndex: number }[] = []
+    const current = new Date(periodBounds.start.getFullYear(), periodBounds.start.getMonth(), 1)
+    const end = new Date(periodBounds.end.getFullYear(), periodBounds.end.getMonth(), 1)
+
+    while (current <= end) {
+      months.push({ year: current.getFullYear(), monthIndex: current.getMonth() })
+      current.setMonth(current.getMonth() + 1)
+    }
+
+    return months
+  }, [periodBounds])
+
+  const periodInvoiceTotal = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const isCurrentMonthPeriod =
+      selectedPeriod === 'month' &&
+      periodBounds.start.getMonth() + 1 === currentMonth &&
+      periodBounds.start.getFullYear() === currentYear
+
+    return invoices
+      .filter(invoice => {
+        const invoiceDate = new Date(invoice.due_date)
+        invoiceDate.setHours(0, 0, 0, 0)
+        const isInRange = invoiceDate >= periodBounds.start && invoiceDate <= periodBounds.end
+        const isOverdueOpen = isCurrentMonthPeriod && invoice.status === 'open' && invoiceDate <= today && invoice.total_amount > 0
+        return isInRange || isOverdueOpen
+      })
+      .reduce((sum, invoice) => sum + (invoice.total_amount || 0), 0)
+  }, [invoices, periodBounds, selectedPeriod, currentMonth, currentYear])
+
+  const periodRecurringTotal = useMemo(() => {
+    const activeRecurring = recurringExpenses.filter(expense => expense.is_active)
+    if (activeRecurring.length === 0) return 0
+
+    return monthsInPeriod.reduce((sum, { year, monthIndex }) => {
+      const monthTotal = activeRecurring.reduce((monthSum, expense) => {
+        const dueDate = new Date(year, monthIndex, expense.due_day)
+        if (dueDate.getMonth() !== monthIndex || dueDate.getFullYear() !== year) return monthSum
+        return monthSum + (expense.amount || 0)
+      }, 0)
+      return sum + monthTotal
+    }, 0)
+  }, [recurringExpenses, monthsInPeriod])
+
   // Comparativo mês atual vs anterior
   const monthComparison = useMemo(() => {
     const previousMonth = currentMonth === 1 ? 12 : currentMonth - 1
     const previousYear = currentMonth === 1 ? currentYear - 1 : currentYear
 
-    const currentMonthTransactions = transactions.filter(t => {
-      const transactionDate = new Date(t.date)
-      return (
-        transactionDate.getMonth() + 1 === currentMonth &&
-        transactionDate.getFullYear() === currentYear
-      )
-    })
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
 
-    const previousMonthTransactions = transactions.filter(t => {
-      const transactionDate = new Date(t.date)
-      return (
-        transactionDate.getMonth() + 1 === previousMonth &&
-        transactionDate.getFullYear() === previousYear
-      )
-    })
+    const getMonthTotals = (year: number, month: number, includeOverdueOpenInvoices: boolean) => {
+      const monthTransactions = transactions.filter(t => {
+        const transactionDate = new Date(t.date)
+        return transactionDate.getMonth() + 1 === month && transactionDate.getFullYear() === year
+      })
 
-    const currentIncome = currentMonthTransactions
-      .filter(t => t.type === 'income')
-      .reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
+      const income = monthTransactions
+        .filter(t => t.type === 'income')
+        .reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
 
-    const previousIncome = previousMonthTransactions
-      .filter(t => t.type === 'income')
-      .reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
+      const transactionExpenses = monthTransactions
+        .filter(t => t.type === 'expense')
+        .reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0)
 
-    const currentExpenses = currentMonthTransactions
-      .filter(t => t.type === 'expense')
-      .reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0)
+      const invoiceExpenses = invoices
+        .filter(invoice => {
+          const invoiceDate = new Date(invoice.due_date)
+          invoiceDate.setHours(0, 0, 0, 0)
+          const isSameMonth = invoiceDate.getMonth() + 1 === month && invoiceDate.getFullYear() === year
+          const isOverdueOpen = includeOverdueOpenInvoices && invoice.status === 'open' && invoiceDate <= today && invoice.total_amount > 0
+          return isSameMonth || isOverdueOpen
+        })
+        .reduce((sum, invoice) => sum + (invoice.total_amount || 0), 0)
 
-    const previousExpenses = previousMonthTransactions
-      .filter(t => t.type === 'expense')
-      .reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0)
+      const recurringExpensesForMonth = recurringExpenses
+        .filter(expense => expense.is_active)
+        .reduce((sum, expense) => {
+          const dueDate = new Date(year, month - 1, expense.due_day)
+          if (dueDate.getMonth() + 1 !== month || dueDate.getFullYear() !== year) return sum
+          return sum + (expense.amount || 0)
+        }, 0)
+
+      return {
+        income,
+        expenses: transactionExpenses + invoiceExpenses + recurringExpensesForMonth,
+      }
+    }
+
+    const currentTotals = getMonthTotals(currentYear, currentMonth, true)
+    const previousTotals = getMonthTotals(previousYear, previousMonth, false)
 
     return {
-      current: { income: currentIncome, expenses: currentExpenses },
-      previous: { income: previousIncome, expenses: previousExpenses },
-      incomeChange: previousIncome > 0 ? ((currentIncome - previousIncome) / previousIncome) * 100 : 0,
-      expensesChange: previousExpenses > 0 ? ((currentExpenses - previousExpenses) / previousExpenses) * 100 : 0,
+      current: { income: currentTotals.income, expenses: currentTotals.expenses },
+      previous: { income: previousTotals.income, expenses: previousTotals.expenses },
+      incomeChange: previousTotals.income > 0 ? ((currentTotals.income - previousTotals.income) / previousTotals.income) * 100 : 0,
+      expensesChange: previousTotals.expenses > 0 ? ((currentTotals.expenses - previousTotals.expenses) / previousTotals.expenses) * 100 : 0,
     }
-  }, [transactions, currentMonth, currentYear])
+  }, [transactions, invoices, recurringExpenses, currentMonth, currentYear])
 
   // Gastos por categoria
   const expensesByCategory = useMemo(() => {
@@ -467,25 +533,23 @@ export const Reports = () => {
     const periodTransactions = transactions.filter(t => {
       const transactionDate = new Date(t.date)
       transactionDate.setHours(0, 0, 0, 0)
-      const start = new Date(periodData.startDate)
-      start.setHours(0, 0, 0, 0)
-      const end = new Date(periodData.endDate)
-      end.setHours(23, 59, 59, 999)
-      return transactionDate >= start && transactionDate <= end
+      return transactionDate >= periodBounds.start && transactionDate <= periodBounds.end
     })
 
     const totalIncome = periodTransactions
       .filter(t => t.type === 'income')
       .reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
 
-    const totalExpenses = periodTransactions
+    const transactionExpenses = periodTransactions
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0)
+
+    const totalExpenses = transactionExpenses + periodInvoiceTotal + periodRecurringTotal
 
     const totalBalance = totalIncome - totalExpenses
 
     return { totalIncome, totalExpenses, totalBalance, transactionCount: periodTransactions.length }
-  }, [transactions, periodData])
+  }, [transactions, periodBounds, periodInvoiceTotal, periodRecurringTotal])
 
   // Função para exportar dados
   const handleExport = () => {
@@ -718,7 +782,7 @@ export const Reports = () => {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={(props: any) => {
+                  label={(props: PieLabelRenderProps) => {
                     const name = props?.name || ''
                     const percent = ((props?.percent || 0) * 100).toFixed(0)
                     // Recharts passa x/y para label default
