@@ -263,6 +263,7 @@ export interface Database {
           due_date: string
           status: 'open' | 'closed' | 'paid'
           total_amount: number
+          last_paid_reference_month?: string | null
           created_at: string
           updated_at: string
         }
@@ -275,6 +276,7 @@ export interface Database {
           due_date: string
           status?: 'open' | 'closed' | 'paid'
           total_amount?: number
+          last_paid_reference_month?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -287,6 +289,7 @@ export interface Database {
           due_date?: string
           status?: 'open' | 'closed' | 'paid'
           total_amount?: number
+          last_paid_reference_month?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -302,6 +305,7 @@ export interface Database {
           account_id: string | null
           is_active: boolean
           is_paid_current_month?: boolean
+          last_paid_reference_month?: string | null
           transaction_id?: string | null
           description: string | null
           created_at: string
@@ -317,6 +321,7 @@ export interface Database {
           account_id?: string | null
           is_active?: boolean
           is_paid_current_month?: boolean
+          last_paid_reference_month?: string | null
           transaction_id?: string | null
           description?: string | null
           created_at?: string
@@ -332,6 +337,7 @@ export interface Database {
           account_id?: string | null
           is_active?: boolean
           is_paid_current_month?: boolean
+          last_paid_reference_month?: string | null
           transaction_id?: string | null
           description?: string | null
           created_at?: string

@@ -9,6 +9,7 @@ import { useRecurringExpenses } from '@/hooks/useRecurringExpenses'
 import { PieChart, Pie, Cell, BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, type PieLabelRenderProps } from 'recharts'
 import { Button, Modal } from '@/components/ui'
 import { useTheme } from '@/contexts/ThemeProvider'
+import { SELIC_ANNUAL_RATE } from '@/lib/constants'
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16']
 
@@ -35,7 +36,7 @@ export const Reports = () => {
   const legendStyle: React.CSSProperties = { color: chartAxisStroke }
 
   const { transactions, isLoading: isLoadingTransactions } = useTransactions()
-  const { isLoading: isLoadingAccounts } = useAccounts()
+  const { accounts, isLoading: isLoadingAccounts } = useAccounts()
   const { cards, isLoading: isLoadingCards } = useCards()
   const { invoices, isLoading: isLoadingInvoices } = useCardInvoices()
   const { isLoading: isLoadingPurchases } = useCardPurchases()
@@ -551,11 +552,22 @@ export const Reports = () => {
     return { totalIncome, totalExpenses, totalBalance, transactionCount: periodTransactions.length }
   }, [transactions, periodBounds, periodInvoiceTotal, periodRecurringTotal])
 
+  // Total investido (contas tipo investment) e projeção mensal SELIC
+  const investmentSummary = useMemo(() => {
+    const totalInvested = (accounts || []).filter(acc => acc.type === 'investment')
+      .reduce((sum, acc) => sum + (Number(acc.current_balance) || 0), 0)
+    // Taxa mensal equivalente (juros compostos): (1 + taxa_anual/100)^(1/12) - 1
+    const monthlyRate = Math.pow(1 + SELIC_ANNUAL_RATE / 100, 1 / 12) - 1
+    const selicMonthlyReturn = totalInvested * monthlyRate
+    return { totalInvested, selicMonthlyReturn, monthlyRatePercent: monthlyRate * 100 }
+  }, [accounts])
+
   // Função para exportar dados
   const handleExport = () => {
     const data = {
       periodo: selectedPeriod,
       resumo: summary,
+      investimentos: investmentSummary,
       comparativo: monthComparison,
       categorias: expensesByCategory,
       receitas: incomeByCategory,
@@ -696,7 +708,16 @@ export const Reports = () => {
       )}
 
       {/* Resumo geral */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6 lg:mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-6 mb-6 lg:mb-8">
+        <div className="p-4 lg:p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
+          <p className="text-caption text-neutral-600 dark:text-neutral-300 mb-2">Total Investido</p>
+          <p className="text-h2 font-bold text-warning-600 dark:text-warning-400">
+            R$ {investmentSummary.totalInvested.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+          </p>
+          <p className="text-caption text-neutral-500 dark:text-neutral-400 mt-1">
+            ~R$ {investmentSummary.selicMonthlyReturn.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}/mês (SELIC {SELIC_ANNUAL_RATE}% a.a.)
+          </p>
+        </div>
         <div className="p-4 lg:p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
           <p className="text-caption text-neutral-600 dark:text-neutral-300 mb-2">Total de Receitas</p>
           <p className="text-h2 font-bold text-success-600">

@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react'
 import type { RecurringExpense, Category } from '@/types'
 
 interface RecurringExpenseCardProps {
-  expense: RecurringExpense & { is_paid_current_month?: boolean }
+  expense: RecurringExpense & { is_paid_current_month?: boolean; last_paid_reference_month?: string | null }
   category?: Category
   onEdit?: (expense: RecurringExpense) => void
   onDelete?: (id: string) => void
   onToggleActive?: (id: string, isActive: boolean) => void
-  onUpdate?: (id: string, data: { is_paid_current_month?: boolean }, callbacks?: { onSuccess?: () => void; onError?: (error: Error) => void }) => void
+  onUpdate?: (id: string, data: { is_paid_current_month?: boolean; last_paid_reference_month?: string | null }, callbacks?: { onSuccess?: () => void; onError?: (error: Error) => void }) => void
   onToast?: (message: string, type: 'success' | 'error') => void
 }
 
@@ -20,13 +20,19 @@ export const RecurringExpenseCard = ({
   onToast,
 }: RecurringExpenseCardProps) => {
   const [isDeleting, setIsDeleting] = useState(false)
-  const [isPaidCurrentMonth, setIsPaidCurrentMonth] = useState(expense.is_paid_current_month || false)
+  // Considera como "paga" apenas se last_paid_reference_month corresponde ao mês atual
+  // Isso evita que o status "pago" persista automaticamente quando o mês vira
+  const now = new Date()
+  const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  const isPaidForCurrentMonth = expense.last_paid_reference_month === currentMonthStr
+  const [isPaidCurrentMonth, setIsPaidCurrentMonth] = useState(isPaidForCurrentMonth)
   const [isUpdatingPaid, setIsUpdatingPaid] = useState(false)
 
   // Sincroniza o valor local quando a despesa é atualizada
   useEffect(() => {
-    setIsPaidCurrentMonth(expense.is_paid_current_month || false)
-  }, [expense.is_paid_current_month])
+    const paid = expense.last_paid_reference_month === currentMonthStr
+    setIsPaidCurrentMonth(paid)
+  }, [expense.last_paid_reference_month, currentMonthStr])
 
   const handleDelete = async () => {
     if (!onDelete) return
@@ -90,9 +96,14 @@ export const RecurringExpenseCard = ({
     
     setIsPaidCurrentMonth(checked)
     setIsUpdatingPaid(true)
+    // Ao marcar como paga: registra o mês atual. Ao desmarcar: limpa.
+    // Isso garante que ao virar o mês, a despesa volta a aparecer como "A PAGAR"
     onUpdate(
       expense.id,
-      { is_paid_current_month: checked },
+      { 
+        is_paid_current_month: checked, 
+        last_paid_reference_month: checked ? currentMonthStr : null 
+      },
       {
         onSuccess: () => {
           setIsUpdatingPaid(false)

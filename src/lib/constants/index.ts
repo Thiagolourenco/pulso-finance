@@ -18,6 +18,10 @@ export const ACCOUNT_TYPES = ['checking', 'savings', 'investment'] as const
 // Tipos de transação
 export const TRANSACTION_TYPES = ['income', 'expense'] as const
 
+// Taxa SELIC anual (% a.a.) - atualize conforme o BCB
+// Fonte: https://www.bcb.gov.br/estabilidadefinanceira/selic
+export const SELIC_ANNUAL_RATE = 10.5
+
 // Meses
 export const MONTHS = [
   'Janeiro',

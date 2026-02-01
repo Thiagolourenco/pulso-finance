@@ -253,18 +253,25 @@ export const CardDetailsModal = ({
                 const invoiceMonth = invoiceDueDate.getMonth() + 1
                 const invoiceYear = invoiceDueDate.getFullYear()
                 const isCurrentMonth = invoiceMonth === currentMonth && invoiceYear === currentYear
+                const currentMonthStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}`
+                // Paga só se marcou no mês atual - ao virar o mês, fica desmarcado
+                const isPaid = openInvoice.status === 'paid' && openInvoice.last_paid_reference_month === currentMonthStr
                 
                 return isCurrentMonth ? (
                   <div className="mt-3 pt-3 border-t border-border dark:border-border-dark">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={openInvoice.status === 'paid'}
+                        checked={isPaid}
                         onChange={(e) => {
+                          const checked = e.target.checked
                           updateInvoice(
                             { 
                               id: openInvoice.id, 
-                              data: { status: e.target.checked ? 'paid' : 'open' } 
+                              data: { 
+                                status: checked ? 'paid' : 'open',
+                                last_paid_reference_month: checked ? currentMonthStr : null
+                              } 
                             },
                             {
                               onSuccess: () => {

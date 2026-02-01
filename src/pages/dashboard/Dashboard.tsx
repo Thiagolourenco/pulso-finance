@@ -155,34 +155,27 @@ export const Dashboard = () => {
     })
     .reduce((sum, transaction) => sum + Math.abs(Number(transaction.amount) || 0), 0)
 
-  // Inclui faturas de cartão que vencem no mês atual (mesmo que pagas) como despesas
+  // Faturas de cartão: SÓ conta quando marcado como PAGO no mês atual (checkbox)
+  // Quando vira o mês, checkbox desmarca = não entra em despesas até o usuário marcar
+  const currentMonthStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}`
   const currentMonthInvoices = invoices.filter(invoice => {
+    if (invoice.status !== 'paid') return false
+    if (invoice.last_paid_reference_month !== currentMonthStr) return false
     const invoiceDueDate = new Date(invoice.due_date)
-    invoiceDueDate.setHours(0, 0, 0, 0)
     const invoiceMonth = invoiceDueDate.getMonth() + 1
     const invoiceYear = invoiceDueDate.getFullYear()
-    
-    // Inclui todas as faturas (abertas e pagas) que vencem no mês atual
-    const isCurrentMonth = invoiceMonth === currentMonth && invoiceYear === currentYear
-    
-    // Também inclui faturas vencidas que ainda estão abertas
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const isOverdue = invoiceDueDate <= today && invoice.status === 'open'
-    
-    return isCurrentMonth || (isOverdue && invoice.total_amount > 0)
+    return invoiceMonth === currentMonth && invoiceYear === currentYear
   })
   const currentMonthInvoiceTotal = currentMonthInvoices.reduce((sum, invoice) => sum + (invoice.total_amount || 0), 0)
 
-  // Calcula despesas recorrentes ativas que vencem no mês atual (mesmo que pagas)
+  // Despesas recorrentes: SÓ conta quando marcado como PAGO no mês atual (checkbox)
+  // Quando vira o mês, checkbox desmarca = não entra em despesas até o usuário marcar
   const currentMonthRecurringExpenses = recurringExpenses
     .filter(expense => {
       if (!expense.is_active) return false
-      
-      // Calcula a data de vencimento no mês atual baseado no dia de vencimento
+      // Só conta se last_paid_reference_month === mês atual (usuário marcou como pago)
+      if (expense.last_paid_reference_month !== currentMonthStr) return false
       const dueDate = new Date(currentYear, currentMonth - 1, expense.due_day)
-      
-      // Verifica se o vencimento é no mês atual (independente de já ter passado ou não)
       return dueDate.getMonth() + 1 === currentMonth && dueDate.getFullYear() === currentYear
     })
     .reduce((sum, expense) => sum + (expense.amount || 0), 0)
@@ -202,7 +195,8 @@ export const Dashboard = () => {
     })
     .reduce((sum, transaction) => sum + Math.abs(Number(transaction.amount) || 0), 0)
 
-  // Inclui faturas de cartão que venceram no mês anterior (mesmo que pagas)
+  // Faturas do mês anterior: TODAS que vencem no mês (mesma lógica do Relatório)
+  // const previousMonthStr = `${previousYear}-${String(previousMonth).padStart(2, '0')}`
   const previousMonthInvoices = invoices.filter(invoice => {
     const invoiceDueDate = new Date(invoice.due_date)
     const invoiceMonth = invoiceDueDate.getMonth() + 1
@@ -211,15 +205,11 @@ export const Dashboard = () => {
   })
   const previousMonthInvoiceTotal = previousMonthInvoices.reduce((sum, invoice) => sum + (invoice.total_amount || 0), 0)
 
-  // Calcula despesas recorrentes ativas que venceram no mês anterior (mesmo que pagas)
+  // Despesas recorrentes do mês anterior: TODAS que vencem no mês (mesma lógica do Relatório)
   const previousMonthRecurringExpenses = recurringExpenses
     .filter(expense => {
       if (!expense.is_active) return false
-      
-      // Calcula o vencimento do mês anterior baseado no dia de vencimento
       const prevMonthDate = new Date(previousYear, previousMonth - 1, expense.due_day)
-      
-      // Verifica se o vencimento foi no mês anterior
       return prevMonthDate.getMonth() + 1 === previousMonth && prevMonthDate.getFullYear() === previousYear
     })
     .reduce((sum, expense) => sum + (expense.amount || 0), 0)
@@ -227,7 +217,7 @@ export const Dashboard = () => {
   // Despesas do mês anterior = transações + faturas + despesas recorrentes que venceram no mês anterior
   const previousMonthExpenses = previousMonthTransactionExpenses + previousMonthInvoiceTotal + previousMonthRecurringExpenses
 
-  // Calcula o total de investimentos
+  // Calcula o total de investimentos (contas tipo investment)
   const investmentAccounts = accounts.filter(account => account.type === 'investment')
   const totalInvestments = investmentAccounts.reduce((sum, account) => {
     const balance = Number(account.current_balance) || 0
@@ -235,13 +225,20 @@ export const Dashboard = () => {
   }, 0)
 
   // Calcula sobra prevista (receitas - despesas do mês atual)
-  const expectedSurplus = monthlyIncome - monthlyExpenses
+  const incomeForSurplusCalculation = monthlyIncome > 0 ? monthlyIncome : previousMonthIncome
+  const expectedSurplus = incomeForSurplusCalculation - monthlyExpenses
   
-  // Calcula sobra do mês anterior
+  // Sobra do mês anterior (receitas - despesas)
   const previousMonthSurplus = previousMonthIncome - previousMonthExpenses
-  
-  // Total do dinheiro = Total investido + Sobra prevista do mês atual + Sobra do mês anterior
-  const totalBalance = totalInvestments + expectedSurplus + previousMonthSurplus
+
+  // Soma dos saldos de todas as contas
+  const sumOfAccounts = accounts.reduce((sum, account) => {
+    const balance = Number(account.current_balance) || 0
+    return sum + balance
+  }, 0)
+
+  // Total do dinheiro = soma das contas + sobra do mês anterior
+  const totalBalance = sumOfAccounts + previousMonthSurplus
 
   // Também calcula saldo a partir das transações (para comparação)
   const balanceFromTransactions = transactions.reduce((sum, transaction) => {
@@ -1463,7 +1460,8 @@ export const Dashboard = () => {
                       const today = new Date()
                       const todayDay = today.getDate()
                       
-                      const isPaid = currentInvoice.status === 'paid'
+                      // Paga só se marcou no mês atual - ao virar o mês, fica false automaticamente
+                      const isPaid = currentInvoice.status === 'paid' && currentInvoice.last_paid_reference_month === currentMonthStr
                       
                       // Verifica se está atrasada baseado apenas em mês e dia (ignorando o ano)
                       let isOverdue = false
@@ -1508,7 +1506,7 @@ export const Dashboard = () => {
                     </div>
                     
                     {currentInvoice ? (() => {
-                      const isPaid = currentInvoice.status === 'paid'
+                      const isPaid = currentInvoice.status === 'paid' && currentInvoice.last_paid_reference_month === currentMonthStr
                       
                       return (
                         <>
@@ -1539,17 +1537,20 @@ export const Dashboard = () => {
                                 checked={isPaid}
                                 onChange={(e) => {
                                   e.stopPropagation()
+                                  const checked = e.target.checked
                                   updateInvoice(
                                     { 
                                       id: currentInvoice.id, 
-                                      data: { status: e.target.checked ? 'paid' : 'open' } 
+                                      data: { 
+                                        status: checked ? 'paid' : 'open',
+                                        last_paid_reference_month: checked ? currentMonthStr : null
+                                      } 
                                     },
                                     {
                                       onSuccess: () => {
-                                        // Invalida queries para atualizar a UI imediatamente
                                         queryClient.invalidateQueries({ queryKey: ['card_invoices'] })
                                         setToast({ 
-                                          message: e.target.checked 
+                                          message: checked 
                                             ? 'Fatura marcada como paga' 
                                             : 'Fatura reaberta', 
                                           type: 'success' 
@@ -1771,10 +1772,28 @@ export const Dashboard = () => {
                 }).format(totalBalance)}
               </span>
             </div>
-            <p className="text-caption text-neutral-600 dark:text-neutral-400">Soma dos investimentos + sobra prevista</p>
+            <p className="text-caption text-neutral-600 dark:text-neutral-400">Soma das contas + sobra do mês anterior</p>
           </div>
 
           <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-neutral-50 dark:bg-neutral-900 rounded-card border border-border dark:border-border-dark">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-neutral-200 dark:bg-neutral-700 flex items-center justify-center">
+                  <span className="text-xl">🏦</span>
+                </div>
+                <div>
+                  <p className="text-body-sm font-medium text-neutral-950 dark:text-neutral-50">Soma das contas</p>
+                  <p className="text-caption text-neutral-600 dark:text-neutral-400">Saldo de todas as contas no banco de dados</p>
+                </div>
+              </div>
+              <span className="text-body font-bold text-neutral-950 dark:text-neutral-50">
+                {new Intl.NumberFormat('pt-BR', {
+                  style: 'currency',
+                  currency: 'BRL',
+                }).format(sumOfAccounts)}
+              </span>
+            </div>
+
             <div className="flex items-center justify-between p-4 bg-neutral-50 dark:bg-neutral-900 rounded-card border border-border dark:border-border-dark">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-warning-100 dark:bg-warning-900 flex items-center justify-center">
@@ -1795,12 +1814,31 @@ export const Dashboard = () => {
 
             <div className="flex items-center justify-between p-4 bg-neutral-50 dark:bg-neutral-900 rounded-card border border-border dark:border-border-dark">
               <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
+                  <span className="text-xl">📋</span>
+                </div>
+                <div>
+                  <p className="text-body-sm font-medium text-neutral-950 dark:text-neutral-50">Sobra do mês anterior</p>
+                  <p className="text-caption text-neutral-600 dark:text-neutral-400">Receitas - Despesas do mês passado</p>
+                </div>
+              </div>
+              <span className={`text-body font-bold ${previousMonthSurplus >= 0 ? 'text-success-600 dark:text-success-500' : 'text-danger-600 dark:text-danger-400'}`}>
+                {new Intl.NumberFormat('pt-BR', {
+                  style: 'currency',
+                  currency: 'BRL',
+                  signDisplay: 'always',
+                }).format(previousMonthSurplus)}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-neutral-50 dark:bg-neutral-900 rounded-card border border-border dark:border-border-dark">
+              <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-success-100 dark:bg-success-900 flex items-center justify-center">
                   <span className="text-xl">💰</span>
                 </div>
                 <div>
                   <p className="text-body-sm font-medium text-neutral-950 dark:text-neutral-50">Sobra prevista</p>
-                  <p className="text-caption text-neutral-600 dark:text-neutral-400">Receitas - Despesas do mês</p>
+                  <p className="text-caption text-neutral-600 dark:text-neutral-400">Receitas - Despesas do mês atual</p>
                 </div>
               </div>
               <span className={`text-body font-bold ${expectedSurplus >= 0 ? 'text-success-600 dark:text-success-500' : 'text-danger-600 dark:text-danger-400'}`}>
