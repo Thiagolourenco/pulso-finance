@@ -26,6 +26,7 @@ import { useGoals } from '@/hooks/useGoals'
 import { useRecurringExpenses } from '@/hooks/useRecurringExpenses'
 import { supabase } from '@/lib/supabase/client'
 import { getOrCreateDefaultCategory, getOrCreateBalanceCategory } from '@/lib/utils/categories'
+import { parseLocalDate } from '@/lib/utils'
 
 type ModalType = 'transaction' | 'account' | 'card' | 'cardPurchase' | 'goal' | 'category' | 'recurringExpense' | 'totalMoney' | null
 type TransactionType = 'expense' | 'income' | 'balance'
@@ -122,7 +123,7 @@ export const Dashboard = () => {
   // Calcula receitas do mês atual (transações do tipo 'income')
   const monthlyIncome = transactions
     .filter(transaction => {
-      const transactionDate = new Date(transaction.date)
+      const transactionDate = parseLocalDate(transaction.date)
       return (
         transaction.type === 'income' &&
         transactionDate.getMonth() + 1 === currentMonth &&
@@ -134,7 +135,7 @@ export const Dashboard = () => {
   // Calcula receitas do mês anterior
   const previousMonthIncome = transactions
     .filter(transaction => {
-      const transactionDate = new Date(transaction.date)
+      const transactionDate = parseLocalDate(transaction.date)
       return (
         transaction.type === 'income' &&
         transactionDate.getMonth() + 1 === previousMonth &&
@@ -146,7 +147,7 @@ export const Dashboard = () => {
   // Calcula despesas do mês atual (transações do tipo 'expense')
   const transactionExpenses = transactions
     .filter(transaction => {
-      const transactionDate = new Date(transaction.date)
+      const transactionDate = parseLocalDate(transaction.date)
       return (
         transaction.type === 'expense' &&
         transactionDate.getMonth() + 1 === currentMonth &&
@@ -186,7 +187,7 @@ export const Dashboard = () => {
   // Calcula despesas do mês anterior (transações do tipo 'expense')
   const previousMonthTransactionExpenses = transactions
     .filter(transaction => {
-      const transactionDate = new Date(transaction.date)
+      const transactionDate = parseLocalDate(transaction.date)
       return (
         transaction.type === 'expense' &&
         transactionDate.getMonth() + 1 === previousMonth &&
@@ -839,7 +840,7 @@ export const Dashboard = () => {
             const nextMonthName = new Date(nextMonthYear, nextMonth - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
             
             const nextMonthTransactions = transactions.filter(transaction => {
-              const transactionDate = new Date(transaction.date)
+              const transactionDate = parseLocalDate(transaction.date)
               return (
                 transaction.type === 'expense' &&
                 transactionDate.getMonth() + 1 === nextMonth &&
@@ -1019,7 +1020,7 @@ export const Dashboard = () => {
               const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1
               const nextMonthYear = currentMonth === 12 ? currentYear + 1 : currentYear
               const nextMonthTransactions = transactions.filter(transaction => {
-                const transactionDate = new Date(transaction.date)
+                const transactionDate = parseLocalDate(transaction.date)
                 return (
                   transaction.type === 'expense' &&
                   transactionDate.getMonth() + 1 === nextMonth &&
@@ -1734,7 +1735,7 @@ export const Dashboard = () => {
         })
         
         const currentMonthExpenses = transactions.filter(transaction => {
-          const transactionDate = new Date(transaction.date)
+          const transactionDate = parseLocalDate(transaction.date)
           return (
             transaction.type === 'expense' &&
             transactionDate.getMonth() + 1 === currentMonth &&

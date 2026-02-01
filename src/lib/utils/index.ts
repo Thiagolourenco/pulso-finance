@@ -28,6 +28,15 @@ export const formatDateTime = (date: string | Date): string => {
   }).format(dateObj)
 }
 
+/** Parse date string (YYYY-MM-DD ou ISO) como data local, evitando problemas de fuso */
+export const parseLocalDate = (dateStr: string): Date => {
+  const parts = dateStr.split(/[T\-]/).map(Number)
+  const y = parts[0]
+  const m = (parts[1] || 1) - 1
+  const d = parts[2] || 1
+  return new Date(y, m, d)
+}
+
 // Obter início do mês
 export const getStartOfMonth = (date: Date = new Date()): Date => {
   return new Date(date.getFullYear(), date.getMonth(), 1)
