@@ -20,6 +20,7 @@ export const useTransactions = () => {
     mutationFn: transactionService.create,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
     },
   })
 

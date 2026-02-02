@@ -156,32 +156,34 @@ export const Dashboard = () => {
     })
     .reduce((sum, transaction) => sum + Math.abs(Number(transaction.amount) || 0), 0)
 
-  // Faturas de cartão: SÓ conta quando marcado como PAGO no mês atual (checkbox)
-  // Quando vira o mês, checkbox desmarca = não entra em despesas até o usuário marcar
+  // Despesas do mês = soma de TODOS os gastos/faturas PAGAS no mês (transações + faturas marcadas pagas + recorrentes marcadas pagas)
   const currentMonthStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}`
-  const currentMonthInvoices = invoices.filter(invoice => {
-    if (invoice.status !== 'paid') return false
-    if (invoice.last_paid_reference_month !== currentMonthStr) return false
-    const invoiceDueDate = new Date(invoice.due_date)
-    const invoiceMonth = invoiceDueDate.getMonth() + 1
-    const invoiceYear = invoiceDueDate.getFullYear()
-    return invoiceMonth === currentMonth && invoiceYear === currentYear
-  })
-  const currentMonthInvoiceTotal = currentMonthInvoices.reduce((sum, invoice) => sum + (invoice.total_amount || 0), 0)
 
-  // Despesas recorrentes: SÓ conta quando marcado como PAGO no mês atual (checkbox)
-  // Quando vira o mês, checkbox desmarca = não entra em despesas até o usuário marcar
-  const currentMonthRecurringExpenses = recurringExpenses
-    .filter(expense => {
-      if (!expense.is_active) return false
-      // Só conta se last_paid_reference_month === mês atual (usuário marcou como pago)
-      if (expense.last_paid_reference_month !== currentMonthStr) return false
-      const dueDate = new Date(currentYear, currentMonth - 1, expense.due_day)
-      return dueDate.getMonth() + 1 === currentMonth && dueDate.getFullYear() === currentYear
-    })
+  // Faturas PAGAS no mês (marcadas como pagas este mês)
+  const currentMonthInvoicesPaid = invoices.filter(
+    invoice => invoice.status === 'paid' && invoice.last_paid_reference_month === currentMonthStr
+  )
+  const currentMonthInvoiceTotal = currentMonthInvoicesPaid.reduce((sum, invoice) => sum + (invoice.total_amount || 0), 0)
+
+  // Para o MODAL: mostrar faturas que vencem no mês OU que foram pagas no mês (ex.: Porto seguro pago em fev aparece na lista)
+  const currentMonthInvoicesForDisplay = invoices.filter(invoice => {
+    const invoiceDueDate = new Date(invoice.due_date)
+    const dueThisMonth = invoiceDueDate.getMonth() + 1 === currentMonth && invoiceDueDate.getFullYear() === currentYear
+    const paidThisMonth = invoice.status === 'paid' && invoice.last_paid_reference_month === currentMonthStr
+    return dueThisMonth || paidThisMonth
+  })
+
+  // Recorrentes PAGAS no mês (marcadas como pagas este mês) e que vencem no mês
+  const currentMonthRecurringExpensesList = recurringExpenses.filter(expense => {
+    if (!expense.is_active) return false
+    const dueDate = new Date(currentYear, currentMonth - 1, expense.due_day)
+    return dueDate.getMonth() + 1 === currentMonth && dueDate.getFullYear() === currentYear
+  })
+  const currentMonthRecurringExpenses = currentMonthRecurringExpensesList
+    .filter(expense => expense.last_paid_reference_month === currentMonthStr)
     .reduce((sum, expense) => sum + (expense.amount || 0), 0)
 
-  // Despesas do mês = transações + faturas + despesas recorrentes que vencem no mês atual
+  // Despesas do mês = transações + faturas pagas no mês + recorrentes pagas no mês (soma de todos os gastos realizados)
   const monthlyExpenses = transactionExpenses + currentMonthInvoiceTotal + currentMonthRecurringExpenses
 
   // Calcula despesas do mês anterior (transações do tipo 'expense')
@@ -238,53 +240,15 @@ export const Dashboard = () => {
     return sum + balance
   }, 0)
 
-  // Total do dinheiro = soma das contas + sobra do mês anterior
-  const totalBalance = sumOfAccounts + previousMonthSurplus
+  // Total do dinheiro = (Contas + Sobra do mês anterior) MENOS Despesas do mês
+  // Ex.: 29 mil (contas + sobra) − 4 mil (despesas) = 25 mil (valor diminui ao gastar/pagar)
+  const totalBalance = sumOfAccounts + previousMonthSurplus - monthlyExpenses
 
-  // Também calcula saldo a partir das transações (para comparação)
-  const balanceFromTransactions = transactions.reduce((sum, transaction) => {
-    if (transaction.type === 'income') {
-      return sum + (Number(transaction.amount) || 0)
-    } else if (transaction.type === 'expense') {
-      return sum - Math.abs(Number(transaction.amount) || 0)
-    }
-    return sum
-  }, 0)
-
-  console.log('💰 Saldo calculado:', {
-    fromAccounts: totalBalance,
-    fromTransactions: balanceFromTransactions,
-    difference: totalBalance - balanceFromTransactions,
-  })
-  
   // Calcula variação percentual da sobra
   const surplusVariation = previousMonthSurplus !== 0
     ? ((expectedSurplus - previousMonthSurplus) / Math.abs(previousMonthSurplus)) * 100
     : 0
 
-
-  // Debug: log para verificar os dados
-  console.log('📊 Dashboard Debug:', {
-    totalTransactions: transactions.length,
-    currentMonth: `${currentMonth}/${currentYear}`,
-    previousMonth: `${previousMonth}/${previousYear}`,
-    monthlyIncome,
-    previousMonthIncome,
-    monthlyExpenses,
-    previousMonthExpenses,
-    expectedSurplus,
-    previousMonthSurplus,
-    surplusVariation: `${surplusVariation.toFixed(2)}%`,
-    totalBalance,
-    totalInvestments,
-    totalAccounts: accounts.length,
-    accounts: accounts.map(acc => ({ 
-      name: acc.name, 
-      type: acc.type, 
-      current_balance: acc.current_balance,
-      initial_balance: acc.initial_balance,
-    })),
-  })
 
   const handleAddTransaction = async (data: {
     description: string
@@ -793,7 +757,7 @@ export const Dashboard = () => {
           <FinancialCard
             title="Total do dinheiro"
             value={totalBalance}
-            subtitle="Contas + Investimentos"
+            subtitle="Contas + Sobra do mês anterior − Despesas do mês"
             variant="purple"
             icon={
               <div className="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
@@ -824,7 +788,7 @@ export const Dashboard = () => {
           <FinancialCard
             title="Despesas do mês"
             value={monthlyExpenses}
-            subtitle="Este mês"
+            subtitle="Soma dos gastos e faturas pagas este mês"
             variant="danger"
             icon={
               <div className="w-12 h-12 rounded-full bg-danger-100 flex items-center justify-center">
@@ -1751,6 +1715,9 @@ export const Dashboard = () => {
             categories={categories}
             monthName={currentMonthName}
             totalAmount={monthlyExpenses}
+            cardInvoices={currentMonthInvoicesForDisplay}
+            recurringExpensesList={currentMonthRecurringExpensesList}
+            cards={cards}
           />
         )
       })()}

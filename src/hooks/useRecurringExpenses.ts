@@ -28,6 +28,7 @@ export const useRecurringExpenses = () => {
       recurringExpenseService.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['recurring_expenses'] })
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
     },
   })
 

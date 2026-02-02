@@ -37,6 +37,7 @@ export const useCardInvoices = (cardId?: string) => {
       cardInvoiceService.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['card_invoices'] })
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
     },
   })
 
