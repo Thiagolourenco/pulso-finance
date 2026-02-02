@@ -2,6 +2,12 @@ import { useState } from 'react'
 import { Input, CurrencyInput, Button } from '@/components/ui'
 
 interface AddCardFormProps {
+  initialData?: {
+    name: string
+    limit: number
+    closing_day: number
+    due_day: number
+  }
   onSubmit: (data: {
     name: string
     limit: number
@@ -13,15 +19,17 @@ interface AddCardFormProps {
 }
 
 export const AddCardForm = ({
+  initialData,
   onSubmit,
   onCancel,
   isLoading = false,
 }: AddCardFormProps) => {
-  const [name, setName] = useState('')
-  const [limit, setLimit] = useState(0)
-  const [closingDay, setClosingDay] = useState(5)
-  const [dueDay, setDueDay] = useState(10)
+  const [name, setName] = useState(initialData?.name ?? '')
+  const [limit, setLimit] = useState(initialData?.limit ?? 0)
+  const [closingDay, setClosingDay] = useState(initialData?.closing_day ?? 5)
+  const [dueDay, setDueDay] = useState(initialData?.due_day ?? 10)
   const [error, setError] = useState('')
+  const isEditing = !!initialData
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -109,7 +117,7 @@ export const AddCardForm = ({
           className="flex-1"
           isLoading={isLoading}
         >
-          Adicionar cartão
+          {isEditing ? 'Salvar alterações' : 'Adicionar cartão'}
         </Button>
       </div>
     </form>

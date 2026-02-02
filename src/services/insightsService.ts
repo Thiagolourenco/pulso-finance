@@ -1,3 +1,5 @@
+import { SELIC_ANNUAL_RATE } from '@/lib/constants'
+
 interface MonthlyData {
   income: number
   expenses: number
@@ -35,12 +37,14 @@ export const generateInsights = async (data: MonthlyData): Promise<Insight[]> =>
   try {
     const prompt = `Você é um assistente financeiro especializado. Analise os dados financeiros abaixo e gere insights práticos e acionáveis em português brasileiro.
 
+PRIORIDADES: 1) Sempre inclua um insight de RESUMO DO MÊS com valor ganho (receitas), gastos (despesas) e sobra. 2) Se a pessoa tem investimentos > 0, inclua um insight positivo "Estamos lá!" celebrando e mostrando o valor investido. 3) Dê sugestões de "como melhorar" em cada insight.
+
 DADOS DO MÊS ATUAL (${data.monthName}):
-- Receitas: R$ ${data.income.toFixed(2)}
-- Despesas: R$ ${data.expenses.toFixed(2)}
-- Saldo: R$ ${data.balance.toFixed(2)}
+- Valor ganho (receitas): R$ ${data.income.toFixed(2)}
+- Gastos (despesas): R$ ${data.expenses.toFixed(2)}
+- Saldo total: R$ ${data.balance.toFixed(2)}
 - Investimentos: R$ ${data.investments.toFixed(2)}
-- Sobra prevista: R$ ${data.expectedSurplus.toFixed(2)}
+- Sobra do mês: R$ ${data.expectedSurplus.toFixed(2)}
 
 DADOS DO MÊS ANTERIOR:
 - Receitas: R$ ${data.previousMonthIncome.toFixed(2)}
@@ -67,10 +71,10 @@ Gere 3-5 insights em formato JSON array, cada um com:
 - suggestion: sugestão acionável opcional (máximo 80 caracteres)
 
 Seja específico, use os valores reais e dê conselhos práticos. Foque em:
-1. Comparação com mês anterior
-2. Alertas sobre despesas altas do próximo mês
-3. Oportunidades de economia
-4. Saúde financeira geral
+1. Resumo do mês: valor ganho, gastos e sobra (obrigatório)
+2. Investimentos: celebre "Estamos lá!" se tiver valor investido, mostre progresso
+3. Como melhorar: sugestões acionáveis em cada insight
+4. Comparação com mês anterior e alertas do próximo mês
 
 Retorne APENAS o JSON array, sem markdown, sem explicações adicionais.`
 
@@ -112,12 +116,13 @@ Retorne APENAS o JSON array, sem markdown, sem explicações adicionais.`
     const jsonMatch = content.match(/\[[\s\S]*\]/)
     if (jsonMatch) {
       const insights = JSON.parse(jsonMatch[0])
-      return insights.map((insight: any) => ({
-        type: insight.type || 'info',
-        title: insight.title || '',
-        message: insight.message || '',
-        suggestion: insight.suggestion
-      }))
+      const validTypes = ['warning', 'success', 'info', 'danger'] as const
+      return insights.map((raw: Record<string, unknown>) => ({
+        type: validTypes.includes(raw.type as typeof validTypes[number]) ? (raw.type as Insight['type']) : 'info',
+        title: String(raw.title || ''),
+        message: String(raw.message || ''),
+        suggestion: raw.suggestion ? String(raw.suggestion) : undefined
+      })) as Insight[]
     }
 
     // Se não conseguir extrair JSON, retorna insights básicos
@@ -132,7 +137,28 @@ const generateBasicInsights = (data: MonthlyData): Insight[] => {
   const insights: Insight[] = []
   const totalNextMonth = data.nextMonthExpenses + data.nextMonthFixedExpenses + data.nextMonthRecurringExpenses + data.nextMonthInvoiceExpenses
 
-  // Insight sobre sobra prevista
+  // 1. Resumo do mês (sempre primeiro) - valor ganho, gastos e sobra explícitos
+  insights.push({
+    type: data.expectedSurplus >= 0 ? 'success' : 'danger',
+    title: `Resumo de ${data.monthName}`,
+    message: `Valor ganho: R$ ${data.income.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} • Gastos: R$ ${data.expenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} • Sobra: R$ ${data.expectedSurplus.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+    suggestion: data.expectedSurplus >= 0
+      ? 'Como melhorar: reserve pelo menos 10% da sobra antes de gastar com extras'
+      : 'Como melhorar: corte gastos não essenciais e priorize o pagamento de dívidas'
+  })
+
+  // 2. Insight de investimento - "Estamos lá!"
+  if (data.investments > 0) {
+    const monthlyReturn = data.investments * (Math.pow(1 + SELIC_ANNUAL_RATE / 100, 1 / 12) - 1)
+    insights.push({
+      type: 'success',
+      title: 'Estamos lá! Investindo',
+      message: `Você tem R$ ${data.investments.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} investidos. ~R$ ${monthlyReturn.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}/mês em rendimentos`,
+      suggestion: 'Continue assim! Considere aumentar o aporte com parte da sobra mensal'
+    })
+  }
+
+  // 3. Insight sobre sobra prevista (complementar ao resumo)
   if (data.expectedSurplus < 0) {
     insights.push({
       type: 'danger',
@@ -140,12 +166,12 @@ const generateBasicInsights = (data: MonthlyData): Insight[] => {
       message: `Sua sobra prevista é negativa em R$ ${Math.abs(data.expectedSurplus).toFixed(2)}`,
       suggestion: 'Revise suas despesas e considere reduzir gastos não essenciais'
     })
-  } else if (data.expectedSurplus > 0) {
+  } else if (data.expectedSurplus > 0 && data.investments === 0) {
     insights.push({
       type: 'success',
       title: 'Ótimo! Saldo Positivo',
       message: `Você terá uma sobra de R$ ${data.expectedSurplus.toFixed(2)} este mês`,
-      suggestion: 'Considere investir parte desse valor'
+      suggestion: 'Considere investir parte desse valor para começar a crescer seu patrimônio'
     })
   }
 

@@ -5,6 +5,7 @@ import { useCardPurchases } from '@/hooks/useCardPurchases'
 import { useCategories } from '@/hooks/useCategories'
 import { useRecurringExpenses } from '@/hooks/useRecurringExpenses'
 import { InsightsCard } from '@/components/insights/InsightsCard'
+import { parseLocalDate } from '@/lib/utils'
 
 export const Insights = () => {
   const { transactions } = useTransactions()
@@ -20,11 +21,12 @@ export const Insights = () => {
   
   const previousMonth = currentMonth === 1 ? 12 : currentMonth - 1
   const previousYear = currentMonth === 1 ? currentYear - 1 : currentYear
+  const currentMonthStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}`
 
   // Calcula receitas do mês atual
   const monthlyIncome = transactions
     .filter(transaction => {
-      const transactionDate = new Date(transaction.date)
+      const transactionDate = parseLocalDate(transaction.date)
       return (
         transaction.type === 'income' &&
         transactionDate.getMonth() + 1 === currentMonth &&
@@ -36,7 +38,7 @@ export const Insights = () => {
   // Calcula receitas do mês anterior
   const previousMonthIncome = transactions
     .filter(transaction => {
-      const transactionDate = new Date(transaction.date)
+      const transactionDate = parseLocalDate(transaction.date)
       return (
         transaction.type === 'income' &&
         transactionDate.getMonth() + 1 === previousMonth &&
@@ -45,10 +47,10 @@ export const Insights = () => {
     })
     .reduce((sum, transaction) => sum + (Number(transaction.amount) || 0), 0)
 
-  // Calcula despesas do mês atual
-  const monthlyExpenses = transactions
+  // Despesas do mês atual (transações + faturas pagas + recorrentes pagas - mesma lógica do Dashboard)
+  const transactionExpenses = transactions
     .filter(transaction => {
-      const transactionDate = new Date(transaction.date)
+      const transactionDate = parseLocalDate(transaction.date)
       return (
         transaction.type === 'expense' &&
         transactionDate.getMonth() + 1 === currentMonth &&
@@ -56,11 +58,26 @@ export const Insights = () => {
       )
     })
     .reduce((sum, transaction) => sum + Math.abs(Number(transaction.amount) || 0), 0)
+  const currentMonthInvoicesTotal = invoices
+    .filter(inv => inv.status === 'paid' && inv.last_paid_reference_month === currentMonthStr)
+    .filter(inv => {
+      const d = new Date(inv.due_date)
+      return d.getMonth() + 1 === currentMonth && d.getFullYear() === currentYear
+    })
+    .reduce((sum, inv) => sum + (inv.total_amount || 0), 0)
+  const currentMonthRecurringTotal = recurringExpenses
+    .filter(e => e.is_active && e.last_paid_reference_month === currentMonthStr)
+    .filter(e => {
+      const d = new Date(currentYear, currentMonth - 1, e.due_day)
+      return d.getMonth() + 1 === currentMonth && d.getFullYear() === currentYear
+    })
+    .reduce((sum, e) => sum + (e.amount || 0), 0)
+  const monthlyExpenses = transactionExpenses + currentMonthInvoicesTotal + currentMonthRecurringTotal
 
-  // Calcula despesas do mês anterior
-  const previousMonthExpenses = transactions
+  // Despesas do mês anterior (mesma lógica do Relatório)
+  const previousMonthTransactionExpenses = transactions
     .filter(transaction => {
-      const transactionDate = new Date(transaction.date)
+      const transactionDate = parseLocalDate(transaction.date)
       return (
         transaction.type === 'expense' &&
         transactionDate.getMonth() + 1 === previousMonth &&
@@ -68,6 +85,20 @@ export const Insights = () => {
       )
     })
     .reduce((sum, transaction) => sum + Math.abs(Number(transaction.amount) || 0), 0)
+  const previousMonthInvoicesTotal = invoices
+    .filter(inv => {
+      const d = new Date(inv.due_date)
+      return d.getMonth() + 1 === previousMonth && d.getFullYear() === previousYear
+    })
+    .reduce((sum, inv) => sum + (inv.total_amount || 0), 0)
+  const previousMonthRecurringTotal = recurringExpenses
+    .filter(e => e.is_active)
+    .filter(e => {
+      const d = new Date(previousYear, previousMonth - 1, e.due_day)
+      return d.getMonth() + 1 === previousMonth && d.getFullYear() === previousYear
+    })
+    .reduce((sum, e) => sum + (e.amount || 0), 0)
+  const previousMonthExpenses = previousMonthTransactionExpenses + previousMonthInvoicesTotal + previousMonthRecurringTotal
 
   // Calcula saldo total
   const totalBalance = accounts.reduce((sum, account) => sum + (account.current_balance || 0), 0)
@@ -76,8 +107,9 @@ export const Insights = () => {
   const investmentAccounts = accounts.filter(account => account.type === 'investment')
   const totalInvestments = investmentAccounts.reduce((sum, account) => sum + (account.current_balance || 0), 0)
 
-  // Calcula sobra prevista
-  const expectedSurplus = monthlyIncome - monthlyExpenses
+  // Calcula sobra prevista (usa receita projetada se mês atual ainda sem receita)
+  const incomeForSurplus = monthlyIncome > 0 ? monthlyIncome : previousMonthIncome
+  const expectedSurplus = incomeForSurplus - monthlyExpenses
   const previousMonthSurplus = previousMonthIncome - previousMonthExpenses
 
   // Próximo mês
@@ -87,7 +119,7 @@ export const Insights = () => {
   // Despesas do próximo mês (transações já registradas)
   const nextMonthExpenses = transactions
     .filter(transaction => {
-      const transactionDate = new Date(transaction.date)
+      const transactionDate = parseLocalDate(transaction.date)
       return (
         transaction.type === 'expense' &&
         transactionDate.getMonth() + 1 === nextMonth &&
@@ -99,7 +131,7 @@ export const Insights = () => {
   // Parcelas fixas do próximo mês
   const nextMonthFixedPurchases = purchases.filter(purchase => {
     if (purchase.current_installment > purchase.installments) return false
-    const purchaseDate = new Date(purchase.purchase_date)
+    const purchaseDate = parseLocalDate(purchase.purchase_date)
     const purchaseMonth = purchaseDate.getMonth() + 1
     const purchaseYear = purchaseDate.getFullYear()
     const monthsDiff = (nextMonthYear - purchaseYear) * 12 + (nextMonth - purchaseMonth)

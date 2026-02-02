@@ -5,10 +5,11 @@ import { useCardPurchases } from '@/hooks/useCardPurchases'
 import { Button, Modal, Toast } from '@/components/ui'
 import { AddCardForm } from '@/components/forms/AddCardForm'
 import { CardDetailsModal } from '@/components/modals/CardDetailsModal'
+import { supabase } from '@/lib/supabase/client'
 import type { Card } from '@/types'
 
 export const Cards = () => {
-  const { cards, deleteCard, isDeleting } = useCards()
+  const { cards, createCard, updateCard, deleteCard, isDeleting, isCreating, isUpdating } = useCards()
   const { invoices } = useCardInvoices()
   const { purchases } = useCardPurchases()
 
@@ -203,11 +204,54 @@ export const Cards = () => {
           title={editingCard ? 'Editar Cartão' : 'Novo Cartão'}
         >
           <AddCardForm
-            onSubmit={async () => {
-              // A lógica de criação/edição será gerenciada pelo hook useCards
-              handleCloseModal()
+            initialData={editingCard ? {
+              name: editingCard.name,
+              limit: editingCard.credit_limit,
+              closing_day: editingCard.closing_day,
+              due_day: editingCard.due_day,
+            } : undefined}
+            onSubmit={async (data) => {
+              if (editingCard) {
+                updateCard(
+                  { id: editingCard.id, data: { name: data.name, credit_limit: data.limit, closing_day: data.closing_day, due_day: data.due_day } },
+                  {
+                    onSuccess: () => {
+                      setToast({ message: 'Cartão atualizado com sucesso!', type: 'success' })
+                      handleCloseModal()
+                    },
+                    onError: (error: Error) => {
+                      setToast({ message: error.message || 'Erro ao atualizar cartão', type: 'error' })
+                    },
+                  }
+                )
+              } else {
+                const { data: { user } } = await supabase.auth.getUser()
+                if (!user) {
+                  setToast({ message: 'Você precisa estar logado', type: 'error' })
+                  return
+                }
+                createCard(
+                  {
+                    user_id: user.id,
+                    name: data.name,
+                    credit_limit: data.limit,
+                    closing_day: data.closing_day,
+                    due_day: data.due_day,
+                  },
+                  {
+                    onSuccess: () => {
+                      setToast({ message: 'Cartão adicionado com sucesso!', type: 'success' })
+                      handleCloseModal()
+                    },
+                    onError: (error: Error) => {
+                      setToast({ message: error.message || 'Erro ao adicionar cartão', type: 'error' })
+                    },
+                  }
+                )
+              }
             }}
             onCancel={handleCloseModal}
+            isLoading={isCreating || isUpdating}
           />
         </Modal>
       )}
