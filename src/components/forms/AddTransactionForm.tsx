@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Input, CurrencyInput, Button } from '@/components/ui'
 import { useCategories } from '@/hooks/useCategories'
-import type { Category } from '@/types'
+import type { Category, Transaction } from '@/types'
 
 interface AddTransactionFormProps {
   onSubmit: (data: {
@@ -14,6 +14,26 @@ interface AddTransactionFormProps {
   onCancel: () => void
   isLoading?: boolean
   initialType?: 'expense' | 'income' | 'balance'
+  initialTransaction?: Transaction | null
+}
+
+const getInitialState = (initialTransaction: Transaction | null | undefined, initialType: 'expense' | 'income' | 'balance') => {
+  if (initialTransaction) {
+    return {
+      description: initialTransaction.description,
+      amount: Math.abs(Number(initialTransaction.amount)),
+      type: initialTransaction.type as 'expense' | 'income' | 'balance',
+      date: initialTransaction.date.split('T')[0],
+      categoryId: initialTransaction.category_id || '',
+    }
+  }
+  return {
+    description: '',
+    amount: 0,
+    type: initialType,
+    date: new Date().toISOString().split('T')[0],
+    categoryId: '',
+  }
 }
 
 export const AddTransactionForm = ({
@@ -21,12 +41,14 @@ export const AddTransactionForm = ({
   onCancel,
   isLoading = false,
   initialType = 'expense',
+  initialTransaction = null,
 }: AddTransactionFormProps) => {
-  const [description, setDescription] = useState('')
-  const [amount, setAmount] = useState(0)
-  const [type, setType] = useState<'expense' | 'income' | 'balance'>(initialType)
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
-  const [categoryId, setCategoryId] = useState<string>('')
+  const initialState = getInitialState(initialTransaction, initialType)
+  const [description, setDescription] = useState(initialState.description)
+  const [amount, setAmount] = useState(initialState.amount)
+  const [type, setType] = useState<'expense' | 'income' | 'balance'>(initialState.type)
+  const [date, setDate] = useState(initialState.date)
+  const [categoryId, setCategoryId] = useState<string>(initialState.categoryId)
   const [error, setError] = useState('')
   
   const { categories, isLoading: isLoadingCategories } = useCategories()
@@ -41,10 +63,10 @@ export const AddTransactionForm = ({
     return cat.type === type
   })
 
-  // Reseta categoria quando o tipo muda
-  useEffect(() => {
+  const handleTypeChange = (newType: 'expense' | 'income' | 'balance') => {
+    setType(newType)
     setCategoryId('')
-  }, [type])
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -85,7 +107,7 @@ export const AddTransactionForm = ({
         <div className="grid grid-cols-3 gap-3">
           <button
             type="button"
-            onClick={() => setType('expense')}
+            onClick={() => handleTypeChange('expense')}
             className={`
               px-4 py-3 rounded-input border-2 transition-all duration-fast
               ${
@@ -99,7 +121,7 @@ export const AddTransactionForm = ({
           </button>
           <button
             type="button"
-            onClick={() => setType('income')}
+            onClick={() => handleTypeChange('income')}
             className={`
               px-4 py-3 rounded-input border-2 transition-all duration-fast
               ${
@@ -113,7 +135,7 @@ export const AddTransactionForm = ({
           </button>
           <button
             type="button"
-            onClick={() => setType('balance')}
+            onClick={() => handleTypeChange('balance')}
             className={`
               px-4 py-3 rounded-input border-2 transition-all duration-fast
               ${
@@ -201,7 +223,11 @@ export const AddTransactionForm = ({
           className="flex-1"
           isLoading={isLoading}
         >
-          {type === 'balance' ? 'Adicionar saldo' : 'Adicionar'}
+          {initialTransaction
+            ? 'Salvar'
+            : type === 'balance'
+              ? 'Adicionar saldo'
+              : 'Adicionar'}
         </Button>
       </div>
     </form>

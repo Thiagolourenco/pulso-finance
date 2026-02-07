@@ -7,22 +7,24 @@ export interface CurrencyInputProps extends Omit<InputProps, 'type' | 'value' | 
   onChange?: (value: number) => void
 }
 
+function formatCurrency(value: number): string {
+  if (value !== undefined && value !== null && !Number.isNaN(value)) {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(value)
+  }
+  return ''
+}
+
 export const CurrencyInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
   ({ value, onChange, ...props }, ref) => {
-    const [displayValue, setDisplayValue] = useState('')
+    const [displayValue, setDisplayValue] = useState(() => formatCurrency(value ?? 0))
     const isUserEditingRef = useRef(false)
-    const previousValueRef = useRef<number | undefined>(value)
+    const previousValueRef = useRef<number | undefined>(undefined)
 
     // Calcula o valor formatado baseado na prop value
-    const formattedValue = useMemo(() => {
-      if (value !== undefined && value !== null) {
-        return new Intl.NumberFormat('pt-BR', {
-          style: 'currency',
-          currency: 'BRL',
-        }).format(value)
-      }
-      return ''
-    }, [value])
+    const formattedValue = useMemo(() => formatCurrency(value ?? 0), [value])
 
     // Sincroniza displayValue quando value muda externamente (não durante edição)
     // Usa setTimeout para evitar cascading renders

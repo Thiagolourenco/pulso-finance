@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Modal } from '@/components/ui'
+import { parseLocalDate } from '@/lib/utils'
 import type { Transaction, CardPurchase, RecurringExpense } from '@/types'
 
 interface NextMonthExpensesModalProps {
@@ -85,7 +86,7 @@ export const NextMonthExpensesModal = ({
                       {transaction.description}
                     </p>
                     <p className="text-caption text-neutral-500 dark:text-neutral-400">
-                      {new Date(transaction.date).toLocaleDateString('pt-BR')}
+                      {parseLocalDate(transaction.date).toLocaleDateString('pt-BR')}
                     </p>
                   </div>
                   <p className="text-body font-semibold text-danger-600 dark:text-danger-400">
@@ -143,7 +144,7 @@ export const NextMonthExpensesModal = ({
                         </p>
                         <p className="text-caption text-neutral-500 dark:text-neutral-400">
                           Parcela {purchase.current_installment}/{purchase.installments} • 
-                          Comprado em {new Date(purchase.purchase_date).toLocaleDateString('pt-BR')}
+                          Comprado em {parseLocalDate(purchase.purchase_date).toLocaleDateString('pt-BR')}
                         </p>
                       </div>
                       <p className="text-body font-semibold text-warning-600 dark:text-warning-400">

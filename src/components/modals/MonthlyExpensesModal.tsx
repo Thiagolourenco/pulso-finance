@@ -1,4 +1,5 @@
 import { Modal } from '@/components/ui'
+import { parseLocalDate } from '@/lib/utils'
 import type { Transaction, Category, CardInvoice, RecurringExpense, Card } from '@/types'
 
 interface MonthlyExpensesModalProps {
@@ -100,7 +101,7 @@ export const MonthlyExpensesModal = ({
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <p className="text-body-sm font-medium text-neutral-900 dark:text-neutral-50">
-                          {card?.name ?? 'Cartão'} · Vence {new Date(invoice.due_date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          {card?.name ?? 'Cartão'} · Vence {parseLocalDate(invoice.due_date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
                         </p>
                         <p className="text-caption text-neutral-500 dark:text-neutral-400 mt-1">
                           {isPaid ? 'Paga' : 'A pagar'}
@@ -195,7 +196,7 @@ export const MonthlyExpensesModal = ({
                             {expense.description || 'Sem descrição'}
                           </p>
                           <p className="text-caption text-neutral-500 dark:text-neutral-400 mt-1">
-                            {new Date(expense.date).toLocaleDateString('pt-BR', {
+                            {parseLocalDate(expense.date).toLocaleDateString('pt-BR', {
                               day: '2-digit',
                               month: 'long',
                               year: 'numeric',

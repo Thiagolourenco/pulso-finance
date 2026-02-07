@@ -5,6 +5,7 @@ import { EditCategoryLimitForm } from '@/components/forms/EditCategoryLimitForm'
 import { useCategories } from '@/hooks/useCategories'
 import type { Category, Transaction, CardPurchase, CardInvoice, RecurringExpense } from '@/types'
 import { supabase } from '@/lib/supabase/client'
+import { parseLocalDate } from '@/lib/utils'
 import { categoryPreferencesService } from '@/services/categoryPreferencesService'
 
 interface CategoryBudget {
@@ -125,10 +126,10 @@ export const CategoryBudgetsSection = ({
   const calculateCategorySpending = useCallback((categoryId: string): number => {
     let total = 0
 
-    // Transações diretas
+    // Transações diretas (usa data local para evitar problema de fuso)
     const categoryTransactions = transactions.filter(t => {
       if (t.category_id !== categoryId || t.type !== 'expense') return false
-      const transactionDate = new Date(t.date)
+      const transactionDate = parseLocalDate(t.date)
       return (
         transactionDate.getMonth() + 1 === currentMonth &&
         transactionDate.getFullYear() === currentYear
@@ -136,22 +137,24 @@ export const CategoryBudgetsSection = ({
     })
     total += categoryTransactions.reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0)
 
-    // Compras no cartão (parcelas do mês atual)
+    // Compras no cartão (parcelas que vencem no mês atual)
+    // A parcela N vence no mês (purchase_month + N). Ex: compra em jan, 1ª parcela vence em fev.
     const categoryPurchases = cardPurchases.filter(p => {
       if (p.category_id !== categoryId) return false
       
-      const purchaseDate = new Date(p.purchase_date)
+      const purchaseDate = parseLocalDate(p.purchase_date)
       const purchaseMonth = purchaseDate.getMonth() + 1
       const purchaseYear = purchaseDate.getFullYear()
       
-      // Calcula qual parcela será paga no mês atual
+      // Meses desde a compra: 0 = mesmo mês, 1 = mês seguinte, etc.
       const monthsDiff = (currentYear - purchaseYear) * 12 + (currentMonth - purchaseMonth)
-      const installmentToPay = monthsDiff + 1
+      // Parcela que vence no mês atual (1ª parcela vence 1 mês após a compra)
+      const installmentDueThisMonth = monthsDiff
       
       return (
-        monthsDiff >= 0 &&
-        installmentToPay >= p.current_installment &&
-        installmentToPay <= p.installments
+        monthsDiff >= 1 &&
+        installmentDueThisMonth >= p.current_installment &&
+        installmentDueThisMonth <= p.installments
       )
     })
     total += categoryPurchases.reduce((sum, p) => sum + (p.installment_amount || 0), 0)
@@ -186,7 +189,7 @@ export const CategoryBudgetsSection = ({
           // Mas só mostra se houver gastos significativos
           const totalMonthlyExpenses = transactions
             .filter(t => {
-              const tDate = new Date(t.date)
+              const tDate = parseLocalDate(t.date)
               return t.type === 'expense' && 
                      tDate.getMonth() + 1 === currentMonth && 
                      tDate.getFullYear() === currentYear

@@ -36,7 +36,7 @@ export const AddCategoryForm = ({
     { name: 'Roxo Escuro', value: '#9B59B6' },
   ]
 
-  const popularIcons = ['🍔', '🚗', '🏠', '🏥', '📚', '🎬', '🛍️', '💰', '💼', '📈', '🍕', '☕', '✈️', '🎮', '💳']
+  const popularIcons = ['🍔', '🚗', '🏠', '🏥', '📚', '🎬', '🛍️', '💰', '💼', '📈', '🍕', '☕', '✈️', '🎮', '💳', '👶']
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()

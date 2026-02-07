@@ -5,10 +5,13 @@ import { useCards } from '@/hooks/useCards'
 import { useCategories } from '@/hooks/useCategories'
 import { Button, Modal, Toast } from '@/components/ui'
 import { AddTransactionForm } from '@/components/forms/AddTransactionForm'
+import { supabase } from '@/lib/supabase/client'
+import { getOrCreateDefaultCategory, getOrCreateBalanceCategory } from '@/lib/utils/categories'
+import { parseLocalDate } from '@/lib/utils'
 import type { Transaction } from '@/types'
 
 export const Transactions = () => {
-  const { transactions, deleteTransaction, isDeleting } = useTransactions()
+  const { transactions, deleteTransaction, updateTransaction, createTransaction, isDeleting, isUpdating, isCreating } = useTransactions()
   const { accounts } = useAccounts()
   const { cards } = useCards()
   const { categories } = useCategories()
@@ -47,9 +50,9 @@ export const Transactions = () => {
       // Busca por descrição
       if (searchTerm && !transaction.description.toLowerCase().includes(searchTerm.toLowerCase())) return false
 
-      // Filtro por mês/ano
+      // Filtro por mês/ano (usa data local para evitar problema de fuso)
       if (filterByDate) {
-        const transactionDate = new Date(transaction.date)
+        const transactionDate = parseLocalDate(transaction.date)
         const transactionMonth = transactionDate.getMonth() + 1
         const transactionYear = transactionDate.getFullYear()
         
@@ -71,7 +74,7 @@ export const Transactions = () => {
       }
 
       return true
-    }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    }).sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime())
   }, [transactions, filterType, filterCategory, filterAccount, searchTerm, filterByDate, filterMonth, filterYear, minValue, maxValue])
 
   const handleDelete = async (id: string) => {
@@ -126,7 +129,10 @@ export const Transactions = () => {
           </p>
         </div>
         <Button
-          onClick={() => setShowAddModal(true)}
+          onClick={() => {
+            setEditingTransaction(null)
+            setShowAddModal(true)
+          }}
           className="flex items-center gap-2"
         >
           ➕ Nova Transação
@@ -377,7 +383,7 @@ export const Transactions = () => {
                             </span>
                           )}
                           <span className="text-caption text-neutral-500 dark:text-neutral-400">
-                            • {new Date(transaction.date).toLocaleDateString('pt-BR')}
+                            • {parseLocalDate(transaction.date).toLocaleDateString('pt-BR')}
                           </span>
                         </div>
                       </div>
@@ -421,7 +427,12 @@ export const Transactions = () => {
                 : 'Nenhuma transação cadastrada ainda'}
             </p>
             {!searchTerm && filterType === 'all' && filterCategory === 'all' && filterAccount === 'all' && !filterByDate && !minValue && !maxValue && (
-              <Button onClick={() => setShowAddModal(true)}>
+              <Button
+                onClick={() => {
+                  setEditingTransaction(null)
+                  setShowAddModal(true)
+                }}
+              >
                 Criar Primeira Transação
               </Button>
             )}
@@ -437,10 +448,99 @@ export const Transactions = () => {
           title={editingTransaction ? 'Editar Transação' : 'Nova Transação'}
         >
           <AddTransactionForm
+            key={editingTransaction?.id ?? 'new'}
             initialType={editingTransaction?.type || 'expense'}
-            onSubmit={async () => {
-              // TODO: Implementar edição quando o formulário suportar
-              handleCloseModal()
+            initialTransaction={editingTransaction}
+            isLoading={isUpdating || isCreating}
+            onSubmit={async (data) => {
+              if (editingTransaction) {
+                updateTransaction(
+                  {
+                    id: editingTransaction.id,
+                    data: {
+                      description: data.description,
+                      amount: data.amount,
+                      type: data.type === 'balance' ? 'income' : data.type,
+                      date: data.date,
+                      category_id: data.category_id || editingTransaction.category_id,
+                    },
+                  },
+                  {
+                    onSuccess: () => {
+                      setToast({ message: 'Transação atualizada com sucesso!', type: 'success' })
+                      handleCloseModal()
+                    },
+                    onError: (error: Error) => {
+                      setToast({ message: error.message || 'Erro ao atualizar transação', type: 'error' })
+                    },
+                  }
+                )
+              } else {
+                try {
+                  const { data: { user } } = await supabase.auth.getUser()
+                  if (!user) {
+                    setToast({ message: 'Você precisa estar logado', type: 'error' })
+                    return
+                  }
+                  let categoryId: string
+                  if (data.category_id?.trim()) {
+                    categoryId = data.category_id
+                  } else {
+                    categoryId = data.type === 'balance'
+                      ? await getOrCreateBalanceCategory(user.id)
+                      : await getOrCreateDefaultCategory(user.id, data.type)
+                  }
+                  if (!categoryId?.trim()) {
+                    setToast({ message: 'Não foi possível definir a categoria.', type: 'error' })
+                    return
+                  }
+                  if (data.type === 'balance') {
+                    createTransaction({
+                      user_id: user.id,
+                      account_id: null,
+                      category_id: categoryId,
+                      type: 'income',
+                      amount: Math.abs(data.amount),
+                      description: `Saldo inicial: ${data.description}`,
+                      date: data.date,
+                    }, {
+                      onSuccess: () => {
+                        setToast({ message: 'Saldo inicial adicionado com sucesso!', type: 'success' })
+                        handleCloseModal()
+                      },
+                      onError: (error: Error) => {
+                        setToast({ message: error.message || 'Erro ao adicionar saldo', type: 'error' })
+                      },
+                    })
+                  } else {
+                    createTransaction({
+                      user_id: user.id,
+                      account_id: null,
+                      category_id: categoryId,
+                      type: data.type,
+                      amount: Math.abs(data.amount),
+                      description: data.description,
+                      date: data.date,
+                    }, {
+                      onSuccess: () => {
+                        setToast({
+                          message: data.type === 'income' ? 'Receita adicionada com sucesso!' : 'Gasto adicionado com sucesso!',
+                          type: 'success',
+                        })
+                        handleCloseModal()
+                      },
+                      onError: (error: Error) => {
+                        setToast({ message: error.message || 'Erro ao adicionar transação', type: 'error' })
+                      },
+                    })
+                  }
+                } catch (error: unknown) {
+                  setToast({
+                    message: error instanceof Error ? error.message : 'Erro ao adicionar transação',
+                    type: 'error',
+                  })
+                }
+              }
             }}
             onCancel={handleCloseModal}
           />
