@@ -38,7 +38,7 @@ export const CardDetailsModal = ({
   const currentMonth = currentDate.getMonth() + 1
   const currentYear = currentDate.getFullYear()
 
-  const activePurchases = purchases.filter(p => p.current_installment < p.installments)
+  const activePurchases = purchases.filter(p => p.current_installment <= p.installments)
   // Filtra compras recorrentes (trata null/undefined como false)
   const recurringPurchases = activePurchases.filter(p => p.is_recurring === true)
   const nonRecurringPurchases = activePurchases.filter(p => !p.is_recurring)
@@ -52,8 +52,79 @@ export const CardDetailsModal = ({
     allPurchases: purchases.map(p => ({ id: p.id, description: p.description, is_recurring: p.is_recurring }))
   })
 
-  // Calcula total da fatura (soma das parcelas que vencem nesta fatura)
-  const invoiceTotal = openInvoice ? (openInvoice.total_amount || 0) : 0
+  // Calcula total da fatura pelo ciclo (mês/ano), usando parcelas realmente devidas
+  const calculateInvoiceTotalForCycle = (targetMonth: number, targetYear: number) => {
+    return purchases
+      .filter(purchase => {
+        if (purchase.current_installment > purchase.installments) return false
+
+        const purchaseDateObj = new Date(purchase.purchase_date)
+        const purchaseMonth = purchaseDateObj.getMonth() + 1
+        const purchaseYear = purchaseDateObj.getFullYear()
+
+        // Se compra foi no mês M, a parcela 1 vence em M+1.
+        const monthsDiff = (targetYear - purchaseYear) * 12 + (targetMonth - purchaseMonth)
+        const installmentDueInTargetMonth = monthsDiff
+
+        return (
+          monthsDiff >= 1 &&
+          installmentDueInTargetMonth >= purchase.current_installment &&
+          installmentDueInTargetMonth <= purchase.installments
+        )
+      })
+      .reduce((sum, purchase) => sum + (purchase.installment_amount || 0), 0)
+  }
+
+  const openInvoiceDueDate = openInvoice ? new Date(openInvoice.due_date) : null
+  const invoiceMonthForCalculation = openInvoiceDueDate ? openInvoiceDueDate.getMonth() + 1 : currentMonth
+  const invoiceYearForCalculation = openInvoiceDueDate ? openInvoiceDueDate.getFullYear() : currentYear
+  const calculatedInvoiceTotal = calculateInvoiceTotalForCycle(invoiceMonthForCalculation, invoiceYearForCalculation)
+  const invoiceTotal = calculatedInvoiceTotal > 0 ? calculatedInvoiceTotal : (openInvoice?.total_amount || 0)
+
+  const getPurchasesDueForInvoiceMonth = (targetMonth: number, targetYear: number) => {
+    return purchases.filter(purchase => {
+      if (purchase.current_installment > purchase.installments) return false
+
+      const purchaseDateObj = new Date(purchase.purchase_date)
+      const purchaseMonth = purchaseDateObj.getMonth() + 1
+      const purchaseYear = purchaseDateObj.getFullYear()
+      const monthsDiff = (targetYear - purchaseYear) * 12 + (targetMonth - purchaseMonth)
+      const installmentDueInTargetMonth = monthsDiff
+
+      return (
+        monthsDiff >= 1 &&
+        installmentDueInTargetMonth >= purchase.current_installment &&
+        installmentDueInTargetMonth <= purchase.installments
+      )
+    })
+  }
+
+  const advanceInstallmentsAfterInvoicePayment = async (targetMonth: number, targetYear: number) => {
+    const purchasesDue = getPurchasesDueForInvoiceMonth(targetMonth, targetYear)
+    if (purchasesDue.length === 0) return
+
+    await Promise.all(
+      purchasesDue.map(async (purchase) => {
+        const updateData: Record<string, unknown> = {}
+
+        if (purchase.is_recurring) {
+          // Compra recorrente: reinicia ciclo para continuar cobrando no mês seguinte.
+          updateData.current_installment = 1
+          updateData.purchase_date = `${targetYear}-${String(targetMonth).padStart(2, '0')}-01`
+        } else {
+          // Compra parcelada comum: avança para próxima parcela (pode passar de installments ao finalizar).
+          updateData.current_installment = purchase.current_installment + 1
+        }
+
+        const { error } = await supabase
+          .from('card_purchases')
+          .update(updateData)
+          .eq('id', purchase.id)
+
+        if (error) throw error
+      })
+    )
+  }
 
   const handleAddPurchase = async () => {
     if (!description.trim()) {
@@ -240,7 +311,7 @@ export const CardDetailsModal = ({
                 </div>
                 <div className="text-right">
                   <p className="text-h2 font-bold text-danger-600 dark:text-danger-400">
-                    R$ {(openInvoice.total_amount || 0).toLocaleString('pt-BR', { 
+                    R$ {invoiceTotal.toLocaleString('pt-BR', { 
                       minimumFractionDigits: 2, 
                       maximumFractionDigits: 2 
                     })}
@@ -254,8 +325,7 @@ export const CardDetailsModal = ({
                 const invoiceYear = invoiceDueDate.getFullYear()
                 const isCurrentMonth = invoiceMonth === currentMonth && invoiceYear === currentYear
                 const currentMonthStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}`
-                // Paga só se marcou no mês atual - ao virar o mês, fica desmarcado
-                const isPaid = openInvoice.status === 'paid' && openInvoice.last_paid_reference_month === currentMonthStr
+                const isPaid = openInvoice.status === 'paid'
                 
                 return isCurrentMonth ? (
                   <div className="mt-3 pt-3 border-t border-border dark:border-border-dark">
@@ -263,13 +333,28 @@ export const CardDetailsModal = ({
                       <input
                         type="checkbox"
                         checked={isPaid}
-                        onChange={(e) => {
+                        onChange={async (e) => {
                           const checked = e.target.checked
+
+                          try {
+                            if (checked) {
+                              await advanceInstallmentsAfterInvoicePayment(
+                                invoiceMonthForCalculation,
+                                invoiceYearForCalculation
+                              )
+                            }
+                          } catch (error) {
+                            const message = error instanceof Error ? error.message : 'Erro ao atualizar parcelas da fatura'
+                            setToast({ message, type: 'error' })
+                            return
+                          }
+
                           updateInvoice(
                             { 
                               id: openInvoice.id, 
                               data: { 
                                 status: checked ? 'paid' : 'open',
+                                total_amount: invoiceTotal,
                                 last_paid_reference_month: checked ? currentMonthStr : null
                               } 
                             },

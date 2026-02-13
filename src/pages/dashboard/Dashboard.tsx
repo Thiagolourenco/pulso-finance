@@ -240,9 +240,80 @@ export const Dashboard = () => {
     return sum + balance
   }, 0)
 
-  // Total do dinheiro = (Contas + Sobra do mês anterior) MENOS Despesas do mês
-  // Ex.: 29 mil (contas + sobra) − 4 mil (despesas) = 25 mil (valor diminui ao gastar/pagar)
-  const totalBalance = sumOfAccounts + previousMonthSurplus - monthlyExpenses
+  // Total da fatura por ciclo (mês/ano alvo), baseado nas parcelas realmente devidas
+  const calculateCardInvoiceTotalForMonth = (cardId: string, targetMonth: number, targetYear: number) => {
+    const cardPurchases = purchases.filter(purchase => purchase.card_id === cardId)
+
+    return cardPurchases
+      .filter(purchase => {
+        if (purchase.current_installment > purchase.installments) return false
+
+        const purchaseDate = new Date(purchase.purchase_date)
+        const purchaseMonth = purchaseDate.getMonth() + 1
+        const purchaseYear = purchaseDate.getFullYear()
+
+        // Se compra foi no mês M, a parcela 1 vence em M+1.
+        const monthsDiff = (targetYear - purchaseYear) * 12 + (targetMonth - purchaseMonth)
+        const installmentDueInTargetMonth = monthsDiff
+
+        return (
+          monthsDiff >= 1 &&
+          installmentDueInTargetMonth >= purchase.current_installment &&
+          installmentDueInTargetMonth <= purchase.installments
+        )
+      })
+      .reduce((sum, purchase) => sum + (purchase.installment_amount || 0), 0)
+  }
+
+  const getPurchasesDueForInvoiceMonth = (cardId: string, targetMonth: number, targetYear: number) => {
+    return purchases.filter(purchase => {
+      if (purchase.card_id !== cardId) return false
+      if (purchase.current_installment > purchase.installments) return false
+
+      const purchaseDate = new Date(purchase.purchase_date)
+      const purchaseMonth = purchaseDate.getMonth() + 1
+      const purchaseYear = purchaseDate.getFullYear()
+      const monthsDiff = (targetYear - purchaseYear) * 12 + (targetMonth - purchaseMonth)
+      const installmentDueInTargetMonth = monthsDiff
+
+      return (
+        monthsDiff >= 1 &&
+        installmentDueInTargetMonth >= purchase.current_installment &&
+        installmentDueInTargetMonth <= purchase.installments
+      )
+    })
+  }
+
+  const advanceInstallmentsAfterInvoicePayment = async (cardId: string, targetMonth: number, targetYear: number) => {
+    const purchasesDue = getPurchasesDueForInvoiceMonth(cardId, targetMonth, targetYear)
+    if (purchasesDue.length === 0) return
+
+    await Promise.all(
+      purchasesDue.map(async (purchase) => {
+        const updateData: Record<string, unknown> = {}
+
+        if (purchase.is_recurring) {
+          // Compra recorrente: reinicia ciclo para continuar cobrando no mês seguinte.
+          updateData.current_installment = 1
+          updateData.purchase_date = `${targetYear}-${String(targetMonth).padStart(2, '0')}-01`
+        } else {
+          // Compra parcelada comum: avança para próxima parcela (pode passar de installments ao finalizar).
+          updateData.current_installment = purchase.current_installment + 1
+        }
+
+        const { error } = await supabase
+          .from('card_purchases')
+          .update(updateData)
+          .eq('id', purchase.id)
+
+        if (error) throw error
+      })
+    )
+  }
+
+  // Total do dinheiro (mês atual, sem próximo mês):
+  // contas + sobra do mês anterior + receitas do mês - despesas do mês
+  const totalBalance = sumOfAccounts + previousMonthSurplus + monthlyIncome - monthlyExpenses
 
   // Calcula variação percentual da sobra
   const surplusVariation = previousMonthSurplus !== 0
@@ -757,7 +828,7 @@ export const Dashboard = () => {
           <FinancialCard
             title="Total do dinheiro"
             value={totalBalance}
-            subtitle="Contas + Sobra do mês anterior − Despesas do mês"
+            subtitle="Contas + Sobra mês anterior + Receitas do mês - Despesas do mês"
             variant="purple"
             icon={
               <div className="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
@@ -1402,8 +1473,16 @@ export const Dashboard = () => {
                 new Date(b.due_date).getTime() - new Date(a.due_date).getTime()
               )[0]
               const cardPurchases = purchases.filter(p => p.card_id === card.id)
-              const activePurchases = cardPurchases.filter(p => p.current_installment < p.installments)
-              const invoiceTotal = currentInvoice?.total_amount || 0
+              const activePurchases = cardPurchases.filter(p => p.current_installment <= p.installments)
+              const invoiceDueDate = currentInvoice ? new Date(currentInvoice.due_date) : null
+              const invoiceMonthForCalculation = invoiceDueDate ? invoiceDueDate.getMonth() + 1 : currentMonth
+              const invoiceYearForCalculation = invoiceDueDate ? invoiceDueDate.getFullYear() : currentYear
+              const calculatedInvoiceTotal = calculateCardInvoiceTotalForMonth(
+                card.id,
+                invoiceMonthForCalculation,
+                invoiceYearForCalculation
+              )
+              const invoiceTotal = calculatedInvoiceTotal > 0 ? calculatedInvoiceTotal : (currentInvoice?.total_amount || 0)
               const availableLimit = card.credit_limit - invoiceTotal
 
               return (
@@ -1426,7 +1505,7 @@ export const Dashboard = () => {
                       const todayDay = today.getDate()
                       
                       // Paga só se marcou no mês atual - ao virar o mês, fica false automaticamente
-                      const isPaid = currentInvoice.status === 'paid' && currentInvoice.last_paid_reference_month === currentMonthStr
+                      const isPaid = currentInvoice.status === 'paid'
                       
                       // Verifica se está atrasada baseado apenas em mês e dia (ignorando o ano)
                       let isOverdue = false
@@ -1471,7 +1550,7 @@ export const Dashboard = () => {
                     </div>
                     
                     {currentInvoice ? (() => {
-                      const isPaid = currentInvoice.status === 'paid' && currentInvoice.last_paid_reference_month === currentMonthStr
+                      const isPaid = currentInvoice.status === 'paid'
                       
                       return (
                         <>
@@ -1500,14 +1579,30 @@ export const Dashboard = () => {
                               <input
                                 type="checkbox"
                                 checked={isPaid}
-                                onChange={(e) => {
+                                onChange={async (e) => {
                                   e.stopPropagation()
                                   const checked = e.target.checked
+
+                                  try {
+                                    if (checked) {
+                                      await advanceInstallmentsAfterInvoicePayment(
+                                        card.id,
+                                        invoiceMonthForCalculation,
+                                        invoiceYearForCalculation
+                                      )
+                                    }
+                                  } catch (error) {
+                                    const message = error instanceof Error ? error.message : 'Erro ao atualizar parcelas da fatura'
+                                    setToast({ message, type: 'error' })
+                                    return
+                                  }
+
                                   updateInvoice(
                                     { 
                                       id: currentInvoice.id, 
                                       data: { 
                                         status: checked ? 'paid' : 'open',
+                                        total_amount: invoiceTotal,
                                         last_paid_reference_month: checked ? currentMonthStr : null
                                       } 
                                     },
@@ -1740,7 +1835,7 @@ export const Dashboard = () => {
                 }).format(totalBalance)}
               </span>
             </div>
-            <p className="text-caption text-neutral-600 dark:text-neutral-400">Soma das contas + sobra do mês anterior</p>
+            <p className="text-caption text-neutral-600 dark:text-neutral-400">Contas + sobra do mês anterior + receitas do mês - despesas do mês</p>
           </div>
 
           <div className="space-y-4">
