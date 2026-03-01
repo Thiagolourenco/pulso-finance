@@ -78,6 +78,7 @@ export const Reports = () => {
   const reportRef = useRef<HTMLDivElement | null>(null)
   const [pdfHint, setPdfHint] = useState<string>('')
   const [selectedCategory, setSelectedCategory] = useState<{ name: string; type: 'expense' | 'income' } | null>(null)
+  const [showAllExpenseCategories, setShowAllExpenseCategories] = useState(false)
 
   const isMobile = useMemo(() => {
     if (typeof navigator === 'undefined') return false
@@ -286,8 +287,13 @@ export const Reports = () => {
 
     return Array.from(categoryMap.values())
       .sort((a, b) => b.amount - a.amount)
-      .slice(0, 8)
   }, [transactions, categories, periodData])
+
+  // Gastos por categoria para exibição (todas ou top 8 conforme checkbox)
+  const expensesByCategoryDisplay = useMemo(() => {
+    const limit = showAllExpenseCategories ? expensesByCategory.length : 8
+    return expensesByCategory.slice(0, limit)
+  }, [expensesByCategory, showAllExpenseCategories])
 
   // Receitas por categoria
   const incomeByCategory = useMemo(() => {
@@ -893,12 +899,25 @@ export const Reports = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         {/* Gastos por Categoria */}
         <div className="p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
-          <h2 className="text-h3 font-semibold text-neutral-900 dark:text-neutral-50 mb-4">Gastos por Categoria</h2>
-          {expensesByCategory.length > 0 ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <h2 className="text-h3 font-semibold text-neutral-900 dark:text-neutral-50">Gastos por Categoria</h2>
+            {expensesByCategory.length > 8 && (
+              <label className="flex items-center gap-2 cursor-pointer no-print">
+                <input
+                  type="checkbox"
+                  checked={showAllExpenseCategories}
+                  onChange={(e) => setShowAllExpenseCategories(e.target.checked)}
+                  className="rounded border-border dark:border-border-dark text-primary-600 focus:ring-primary-500"
+                />
+                <span className="text-body-sm text-neutral-700 dark:text-neutral-300">Mostrar todas ({expensesByCategory.length})</span>
+              </label>
+            )}
+          </div>
+          {expensesByCategoryDisplay.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
-                  data={expensesByCategory}
+                  data={expensesByCategoryDisplay}
                   cx="50%"
                   cy="50%"
                   labelLine={false}
@@ -930,7 +949,7 @@ export const Reports = () => {
                   }}
                   style={{ cursor: 'pointer' }}
                 >
-                  {expensesByCategory.map((_, index) => (
+                  {expensesByCategoryDisplay.map((_, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
