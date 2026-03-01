@@ -8,8 +8,10 @@ import { useCategories } from '@/hooks/useCategories'
 import { useRecurringExpenses } from '@/hooks/useRecurringExpenses'
 import { PieChart, Pie, Cell, BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, ComposedChart, type PieLabelRenderProps } from 'recharts'
 import { Button, Modal } from '@/components/ui'
+import { ReportInsights } from '@/components/insights/ReportInsights'
 import { useTheme } from '@/contexts/ThemeProvider'
 import { SELIC_ANNUAL_RATE } from '@/lib/constants'
+import type { ReportInsightsData } from '@/services/insightsService'
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16']
 
@@ -23,7 +25,7 @@ function ComparativoTooltip({
   itemStyle,
 }: {
   active?: boolean
-  payload?: Array<{ payload: { month: string; receitas: number; despesas: number; saldo: number } }>
+  payload?: ReadonlyArray<{ payload: { receitas: number; despesas: number; saldo: number } }>
   label?: string
   contentStyle: React.CSSProperties
   labelStyle: React.CSSProperties
@@ -34,7 +36,7 @@ function ComparativoTooltip({
   const fmt = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
   return (
     <div style={{ ...contentStyle, padding: '12px 14px' }}>
-      <p style={{ ...labelStyle, marginBottom: 8 }}>{label}</p>
+      <p style={{ ...labelStyle, marginBottom: 8 }}>{label ?? ''}</p>
       <p style={{ ...itemStyle, margin: '4px 0' }}>Receitas: {fmt(receitas)}</p>
       <p style={{ ...itemStyle, margin: '4px 0' }}>Despesas: {fmt(despesas)}</p>
       <p style={{ ...itemStyle, margin: '4px 0' }}>Saldo: {fmt(saldo)}</p>
@@ -591,6 +593,36 @@ export const Reports = () => {
     return { totalInvested, selicMonthlyReturn, monthlyRatePercent: monthlyRate * 100 }
   }, [accounts])
 
+  // Dados para o componente de insights do relatório (comparativo + pontos de melhoria)
+  const reportInsightsData: ReportInsightsData = useMemo(() => {
+    const periodLabels: Record<typeof selectedPeriod, string> = {
+      month: 'Mês atual',
+      previousMonth: 'Mês anterior',
+      '3months': 'Últimos 3 meses',
+      '6months': 'Últimos 6 meses',
+      year: 'Último ano',
+    }
+    return {
+      periodLabel: periodLabels[selectedPeriod],
+      summary: {
+        totalIncome: summary.totalIncome,
+        totalExpenses: summary.totalExpenses,
+        totalBalance: summary.totalBalance,
+        transactionCount: summary.transactionCount,
+      },
+      monthComparison: {
+        current: monthComparison.current,
+        previous: monthComparison.previous,
+        incomeChange: monthComparison.incomeChange,
+        expensesChange: monthComparison.expensesChange,
+      },
+      monthlyEvolution: monthlyEvolution.map(m => ({ month: m.month, receitas: m.receitas, despesas: m.despesas, saldo: m.saldo })),
+      expensesByCategory: expensesByCategory.map(c => ({ name: c.name, amount: c.amount })),
+      incomeByCategory: incomeByCategory.map(c => ({ name: c.name, amount: c.amount })),
+      totalInvested: investmentSummary.totalInvested,
+    }
+  }, [selectedPeriod, summary, monthComparison, monthlyEvolution, expensesByCategory, incomeByCategory, investmentSummary.totalInvested])
+
   // Função para exportar dados
   const handleExport = () => {
     const data = {
@@ -783,6 +815,11 @@ export const Reports = () => {
         </div>
       </div>
 
+      {/* Insights do relatório: comparativo e pontos de melhoria */}
+      <div className="mb-8">
+        <ReportInsights data={reportInsightsData} />
+      </div>
+
       {/* Comparativo Mês Atual vs Anterior */}
       {selectedPeriod === 'month' && (
         <div className="mb-8">
@@ -833,7 +870,9 @@ export const Reports = () => {
                 <Tooltip
                   content={(props) => (
                     <ComparativoTooltip
-                      {...props}
+                      active={props.active}
+                      payload={props.payload}
+                      label={props.label != null ? String(props.label) : undefined}
                       contentStyle={tooltipContentStyle}
                       labelStyle={tooltipLabelStyle}
                       itemStyle={tooltipItemStyle}

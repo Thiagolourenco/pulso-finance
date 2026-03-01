@@ -221,8 +221,223 @@ const generateBasicInsights = (data: MonthlyData): Insight[] => {
   return insights
 }
 
+// --- Insights do Relatório (comparativo + pontos de melhoria) ---
 
+export interface ReportInsight {
+  section: 'comparativo' | 'melhoria'
+  type: 'warning' | 'success' | 'info' | 'danger'
+  title: string
+  message: string
+  suggestion?: string
+}
 
+export interface ReportInsightsData {
+  periodLabel: string
+  summary: { totalIncome: number; totalExpenses: number; totalBalance: number; transactionCount: number }
+  monthComparison: {
+    current: { income: number; expenses: number }
+    previous: { income: number; expenses: number }
+    incomeChange: number
+    expensesChange: number
+  }
+  monthlyEvolution: Array<{ month: string; receitas: number; despesas: number; saldo: number }>
+  expensesByCategory: Array<{ name: string; amount: number }>
+  incomeByCategory: Array<{ name: string; amount: number }>
+  totalInvested: number
+}
+
+export const generateReportInsights = async (data: ReportInsightsData): Promise<ReportInsight[]> => {
+  const apiKey = import.meta.env.VITE_OPENAI_API_KEY
+
+  if (!apiKey) {
+    return generateBasicReportInsights(data)
+  }
+
+  try {
+    const evolutionText = data.monthlyEvolution
+      .map(m => `${m.month}: receitas R$ ${m.receitas.toFixed(2)}, despesas R$ ${m.despesas.toFixed(2)}, saldo R$ ${m.saldo.toFixed(2)}`)
+      .join('\n')
+    const topCategories = data.expensesByCategory.slice(0, 5).map(c => `${c.name}: R$ ${c.amount.toFixed(2)}`).join('\n')
+
+    const prompt = `Você é um analista financeiro. Com base nos dados do relatório abaixo, gere insights em português brasileiro.
+
+PERÍODO: ${data.periodLabel}
+
+RESUMO DO PERÍODO:
+- Total receitas: R$ ${data.summary.totalIncome.toFixed(2)}
+- Total despesas: R$ ${data.summary.totalExpenses.toFixed(2)}
+- Saldo: R$ ${data.summary.totalBalance.toFixed(2)}
+- Nº transações: ${data.summary.transactionCount}
+
+COMPARATIVO MÊS ATUAL VS ANTERIOR:
+- Receitas: variação ${data.monthComparison.incomeChange.toFixed(1)}%
+- Despesas: variação ${data.monthComparison.expensesChange.toFixed(1)}%
+
+EVOLUÇÃO POR MÊS (quando houver):
+${evolutionText || 'N/A'}
+
+TOP CATEGORIAS DE GASTO:
+${topCategories || 'N/A'}
+
+INVESTIMENTOS: R$ ${data.totalInvested.toFixed(2)}
+
+Gere um JSON array com 4 a 8 insights. Para cada insight use:
+- section: "comparativo" (análise do comparativo/evolução) OU "melhoria" (sugestão de melhoria)
+- type: "success" | "warning" | "info" | "danger"
+- title: título curto
+- message: mensagem clara (até 120 caracteres)
+- suggestion: opcional, dica acionável (até 80 caracteres)
+
+Inclua pelo menos 2 insights de "comparativo" (tendências, comparações) e 2 de "melhoria" (o que o usuário pode fazer melhor). Seja específico com os números quando fizer sentido. Retorne APENAS o JSON array, sem markdown.`
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: 'Você é um analista financeiro. Retorne apenas um JSON array válido, sem markdown.' },
+          { role: 'user', content: prompt },
+        ],
+        temperature: 0.6,
+        max_tokens: 1000,
+      }),
+    })
+
+    if (!response.ok) throw new Error('Erro ao gerar insights do relatório')
+
+    const result = await response.json()
+    const content = result.choices[0]?.message?.content
+    if (!content) throw new Error('Resposta vazia')
+
+    const jsonMatch = content.match(/\[[\s\S]*\]/)
+    if (jsonMatch) {
+      const raw = JSON.parse(jsonMatch[0]) as Array<Record<string, unknown>>
+      const validTypes = ['warning', 'success', 'info', 'danger'] as const
+      const validSections = ['comparativo', 'melhoria'] as const
+      return raw.map((item): ReportInsight => ({
+        section: validSections.includes((item.section as string) as typeof validSections[number]) ? (item.section as ReportInsight['section']) : 'comparativo',
+        type: validTypes.includes((item.type as string) as typeof validTypes[number]) ? (item.type as ReportInsight['type']) : 'info',
+        title: String(item.title || ''),
+        message: String(item.message || ''),
+        suggestion: item.suggestion ? String(item.suggestion) : undefined,
+      }))
+    }
+
+    return generateBasicReportInsights(data)
+  } catch (error) {
+    console.error('Erro ao gerar insights do relatório (IA):', error)
+    return generateBasicReportInsights(data)
+  }
+}
+
+function generateBasicReportInsights(data: ReportInsightsData): ReportInsight[] {
+  const insights: ReportInsight[] = []
+  const { summary, monthComparison, monthlyEvolution, expensesByCategory, totalInvested } = data
+
+  // --- Comparativo ---
+  if (monthComparison.incomeChange !== 0) {
+    insights.push({
+      section: 'comparativo',
+      type: monthComparison.incomeChange >= 0 ? 'success' : 'warning',
+      title: 'Receitas vs mês anterior',
+      message: `Suas receitas ${monthComparison.incomeChange >= 0 ? 'aumentaram' : 'diminuíram'} ${Math.abs(monthComparison.incomeChange).toFixed(1)}% em relação ao mês anterior.`,
+      suggestion: monthComparison.incomeChange < 0 ? 'Revise fontes de renda e previsão de entradas.' : undefined,
+    })
+  }
+
+  if (monthComparison.expensesChange !== 0) {
+    insights.push({
+      section: 'comparativo',
+      type: monthComparison.expensesChange <= 0 ? 'success' : 'warning',
+      title: 'Despesas vs mês anterior',
+      message: `Despesas ${monthComparison.expensesChange <= 0 ? 'reduziram' : 'aumentaram'} ${Math.abs(monthComparison.expensesChange).toFixed(1)}% em relação ao mês anterior.`,
+      suggestion: monthComparison.expensesChange > 15 ? 'Vale analisar as categorias que mais subiram.' : undefined,
+    })
+  }
+
+  if (monthlyEvolution.length >= 2) {
+    const lastSaldo = monthlyEvolution[monthlyEvolution.length - 1].saldo
+    const firstSaldo = monthlyEvolution[0].saldo
+    const saldoMelhorou = lastSaldo >= firstSaldo
+    insights.push({
+      section: 'comparativo',
+      type: saldoMelhorou ? 'success' : 'info',
+      title: 'Tendência do saldo no período',
+      message: saldoMelhorou
+        ? `O saldo no período manteve ou melhorou (de R$ ${firstSaldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} para R$ ${lastSaldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}).`
+        : `O saldo no período caiu. Compare os meses para identificar o que mudou.`,
+      suggestion: saldoMelhorou ? 'Mantenha o controle para continuar evoluindo.' : 'Priorize reduzir despesas ou aumentar receitas.',
+    })
+  }
+
+  if (summary.totalBalance >= 0) {
+    insights.push({
+      section: 'comparativo',
+      type: 'success',
+      title: 'Saldo do período',
+      message: `Saldo positivo de R$ ${summary.totalBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} no período.`,
+      suggestion: 'Considere reservar parte para reserva de emergência ou investimentos.',
+    })
+  } else {
+    insights.push({
+      section: 'comparativo',
+      type: 'danger',
+      title: 'Saldo negativo no período',
+      message: `O período fechou com saldo negativo de R$ ${Math.abs(summary.totalBalance).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}.`,
+      suggestion: 'Revise gastos e evite novos compromissos até reequilibrar.',
+    })
+  }
+
+  // --- Pontos de melhoria ---
+  if (expensesByCategory.length > 0) {
+    const totalExp = expensesByCategory.reduce((s, c) => s + c.amount, 0)
+    const top = expensesByCategory[0]
+    const pct = totalExp > 0 ? (top.amount / totalExp) * 100 : 0
+    if (pct > 35) {
+      insights.push({
+        section: 'melhoria',
+        type: 'warning',
+        title: 'Categoria com maior peso',
+        message: `"${top.name}" representa ${pct.toFixed(0)}% dos gastos (R$ ${top.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}).`,
+        suggestion: 'Defina um teto para essa categoria e acompanhe ao longo do mês.',
+      })
+    }
+  }
+
+  if (summary.totalIncome > 0 && summary.totalExpenses / summary.totalIncome > 0.9) {
+    insights.push({
+      section: 'melhoria',
+      type: 'warning',
+      title: 'Margem apertada',
+      message: 'Despesas consomem mais de 90% das receitas no período.',
+      suggestion: 'Tente reduzir gastos não essenciais ou aumentar a receita para ter mais folga.',
+    })
+  }
+
+  if (totalInvested > 0) {
+    insights.push({
+      section: 'melhoria',
+      type: 'info',
+      title: 'Investimentos',
+      message: `Você tem R$ ${totalInvested.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} investidos.`,
+      suggestion: 'Mantenha aportes regulares, mesmo que pequenos.',
+    })
+  } else if (summary.totalBalance > 500) {
+    insights.push({
+      section: 'melhoria',
+      type: 'info',
+      title: 'Próximo passo: investir',
+      message: 'Há saldo positivo no período e ainda não há investimentos registrados.',
+      suggestion: 'Considere abrir uma aplicação e começar com um valor fixo mensal.',
+    })
+  }
+
+  return insights
+}
 
 
 
