@@ -6,12 +6,41 @@ import { useCardInvoices } from '@/hooks/useCardInvoices'
 import { useCardPurchases } from '@/hooks/useCardPurchases'
 import { useCategories } from '@/hooks/useCategories'
 import { useRecurringExpenses } from '@/hooks/useRecurringExpenses'
-import { PieChart, Pie, Cell, BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, type PieLabelRenderProps } from 'recharts'
+import { PieChart, Pie, Cell, BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, ComposedChart, type PieLabelRenderProps } from 'recharts'
 import { Button, Modal } from '@/components/ui'
 import { useTheme } from '@/contexts/ThemeProvider'
 import { SELIC_ANNUAL_RATE } from '@/lib/constants'
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16']
+
+// Tooltip do comparativo 3 meses: uma linha por métrica (Receitas, Despesas, Saldo)
+function ComparativoTooltip({
+  active,
+  payload,
+  label,
+  contentStyle,
+  labelStyle,
+  itemStyle,
+}: {
+  active?: boolean
+  payload?: Array<{ payload: { month: string; receitas: number; despesas: number; saldo: number } }>
+  label?: string
+  contentStyle: React.CSSProperties
+  labelStyle: React.CSSProperties
+  itemStyle: React.CSSProperties
+}) {
+  if (!active || !payload?.length || !payload[0].payload) return null
+  const { receitas, despesas, saldo } = payload[0].payload
+  const fmt = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+  return (
+    <div style={{ ...contentStyle, padding: '12px 14px' }}>
+      <p style={{ ...labelStyle, marginBottom: 8 }}>{label}</p>
+      <p style={{ ...itemStyle, margin: '4px 0' }}>Receitas: {fmt(receitas)}</p>
+      <p style={{ ...itemStyle, margin: '4px 0' }}>Despesas: {fmt(despesas)}</p>
+      <p style={{ ...itemStyle, margin: '4px 0' }}>Saldo: {fmt(saldo)}</p>
+    </div>
+  )
+}
 
 export const Reports = () => {
   const { theme } = useTheme()
@@ -790,6 +819,37 @@ export const Reports = () => {
         </div>
       )}
 
+      {/* Comparativo: últimos 3 meses — mais visível quando período é 3 meses */}
+      {selectedPeriod === '3months' && monthlyEvolution.length > 0 && (
+        <div className="mb-8">
+          <div className="p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
+            <h2 className="text-h3 font-semibold text-neutral-900 dark:text-neutral-50 mb-1">Comparativo: últimos 3 meses</h2>
+            <p className="text-body-sm text-neutral-500 dark:text-neutral-400 mb-4">Receitas, despesas e saldo por mês</p>
+            <ResponsiveContainer width="100%" height={380}>
+              <ComposedChart data={monthlyEvolution} margin={{ top: 12, right: 16, left: 8, bottom: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={chartGridStroke} vertical={false} />
+                <XAxis dataKey="month" stroke={chartAxisStroke} tick={{ fill: chartAxisStroke, fontSize: 14 }} />
+                <YAxis stroke={chartAxisStroke} tick={{ fill: chartAxisStroke, fontSize: 12 }} tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} />
+                <Tooltip
+                  content={(props) => (
+                    <ComparativoTooltip
+                      {...props}
+                      contentStyle={tooltipContentStyle}
+                      labelStyle={tooltipLabelStyle}
+                      itemStyle={tooltipItemStyle}
+                    />
+                  )}
+                />
+                <Legend wrapperStyle={legendStyle} />
+                <Bar dataKey="receitas" name="Receitas" fill="#10B981" radius={[8, 8, 0, 0]} barSize={48} />
+                <Bar dataKey="despesas" name="Despesas" fill="#EF4444" radius={[8, 8, 0, 0]} barSize={48} />
+                <Line type="monotone" dataKey="saldo" name="Saldo" stroke="#3B82F6" strokeWidth={3} dot={{ r: 6, fill: '#3B82F6' }} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
       {/* Gráficos principais */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         {/* Gastos por Categoria */}
@@ -886,11 +946,11 @@ export const Reports = () => {
         <div className="p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
           <h2 className="text-h3 font-semibold text-neutral-900 dark:text-neutral-50 mb-4">Evolução Mensal</h2>
           {monthlyEvolution.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={monthlyEvolution}>
-                <CartesianGrid strokeDasharray="3 3" stroke={chartGridStroke} />
-                <XAxis dataKey="month" stroke={chartAxisStroke} tick={{ fill: chartAxisStroke }} />
-                <YAxis stroke={chartAxisStroke} tick={{ fill: chartAxisStroke }} />
+            <ResponsiveContainer width="100%" height={monthlyEvolution.length <= 3 ? 380 : 300}>
+              <AreaChart data={monthlyEvolution} margin={{ top: 12, right: 16, left: 8, bottom: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={chartGridStroke} vertical={false} />
+                <XAxis dataKey="month" stroke={chartAxisStroke} tick={{ fill: chartAxisStroke, fontSize: 14 }} />
+                <YAxis stroke={chartAxisStroke} tick={{ fill: chartAxisStroke, fontSize: 12 }} tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} />
                 <Tooltip
                   formatter={(value: number | undefined) => `R$ ${(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
                   contentStyle={tooltipContentStyle}
@@ -898,9 +958,9 @@ export const Reports = () => {
                   itemStyle={tooltipItemStyle}
                 />
                 <Legend wrapperStyle={legendStyle} />
-                <Area type="monotone" dataKey="receitas" stackId="1" stroke="#10B981" fill="#10B981" fillOpacity={0.6} name="Receitas" />
-                <Area type="monotone" dataKey="despesas" stackId="2" stroke="#EF4444" fill="#EF4444" fillOpacity={0.6} name="Despesas" />
-                <Line type="monotone" dataKey="saldo" stroke="#3B82F6" strokeWidth={2} name="Saldo" />
+                <Area type="monotone" dataKey="receitas" stackId="1" stroke="#10B981" strokeWidth={2} fill="#10B981" fillOpacity={0.7} name="Receitas" />
+                <Area type="monotone" dataKey="despesas" stackId="2" stroke="#EF4444" strokeWidth={2} fill="#EF4444" fillOpacity={0.7} name="Despesas" />
+                <Line type="monotone" dataKey="saldo" stroke="#3B82F6" strokeWidth={3} dot={{ r: 6, fill: '#3B82F6' }} name="Saldo" />
               </AreaChart>
             </ResponsiveContainer>
           ) : (
