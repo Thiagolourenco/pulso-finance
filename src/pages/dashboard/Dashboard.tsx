@@ -42,7 +42,7 @@ export const Dashboard = () => {
   const { accounts, createAccount, isCreating: isCreatingAccount } = useAccounts()
   const { cards, createCard, isCreating: isCreatingCard } = useCards()
   const { purchases, createPurchase, isCreating: isCreatingPurchase } = useCardPurchases()
-  const { invoices, updateInvoice, isUpdating: isUpdatingInvoice } = useCardInvoices()
+  const { invoices, updateInvoice, createInvoice, isUpdating: isUpdatingInvoice } = useCardInvoices()
   const { categories, createCategory, isCreating: isCreatingCategory } = useCategories()
   
   // Notificações de faturas vencidas ou no dia do vencimento
@@ -119,6 +119,68 @@ export const Dashboard = () => {
   // Mês anterior
   const previousMonth = currentMonth === 1 ? 12 : currentMonth - 1
   const previousYear = currentMonth === 1 ? currentYear - 1 : currentYear
+
+  // Garante que cada cartão tenha uma fatura do ciclo atual (vencimento no mês atual ou futuro), para ao virar o mês mostrar "A PAGAR" em vez de "Nenhuma fatura aberta"
+  useEffect(() => {
+    if (!cards?.length || !invoices) return
+    const startOfCurrentMonth = new Date(currentYear, currentMonth - 1, 1)
+    startOfCurrentMonth.setHours(0, 0, 0, 0)
+
+    const getCurrentCycleDates = (card: { closing_day: number; due_day: number }) => {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const refM = today.getMonth()
+      const refY = today.getFullYear()
+      const closingDate = new Date(refY, refM, card.closing_day)
+      const invoiceMonth = today.getDate() <= card.closing_day
+        ? new Date(refY, refM, 1)
+        : new Date(refY, refM + 1, 1)
+      let dueDate = new Date(refY, refM, card.due_day)
+      if (dueDate <= closingDate) dueDate.setMonth(dueDate.getMonth() + 1)
+      if (dueDate < today) {
+        dueDate.setMonth(dueDate.getMonth() + 1)
+        if (invoiceMonth.getMonth() === refM && invoiceMonth.getFullYear() === refY) {
+          invoiceMonth.setMonth(invoiceMonth.getMonth() + 1)
+        }
+      }
+      return {
+        reference_month: invoiceMonth.toISOString().split('T')[0],
+        closing_date: closingDate.toISOString().split('T')[0],
+        due_date: dueDate.toISOString().split('T')[0],
+      }
+    }
+
+    void (async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      for (const card of cards) {
+        const cardInvoices = invoices.filter((inv: { card_id: string }) => inv.card_id === card.id)
+        const hasCurrentCycle = cardInvoices.some((inv: { due_date: string }) => {
+          const due = new Date(inv.due_date)
+          due.setHours(0, 0, 0, 0)
+          return due >= startOfCurrentMonth
+        })
+        if (!hasCurrentCycle) {
+          const dates = getCurrentCycleDates(card)
+          createInvoice(
+            {
+              user_id: user.id,
+              card_id: card.id,
+              reference_month: dates.reference_month,
+              closing_date: dates.closing_date,
+              due_date: dates.due_date,
+              status: 'open',
+              total_amount: 0,
+            },
+            {
+              onSuccess: () => queryClient.invalidateQueries({ queryKey: ['card_invoices'] }),
+              onError: () => {}, // Pode falhar se já existir (ex.: outra aba criou)
+            }
+          )
+        }
+      }
+    })()
+  }, [cards, invoices, currentMonth, currentYear, createInvoice, queryClient])
 
   // Calcula receitas do mês atual (transações do tipo 'income')
   const monthlyIncome = transactions
@@ -1463,10 +1525,16 @@ export const Dashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {cards.map((card) => {
               const cardInvoices = invoices.filter(inv => inv.card_id === card.id)
-              // Busca a última fatura (aberta ou paga) - prioriza aberta, mas mostra paga também
-              const openInvoice = cardInvoices.find(inv => inv.status === 'open')
-              const paidInvoice = cardInvoices.find(inv => inv.status === 'paid')
-              // Usa a fatura aberta se existir, senão usa a paga
+              // Só considera fatura do ciclo atual: vencimento no mês atual ou no futuro (evita mostrar fatura do mês passado como "atual" ao virar o mês)
+              const startOfCurrentMonth = new Date(currentYear, currentMonth - 1, 1)
+              startOfCurrentMonth.setHours(0, 0, 0, 0)
+              const invoicesCurrentCycle = cardInvoices.filter(inv => {
+                const due = new Date(inv.due_date)
+                due.setHours(0, 0, 0, 0)
+                return due >= startOfCurrentMonth
+              })
+              const openInvoice = invoicesCurrentCycle.find(inv => inv.status === 'open')
+              const paidInvoice = invoicesCurrentCycle.find(inv => inv.status === 'paid')
               const currentInvoice = openInvoice || paidInvoice
               // Busca a última fatura para mostrar informações quando não há fatura atual
               const lastInvoice = cardInvoices.sort((a, b) => 
