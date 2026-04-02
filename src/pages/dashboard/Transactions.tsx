@@ -377,6 +377,11 @@ export const Transactions = () => {
                               • {account.name}
                             </span>
                           )}
+                          {!account && (transaction.type === 'income' || transaction.type === 'expense') && (
+                            <span className="text-caption text-warning-600 dark:text-warning-400" title="Esta transação não alterou o saldo de nenhuma conta">
+                              • Sem conta
+                            </span>
+                          )}
                           {card && (
                             <span className="text-caption text-neutral-500 dark:text-neutral-400">
                               • {card.name}
@@ -463,6 +468,10 @@ export const Transactions = () => {
                       type: data.type === 'balance' ? 'income' : data.type,
                       date: data.date,
                       category_id: data.category_id || editingTransaction.category_id,
+                      account_id:
+                        data.type === 'income' || data.type === 'expense'
+                          ? data.account_id || null
+                          : null,
                     },
                   },
                   {
@@ -515,16 +524,27 @@ export const Transactions = () => {
                   } else {
                     createTransaction({
                       user_id: user.id,
-                      account_id: null,
+                      account_id: data.account_id || null,
                       category_id: categoryId,
                       type: data.type,
                       amount: Math.abs(data.amount),
                       description: data.description,
                       date: data.date,
                     }, {
-                      onSuccess: () => {
+                      onSuccess: (created) => {
+                        const accName = created.account_id
+                          ? accounts.find(a => a.id === created.account_id)?.name
+                          : undefined
+                        const brl = new Intl.NumberFormat('pt-BR', {
+                          style: 'currency',
+                          currency: 'BRL',
+                        }).format(Math.abs(Number(created.amount) || 0))
                         setToast({
-                          message: data.type === 'income' ? 'Receita adicionada com sucesso!' : 'Gasto adicionado com sucesso!',
+                          message: accName
+                            ? `${created.type === 'income' ? 'Receita' : 'Despesa'} de ${brl} na conta "${accName}". Patrimônio atualizado.`
+                            : data.type === 'income'
+                              ? 'Receita adicionada com sucesso!'
+                              : 'Gasto adicionado com sucesso!',
                           type: 'success',
                         })
                         handleCloseModal()

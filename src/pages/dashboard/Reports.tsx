@@ -11,6 +11,7 @@ import { Button, Modal } from '@/components/ui'
 import { ReportInsights } from '@/components/insights/ReportInsights'
 import { useTheme } from '@/contexts/ThemeProvider'
 import { SELIC_ANNUAL_RATE } from '@/lib/constants'
+import { parseLocalDate } from '@/lib/utils'
 import type { ReportInsightsData } from '@/services/insightsService'
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16']
@@ -166,7 +167,7 @@ export const Reports = () => {
 
     return invoices
       .filter(invoice => {
-        const invoiceDate = new Date(invoice.due_date)
+        const invoiceDate = parseLocalDate(invoice.due_date.slice(0, 10))
         invoiceDate.setHours(0, 0, 0, 0)
         const isInRange = invoiceDate >= periodBounds.start && invoiceDate <= periodBounds.end
         const isOverdueOpen = isCurrentMonthPeriod && invoice.status === 'open' && invoiceDate <= today && invoice.total_amount > 0
@@ -199,7 +200,7 @@ export const Reports = () => {
 
     const getMonthTotals = (year: number, month: number, includeOverdueOpenInvoices: boolean) => {
       const monthTransactions = transactions.filter(t => {
-        const transactionDate = new Date(t.date)
+        const transactionDate = parseLocalDate(t.date)
         return transactionDate.getMonth() + 1 === month && transactionDate.getFullYear() === year
       })
 
@@ -213,7 +214,7 @@ export const Reports = () => {
 
       const invoiceExpenses = invoices
         .filter(invoice => {
-          const invoiceDate = new Date(invoice.due_date)
+          const invoiceDate = parseLocalDate(invoice.due_date.slice(0, 10))
           invoiceDate.setHours(0, 0, 0, 0)
           const isSameMonth = invoiceDate.getMonth() + 1 === month && invoiceDate.getFullYear() === year
           const isOverdueOpen = includeOverdueOpenInvoices && invoice.status === 'open' && invoiceDate <= today && invoice.total_amount > 0
@@ -252,7 +253,7 @@ export const Reports = () => {
 
     transactions
       .filter(t => {
-        const transactionDate = new Date(t.date)
+        const transactionDate = parseLocalDate(t.date)
         transactionDate.setHours(0, 0, 0, 0)
         const start = new Date(periodData.startDate)
         start.setHours(0, 0, 0, 0)
@@ -301,7 +302,7 @@ export const Reports = () => {
 
     transactions
       .filter(t => {
-        const transactionDate = new Date(t.date)
+        const transactionDate = parseLocalDate(t.date)
         transactionDate.setHours(0, 0, 0, 0)
         const start = new Date(periodData.startDate)
         start.setHours(0, 0, 0, 0)
@@ -343,7 +344,7 @@ export const Reports = () => {
     const months: { [key: string]: { month: string; receitas: number; despesas: number; saldo: number } } = {}
 
     transactions.forEach(transaction => {
-      const transactionDate = new Date(transaction.date)
+      const transactionDate = parseLocalDate(transaction.date)
       transactionDate.setHours(0, 0, 0, 0)
       const start = new Date(periodData.startDate)
       start.setHours(0, 0, 0, 0)
@@ -381,7 +382,7 @@ export const Reports = () => {
 
     transactions
       .filter(t => {
-        const transactionDate = new Date(t.date)
+        const transactionDate = parseLocalDate(t.date)
         transactionDate.setHours(0, 0, 0, 0)
         const start = new Date(periodData.startDate)
         start.setHours(0, 0, 0, 0)
@@ -394,7 +395,7 @@ export const Reports = () => {
         )
       })
       .forEach(transaction => {
-        const day = new Date(transaction.date).getDay()
+        const day = parseLocalDate(transaction.date).getDay()
         const amount = Math.abs(Number(transaction.amount) || 0)
         dayMap.set(day, (dayMap.get(day) || 0) + amount)
       })
@@ -411,7 +412,7 @@ export const Reports = () => {
 
     transactions
       .filter(t => {
-        const transactionDate = new Date(t.date)
+        const transactionDate = parseLocalDate(t.date)
         transactionDate.setHours(0, 0, 0, 0)
         const start = new Date(periodData.startDate)
         start.setHours(0, 0, 0, 0)
@@ -424,7 +425,7 @@ export const Reports = () => {
         )
       })
       .forEach(transaction => {
-        const transactionDate = new Date(transaction.date)
+        const transactionDate = parseLocalDate(transaction.date)
         const dayOfMonth = transactionDate.getDate()
         const week = Math.ceil(dayOfMonth / 7)
         const amount = Math.abs(Number(transaction.amount) || 0)
@@ -443,7 +444,7 @@ export const Reports = () => {
 
     transactions
       .filter(t => {
-        const transactionDate = new Date(t.date)
+        const transactionDate = parseLocalDate(t.date)
         transactionDate.setHours(0, 0, 0, 0)
         const start = new Date(periodData.startDate)
         start.setHours(0, 0, 0, 0)
@@ -456,7 +457,7 @@ export const Reports = () => {
         )
       })
       .forEach(transaction => {
-        const day = new Date(transaction.date).getDate()
+        const day = parseLocalDate(transaction.date).getDate()
         const amount = Math.abs(Number(transaction.amount) || 0)
         const existing = dayMap.get(day) || { count: 0, amount: 0 }
         dayMap.set(day, {
@@ -482,7 +483,7 @@ export const Reports = () => {
 
     invoices
       .filter(invoice => {
-        const invoiceDate = new Date(invoice.due_date)
+        const invoiceDate = parseLocalDate(invoice.due_date.slice(0, 10))
         invoiceDate.setHours(0, 0, 0, 0)
         const start = new Date(periodData.startDate)
         start.setHours(0, 0, 0, 0)
@@ -491,7 +492,7 @@ export const Reports = () => {
         return invoiceDate >= start && invoiceDate <= end
       })
       .forEach(invoice => {
-        const invoiceDate = new Date(invoice.due_date)
+        const invoiceDate = parseLocalDate(invoice.due_date.slice(0, 10))
         const monthKey = invoiceDate.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })
         const amount = invoice.total_amount || 0
         monthMap.set(monthKey, (monthMap.get(monthKey) || 0) + amount)
@@ -546,7 +547,7 @@ export const Reports = () => {
   const topTransactions = useMemo(() => {
     return transactions
       .filter(t => {
-        const transactionDate = new Date(t.date)
+        const transactionDate = parseLocalDate(t.date)
         transactionDate.setHours(0, 0, 0, 0)
         const start = new Date(periodData.startDate)
         start.setHours(0, 0, 0, 0)
@@ -569,7 +570,7 @@ export const Reports = () => {
   // Resumo geral
   const summary = useMemo(() => {
     const periodTransactions = transactions.filter(t => {
-      const transactionDate = new Date(t.date)
+      const transactionDate = parseLocalDate(t.date)
       transactionDate.setHours(0, 0, 0, 0)
       return transactionDate >= periodBounds.start && transactionDate <= periodBounds.end
     })
@@ -659,7 +660,7 @@ export const Reports = () => {
     
     return transactions
       .filter(t => {
-        const transactionDate = new Date(t.date)
+        const transactionDate = parseLocalDate(t.date)
         transactionDate.setHours(0, 0, 0, 0)
         const start = new Date(periodData.startDate)
         start.setHours(0, 0, 0, 0)
@@ -676,7 +677,7 @@ export const Reports = () => {
         
         return categoryName === selectedCategory.name
       })
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime())
   }, [transactions, selectedCategory, categories, periodData])
 
   // Calcula total da categoria selecionada
@@ -775,7 +776,7 @@ export const Reports = () => {
       )}
 
       {/* Resumo geral */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-6 mb-6 lg:mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6 lg:mb-8">
         <div className="p-4 lg:p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
           <p className="text-caption text-neutral-600 dark:text-neutral-300 mb-2">Total Investido</p>
           <p className="text-h2 font-bold text-warning-600 dark:text-warning-400">
@@ -806,12 +807,6 @@ export const Reports = () => {
               {monthComparison.expensesChange <= 0 ? '↓' : '↑'} {Math.abs(monthComparison.expensesChange).toFixed(1)}% vs mês anterior
             </p>
           )}
-        </div>
-        <div className="p-4 lg:p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
-          <p className="text-caption text-neutral-600 dark:text-neutral-300 mb-2">Saldo</p>
-          <p className={`text-h2 font-bold ${summary.totalBalance >= 0 ? 'text-success-600 dark:text-success-500' : 'text-danger-600 dark:text-danger-400'}`}>
-            {summary.totalBalance >= 0 ? '+' : ''}R$ {summary.totalBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-          </p>
         </div>
         <div className="p-4 lg:p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
           <p className="text-caption text-neutral-600 dark:text-neutral-300 mb-2">Transações</p>
@@ -1222,7 +1217,7 @@ export const Reports = () => {
                     <div>
                       <p className="text-body-sm font-medium text-neutral-900 dark:text-neutral-50">{transaction.description}</p>
                       <p className="text-caption text-neutral-500 dark:text-neutral-400">
-                        {transaction.categoryName} • {new Date(transaction.date).toLocaleDateString('pt-BR')}
+                        {transaction.categoryName} • {parseLocalDate(transaction.date).toLocaleDateString('pt-BR')}
                       </p>
                     </div>
                   </div>
@@ -1287,7 +1282,7 @@ export const Reports = () => {
                         {transaction.description}
                       </p>
                       <div className="flex items-center gap-2 text-caption text-neutral-500 dark:text-neutral-400">
-                        <span>{new Date(transaction.date).toLocaleDateString('pt-BR')}</span>
+                        <span>{parseLocalDate(transaction.date).toLocaleDateString('pt-BR')}</span>
                         {category && (
                           <>
                             <span>•</span>

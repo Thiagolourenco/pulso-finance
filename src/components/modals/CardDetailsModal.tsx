@@ -361,9 +361,10 @@ export const CardDetailsModal = ({
                             {
                               onSuccess: () => {
                                 queryClient.invalidateQueries({ queryKey: ['card_invoices'] })
+                                queryClient.invalidateQueries({ queryKey: ['accounts'] })
                                 setToast({ 
                                   message: e.target.checked 
-                                    ? 'Fatura marcada como paga' 
+                                    ? 'Fatura marcada como paga — valor incluído em Despesas do mês' 
                                     : 'Fatura reaberta', 
                                   type: 'success' 
                                 })

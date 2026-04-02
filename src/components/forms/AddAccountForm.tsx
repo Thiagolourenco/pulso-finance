@@ -1,24 +1,27 @@
 import { useState } from 'react'
 import { Input, CurrencyInput, Button } from '@/components/ui'
+import type { Account } from '@/types'
 
 interface AddAccountFormProps {
   onSubmit: (data: {
     name: string
-    type: 'checking' | 'savings' | 'investment'
+    type: 'bank' | 'cash' | 'investment' | 'wallet'
     balance: number
   }) => void
   onCancel: () => void
   isLoading?: boolean
+  initialAccount?: Account | null
 }
 
 export const AddAccountForm = ({
   onSubmit,
   onCancel,
   isLoading = false,
+  initialAccount = null,
 }: AddAccountFormProps) => {
-  const [name, setName] = useState('')
-  const [type, setType] = useState<'checking' | 'savings' | 'investment'>('checking')
-  const [balance, setBalance] = useState(0)
+  const [name, setName] = useState(initialAccount?.name || '')
+  const [type, setType] = useState<'bank' | 'cash' | 'investment' | 'wallet'>(initialAccount?.type || 'bank')
+  const [balance, setBalance] = useState(initialAccount?.initial_balance || 0)
   const [error, setError] = useState('')
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -62,11 +65,11 @@ export const AddAccountForm = ({
         <div className="grid grid-cols-4 gap-3">
           <button
             type="button"
-            onClick={() => setType('checking')}
+            onClick={() => setType('bank')}
             className={`
               px-4 py-3 rounded-input border-2 transition-all duration-fast
               ${
-                type === 'checking'
+                type === 'bank'
                   ? 'border-primary-500 bg-primary-50 dark:bg-primary-500/10 text-primary-700 dark:text-primary-300 font-medium'
                   : 'border-border dark:border-border-dark bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 hover:border-primary-300 dark:hover:border-primary-500/60'
               }
@@ -76,17 +79,17 @@ export const AddAccountForm = ({
           </button>
           <button
             type="button"
-            onClick={() => setType('savings')}
+            onClick={() => setType('cash')}
             className={`
               px-4 py-3 rounded-input border-2 transition-all duration-fast
               ${
-                type === 'savings'
+                type === 'cash'
                   ? 'border-success-500 bg-success-50 dark:bg-success-500/10 text-success-700 dark:text-success-300 font-medium'
                   : 'border-border dark:border-border-dark bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 hover:border-success-300 dark:hover:border-success-500/60'
               }
             `}
           >
-            💰 Carteira
+            💵 Dinheiro
           </button>
           <button
             type="button"
@@ -101,6 +104,20 @@ export const AddAccountForm = ({
             `}
           >
             📈 Investimento
+          </button>
+          <button
+            type="button"
+            onClick={() => setType('wallet')}
+            className={`
+              px-4 py-3 rounded-input border-2 transition-all duration-fast
+              ${
+                type === 'wallet'
+                  ? 'border-purple-500 bg-purple-50 dark:bg-purple-500/10 text-purple-700 dark:text-purple-300 font-medium'
+                  : 'border-border dark:border-border-dark bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-300 hover:border-purple-300 dark:hover:border-purple-500/60'
+              }
+            `}
+          >
+            👛 Carteira
           </button>
         </div>
       </div>
@@ -130,7 +147,7 @@ export const AddAccountForm = ({
           className="flex-1"
           isLoading={isLoading}
         >
-          Criar conta
+          {initialAccount ? 'Salvar conta' : 'Criar conta'}
         </Button>
       </div>
     </form>

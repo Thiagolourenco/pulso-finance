@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { FinancialCard, Button, Modal, Toast } from '@/components/ui'
 import { AddTransactionForm } from '@/components/forms/AddTransactionForm'
 import { AddAccountForm } from '@/components/forms/AddAccountForm'
@@ -27,6 +27,7 @@ import { useRecurringExpenses } from '@/hooks/useRecurringExpenses'
 import { supabase } from '@/lib/supabase/client'
 import { getOrCreateDefaultCategory, getOrCreateBalanceCategory } from '@/lib/utils/categories'
 import { parseLocalDate } from '@/lib/utils'
+import { getReportsMonthSummary } from '@/lib/utils/reportsMonthSummary'
 
 type ModalType = 'transaction' | 'account' | 'card' | 'cardPurchase' | 'goal' | 'category' | 'recurringExpense' | 'totalMoney' | null
 type TransactionType = 'expense' | 'income' | 'balance'
@@ -182,52 +183,20 @@ export const Dashboard = () => {
     })()
   }, [cards, invoices, currentMonth, currentYear, createInvoice, queryClient])
 
-  // Calcula receitas do mês atual (transações do tipo 'income')
-  const monthlyIncome = transactions
-    .filter(transaction => {
-      const transactionDate = parseLocalDate(transaction.date)
-      return (
-        transaction.type === 'income' &&
-        transactionDate.getMonth() + 1 === currentMonth &&
-        transactionDate.getFullYear() === currentYear
-      )
-    })
-    .reduce((sum, transaction) => sum + (Number(transaction.amount) || 0), 0)
+  // Receitas / despesas / saldo do fluxo: mesma regra da página Relatórios (Mês)
+  const reportCurrentMonth = getReportsMonthSummary(transactions, invoices, recurringExpenses, currentYear, currentMonth)
+  const reportPreviousMonth = getReportsMonthSummary(transactions, invoices, recurringExpenses, previousYear, previousMonth)
 
-  // Calcula receitas do mês anterior
-  const previousMonthIncome = transactions
-    .filter(transaction => {
-      const transactionDate = parseLocalDate(transaction.date)
-      return (
-        transaction.type === 'income' &&
-        transactionDate.getMonth() + 1 === previousMonth &&
-        transactionDate.getFullYear() === previousYear
-      )
-    })
-    .reduce((sum, transaction) => sum + (Number(transaction.amount) || 0), 0)
+  const monthlyIncome = reportCurrentMonth.totalIncome
+  const monthlyExpenses = reportCurrentMonth.totalExpenses
+  const monthlyFlowBalance = reportCurrentMonth.totalBalance
 
-  // Calcula despesas do mês atual (transações do tipo 'expense')
-  const transactionExpenses = transactions
-    .filter(transaction => {
-      const transactionDate = parseLocalDate(transaction.date)
-      return (
-        transaction.type === 'expense' &&
-        transactionDate.getMonth() + 1 === currentMonth &&
-        transactionDate.getFullYear() === currentYear
-      )
-    })
-    .reduce((sum, transaction) => sum + Math.abs(Number(transaction.amount) || 0), 0)
+  const previousMonthIncome = reportPreviousMonth.totalIncome
+  const previousMonthExpenses = reportPreviousMonth.totalExpenses
 
-  // Despesas do mês = soma de TODOS os gastos/faturas PAGAS no mês (transações + faturas marcadas pagas + recorrentes marcadas pagas)
   const currentMonthStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}`
 
-  // Faturas PAGAS no mês (marcadas como pagas este mês)
-  const currentMonthInvoicesPaid = invoices.filter(
-    invoice => invoice.status === 'paid' && invoice.last_paid_reference_month === currentMonthStr
-  )
-  const currentMonthInvoiceTotal = currentMonthInvoicesPaid.reduce((sum, invoice) => sum + (invoice.total_amount || 0), 0)
-
-  // Para o MODAL: mostrar faturas que vencem no mês OU que foram pagas no mês (ex.: Porto seguro pago em fev aparece na lista)
+  // Para o MODAL de despesas: faturas que vencem no mês ou pagas no mês; recorrentes com vencimento no mês
   const currentMonthInvoicesForDisplay = invoices.filter(invoice => {
     const invoiceDueDate = new Date(invoice.due_date)
     const dueThisMonth = invoiceDueDate.getMonth() + 1 === currentMonth && invoiceDueDate.getFullYear() === currentYear
@@ -235,52 +204,11 @@ export const Dashboard = () => {
     return dueThisMonth || paidThisMonth
   })
 
-  // Recorrentes PAGAS no mês (marcadas como pagas este mês) e que vencem no mês
   const currentMonthRecurringExpensesList = recurringExpenses.filter(expense => {
     if (!expense.is_active) return false
     const dueDate = new Date(currentYear, currentMonth - 1, expense.due_day)
     return dueDate.getMonth() + 1 === currentMonth && dueDate.getFullYear() === currentYear
   })
-  const currentMonthRecurringExpenses = currentMonthRecurringExpensesList
-    .filter(expense => expense.last_paid_reference_month === currentMonthStr)
-    .reduce((sum, expense) => sum + (expense.amount || 0), 0)
-
-  // Despesas do mês = transações + faturas pagas no mês + recorrentes pagas no mês (soma de todos os gastos realizados)
-  const monthlyExpenses = transactionExpenses + currentMonthInvoiceTotal + currentMonthRecurringExpenses
-
-  // Calcula despesas do mês anterior (transações do tipo 'expense')
-  const previousMonthTransactionExpenses = transactions
-    .filter(transaction => {
-      const transactionDate = parseLocalDate(transaction.date)
-      return (
-        transaction.type === 'expense' &&
-        transactionDate.getMonth() + 1 === previousMonth &&
-        transactionDate.getFullYear() === previousYear
-      )
-    })
-    .reduce((sum, transaction) => sum + Math.abs(Number(transaction.amount) || 0), 0)
-
-  // Faturas do mês anterior: TODAS que vencem no mês (mesma lógica do Relatório)
-  // const previousMonthStr = `${previousYear}-${String(previousMonth).padStart(2, '0')}`
-  const previousMonthInvoices = invoices.filter(invoice => {
-    const invoiceDueDate = new Date(invoice.due_date)
-    const invoiceMonth = invoiceDueDate.getMonth() + 1
-    const invoiceYear = invoiceDueDate.getFullYear()
-    return invoiceMonth === previousMonth && invoiceYear === previousYear
-  })
-  const previousMonthInvoiceTotal = previousMonthInvoices.reduce((sum, invoice) => sum + (invoice.total_amount || 0), 0)
-
-  // Despesas recorrentes do mês anterior: TODAS que vencem no mês (mesma lógica do Relatório)
-  const previousMonthRecurringExpenses = recurringExpenses
-    .filter(expense => {
-      if (!expense.is_active) return false
-      const prevMonthDate = new Date(previousYear, previousMonth - 1, expense.due_day)
-      return prevMonthDate.getMonth() + 1 === previousMonth && prevMonthDate.getFullYear() === previousYear
-    })
-    .reduce((sum, expense) => sum + (expense.amount || 0), 0)
-
-  // Despesas do mês anterior = transações + faturas + despesas recorrentes que venceram no mês anterior
-  const previousMonthExpenses = previousMonthTransactionExpenses + previousMonthInvoiceTotal + previousMonthRecurringExpenses
 
   // Calcula o total de investimentos (contas tipo investment)
   const investmentAccounts = accounts.filter(account => account.type === 'investment')
@@ -293,14 +221,76 @@ export const Dashboard = () => {
   const incomeForSurplusCalculation = monthlyIncome > 0 ? monthlyIncome : previousMonthIncome
   const expectedSurplus = incomeForSurplusCalculation - monthlyExpenses
   
-  // Sobra do mês anterior (receitas - despesas)
-  const previousMonthSurplus = previousMonthIncome - previousMonthExpenses
+  // Sobra do mês anterior (saldo do fluxo, igual Relatórios)
+  const previousMonthSurplus = reportPreviousMonth.totalBalance
 
   // Soma dos saldos de todas as contas
   const sumOfAccounts = accounts.reduce((sum, account) => {
     const balance = Number(account.current_balance) || 0
     return sum + balance
   }, 0)
+
+  const totalRealWealth = sumOfAccounts
+
+  // Migração automática: receitas sem conta (mês anterior + atual) viram conta "Banco Inter - Salario".
+  // Isso evita receitas "perdidas" e faz o patrimônio refletir o total em conta.
+  const isInitialBalanceEntry = (description?: string | null) =>
+    (description || '').toLowerCase().startsWith('saldo inicial:')
+  const isAutoLinkingIncomeRef = useRef(false)
+  const autoLinkedTransactionIdsRef = useRef<Set<string>>(new Set())
+
+  useEffect(() => {
+    const interAccount = accounts.find(a => a.name.trim().toLowerCase() === 'banco inter - salario')
+    if (!interAccount || isAutoLinkingIncomeRef.current) return
+
+    const windowStart = new Date(currentYear, currentMonth - 2, 1)
+    windowStart.setHours(0, 0, 0, 0)
+
+    const candidates = transactions.filter(t => {
+      if (t.type !== 'income' || t.account_id || isInitialBalanceEntry(t.description)) return false
+      const d = parseLocalDate(t.date)
+      if (Number.isNaN(d.getTime())) return false
+      d.setHours(0, 0, 0, 0)
+      return d >= windowStart && !autoLinkedTransactionIdsRef.current.has(t.id)
+    })
+    if (candidates.length === 0) return
+
+    const candidateIds = candidates.map(t => t.id)
+    candidateIds.forEach(id => autoLinkedTransactionIdsRef.current.add(id))
+    isAutoLinkingIncomeRef.current = true
+
+    void (async () => {
+      try {
+        const totalToAdd = candidates.reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0)
+        const { error: txError } = await supabase
+          .from('transactions')
+          .update({ account_id: interAccount.id })
+          .in('id', candidateIds)
+        if (txError) throw txError
+
+        const { error: accError } = await supabase
+          .from('accounts')
+          .update({
+            current_balance: (Number(interAccount.current_balance) || 0) + totalToAdd,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', interAccount.id)
+        if (accError) throw accError
+
+        setToast({
+          message: `${candidates.length} receita(s) sem conta foram vinculadas automaticamente a "Banco Inter - Salario".`,
+          type: 'success',
+        })
+        queryClient.invalidateQueries({ queryKey: ['transactions'] })
+        queryClient.invalidateQueries({ queryKey: ['accounts'] })
+      } catch (error) {
+        candidateIds.forEach(id => autoLinkedTransactionIdsRef.current.delete(id))
+        console.error('Erro ao vincular receitas sem conta para Banco Inter - Salario:', error)
+      } finally {
+        isAutoLinkingIncomeRef.current = false
+      }
+    })()
+  }, [accounts, transactions, currentMonth, currentYear, queryClient])
 
   // Total da fatura por ciclo (mês/ano alvo), baseado nas parcelas realmente devidas
   const calculateCardInvoiceTotalForMonth = (cardId: string, targetMonth: number, targetYear: number) => {
@@ -373,10 +363,11 @@ export const Dashboard = () => {
     )
   }
 
-  // Total do dinheiro (mês atual, sem próximo mês):
-  // contas + sobra do mês anterior + receitas do mês - despesas do mês
-  const totalBalance = sumOfAccounts + previousMonthSurplus + monthlyIncome - monthlyExpenses
-
+  // Patrimônio em contas (snapshot) — diferente do saldo do fluxo mensal
+  const liquidAccountTypes = new Set(['bank', 'cash', 'wallet'])
+  const liquidAccountsBalance = accounts
+    .filter(account => liquidAccountTypes.has(account.type))
+    .reduce((sum, account) => sum + (Number(account.current_balance) || 0), 0)
   // Calcula variação percentual da sobra
   const surplusVariation = previousMonthSurplus !== 0
     ? ((expectedSurplus - previousMonthSurplus) / Math.abs(previousMonthSurplus)) * 100
@@ -389,6 +380,7 @@ export const Dashboard = () => {
     type: 'expense' | 'income' | 'balance'
     date: string
     category_id?: string
+    account_id?: string | null
   }) => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -440,20 +432,38 @@ export const Dashboard = () => {
       } else {
         createTransaction({
           user_id: user.id,
-          account_id: null,
+          account_id: data.account_id || null,
           category_id: categoryId,
           type: data.type,
           amount: Math.abs(data.amount),
           description: data.description,
           date: data.date,
         }, {
-          onSuccess: () => {
-            setToast({ 
-              message: data.type === 'income' 
-                ? 'Receita adicionada com sucesso!' 
-                : 'Gasto adicionado com sucesso!', 
-              type: 'success' 
-            })
+          onSuccess: (created) => {
+            const accName = created.account_id
+              ? accounts.find(a => a.id === created.account_id)?.name
+              : undefined
+            const brl = new Intl.NumberFormat('pt-BR', {
+              style: 'currency',
+              currency: 'BRL',
+            }).format(Math.abs(Number(created.amount) || 0))
+            if (accName) {
+              setToast({
+                message:
+                  created.type === 'income'
+                    ? `Receita de ${brl} na conta "${accName}". Patrimônio atualizado — confira o card Patrimônio total ou a página Contas.`
+                    : `Despesa de ${brl} na conta "${accName}". Patrimônio atualizado.`,
+                type: 'success',
+              })
+            } else {
+              setToast({
+                message:
+                  created.type === 'income'
+                    ? 'Receita adicionada com sucesso!'
+                    : 'Gasto adicionado com sucesso!',
+                type: 'success',
+              })
+            }
             setModalType(null)
           },
           onError: (error: Error) => {
@@ -874,23 +884,12 @@ export const Dashboard = () => {
 
       {/* Cards financeiros com melhor visual */}
       <div className="space-y-4 lg:space-y-6 mb-6 lg:mb-8">
-        {/* Linha superior: Receitas, Saldo e Investimentos */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+        {/* Valor total = soma dos saldos atuais em contas */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
           <FinancialCard
-            title="Receitas do mês"
-            value={monthlyIncome}
-            subtitle="Este mês"
-            variant="success"
-            icon={
-              <div className="w-12 h-12 rounded-full bg-success-100 flex items-center justify-center">
-                <span className="text-2xl">💰</span>
-              </div>
-            }
-          />
-          <FinancialCard
-            title="Total do dinheiro"
-            value={totalBalance}
-            subtitle="Contas + Sobra mês anterior + Receitas do mês - Despesas do mês"
+            title="Valor total"
+            value={totalRealWealth}
+            subtitle="Soma dos saldos atuais em todas as contas."
             variant="purple"
             icon={
               <div className="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
@@ -900,12 +899,22 @@ export const Dashboard = () => {
             onClick={() => setShowTotalMoneyModal(true)}
             className="cursor-pointer"
           />
-          {/* Investimentos - oculto no mobile quando não expandido */}
+          <FinancialCard
+            title="Receitas do mês"
+            value={monthlyIncome}
+            subtitle="Transações de receita neste mês (calendário)"
+            variant="success"
+            icon={
+              <div className="w-12 h-12 rounded-full bg-success-100 flex items-center justify-center">
+                <span className="text-2xl">💰</span>
+              </div>
+            }
+          />
           <div className={showAllCards ? 'block' : 'hidden lg:block'}>
             <FinancialCard
               title="Investimentos"
               value={totalInvestments}
-              subtitle="Total investido"
+              subtitle="Só contas tipo investimento"
               variant="default"
               icon={
                 <div className="w-12 h-12 rounded-full bg-warning-100 flex items-center justify-center">
@@ -921,7 +930,7 @@ export const Dashboard = () => {
           <FinancialCard
             title="Despesas do mês"
             value={monthlyExpenses}
-            subtitle="Soma dos gastos e faturas pagas este mês"
+            subtitle="Mesma regra da página Relatórios (Mês)"
             variant="danger"
             icon={
               <div className="w-12 h-12 rounded-full bg-danger-100 flex items-center justify-center">
@@ -1111,7 +1120,7 @@ export const Dashboard = () => {
           monthlyData={{
             income: monthlyIncome,
             expenses: monthlyExpenses,
-            balance: totalBalance,
+            balance: monthlyFlowBalance,
             investments: totalInvestments,
             nextMonthExpenses: (() => {
               const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1
@@ -1677,9 +1686,10 @@ export const Dashboard = () => {
                                     {
                                       onSuccess: () => {
                                         queryClient.invalidateQueries({ queryKey: ['card_invoices'] })
+                                        queryClient.invalidateQueries({ queryKey: ['accounts'] })
                                         setToast({ 
                                           message: checked 
-                                            ? 'Fatura marcada como paga' 
+                                            ? 'Fatura marcada como paga — valor incluído em Despesas do mês' 
                                             : 'Fatura reaberta', 
                                           type: 'success' 
                                         })
@@ -1885,36 +1895,38 @@ export const Dashboard = () => {
         )
       })()}
 
-      {/* Modal de resumo do Total do dinheiro */}
+      {/* Modal de resumo do patrimônio em contas */}
       <Modal
         isOpen={showTotalMoneyModal}
         onClose={() => setShowTotalMoneyModal(false)}
-        title="Resumo do Total do dinheiro"
+        title="Resumo do valor total"
         size="md"
       >
         <div className="space-y-6">
           <div className="bg-purple-50 dark:bg-purple-900/20 rounded-card-lg p-4 border border-purple-200 dark:border-purple-800">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-label font-medium text-neutral-700 dark:text-neutral-300">Total do dinheiro</span>
+              <span className="text-label font-medium text-neutral-700 dark:text-neutral-300">Valor total</span>
               <span className="text-2xl font-bold text-purple-600 dark:text-purple-400">
                 {new Intl.NumberFormat('pt-BR', {
                   style: 'currency',
                   currency: 'BRL',
-                }).format(totalBalance)}
+                }).format(totalRealWealth)}
               </span>
             </div>
-            <p className="text-caption text-neutral-600 dark:text-neutral-400">Contas + sobra do mês anterior + receitas do mês - despesas do mês</p>
+            <p className="text-caption text-neutral-600 dark:text-neutral-400">
+              Soma do saldo atual em todas as contas. Receitas sem conta do mês atual e anterior são vinculadas automaticamente para &quot;Banco Inter - Salario&quot;.
+            </p>
           </div>
 
           <div className="space-y-4">
             <div className="flex items-center justify-between p-4 bg-neutral-50 dark:bg-neutral-900 rounded-card border border-border dark:border-border-dark">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-neutral-200 dark:bg-neutral-700 flex items-center justify-center">
-                  <span className="text-xl">🏦</span>
+                <div className="w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
+                  <span className="text-xl">📒</span>
                 </div>
                 <div>
-                  <p className="text-body-sm font-medium text-neutral-950 dark:text-neutral-50">Soma das contas</p>
-                  <p className="text-caption text-neutral-600 dark:text-neutral-400">Saldo de todas as contas no banco de dados</p>
+                  <p className="text-body-sm font-medium text-neutral-950 dark:text-neutral-50">Soma nas contas</p>
+                  <p className="text-caption text-neutral-600 dark:text-neutral-400">Saldo atual em todas as contas</p>
                 </div>
               </div>
               <span className="text-body font-bold text-neutral-950 dark:text-neutral-50">
@@ -1922,6 +1934,24 @@ export const Dashboard = () => {
                   style: 'currency',
                   currency: 'BRL',
                 }).format(sumOfAccounts)}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-neutral-50 dark:bg-neutral-900 rounded-card border border-border dark:border-border-dark">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-neutral-200 dark:bg-neutral-700 flex items-center justify-center">
+                  <span className="text-xl">🏦</span>
+                </div>
+                <div>
+                  <p className="text-body-sm font-medium text-neutral-950 dark:text-neutral-50">Contas líquidas</p>
+                  <p className="text-caption text-neutral-600 dark:text-neutral-400">Corrente, caixa e carteira (sem investimentos)</p>
+                </div>
+              </div>
+              <span className="text-body font-bold text-neutral-950 dark:text-neutral-50">
+                {new Intl.NumberFormat('pt-BR', {
+                  style: 'currency',
+                  currency: 'BRL',
+                }).format(liquidAccountsBalance)}
               </span>
             </div>
 
@@ -1945,25 +1975,6 @@ export const Dashboard = () => {
 
             <div className="flex items-center justify-between p-4 bg-neutral-50 dark:bg-neutral-900 rounded-card border border-border dark:border-border-dark">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
-                  <span className="text-xl">📋</span>
-                </div>
-                <div>
-                  <p className="text-body-sm font-medium text-neutral-950 dark:text-neutral-50">Sobra do mês anterior</p>
-                  <p className="text-caption text-neutral-600 dark:text-neutral-400">Receitas - Despesas do mês passado</p>
-                </div>
-              </div>
-              <span className={`text-body font-bold ${previousMonthSurplus >= 0 ? 'text-success-600 dark:text-success-500' : 'text-danger-600 dark:text-danger-400'}`}>
-                {new Intl.NumberFormat('pt-BR', {
-                  style: 'currency',
-                  currency: 'BRL',
-                  signDisplay: 'always',
-                }).format(previousMonthSurplus)}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between p-4 bg-neutral-50 dark:bg-neutral-900 rounded-card border border-border dark:border-border-dark">
-              <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-success-100 dark:bg-success-900 flex items-center justify-center">
                   <span className="text-xl">💰</span>
                 </div>
@@ -1982,24 +1993,9 @@ export const Dashboard = () => {
             </div>
 
             <div className="pt-4 border-t border-border dark:border-border-dark">
-              <div className="flex items-center justify-between text-caption text-neutral-600 dark:text-neutral-400 mb-2">
-                <span>Receitas do mês</span>
-                <span className="text-body-sm font-medium text-neutral-950 dark:text-neutral-50">
-                  {new Intl.NumberFormat('pt-BR', {
-                    style: 'currency',
-                    currency: 'BRL',
-                  }).format(monthlyIncome)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-caption text-neutral-600 dark:text-neutral-400">
-                <span>Despesas do mês</span>
-                <span className="text-body-sm font-medium text-neutral-950 dark:text-neutral-50">
-                  {new Intl.NumberFormat('pt-BR', {
-                    style: 'currency',
-                    currency: 'BRL',
-                  }).format(monthlyExpenses)}
-                </span>
-              </div>
+              <p className="text-caption text-neutral-600 dark:text-neutral-400 leading-relaxed">
+                Para manter o valor total fiel ao que existe nas contas, sempre que possivel vincule receitas e despesas a uma conta ao lancar.
+              </p>
             </div>
           </div>
         </div>

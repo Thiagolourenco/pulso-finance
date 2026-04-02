@@ -3,9 +3,10 @@ import { useAccounts } from '@/hooks/useAccounts'
 import { Button, Modal, Toast } from '@/components/ui'
 import { AddAccountForm } from '@/components/forms/AddAccountForm'
 import type { Account } from '@/types'
+import { supabase } from '@/lib/supabase/client'
 
 export const Accounts = () => {
-  const { accounts, deleteAccount, isDeleting } = useAccounts()
+  const { accounts, deleteAccount, createAccount, updateAccount, isDeleting, isCreating, isUpdating } = useAccounts()
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingAccount, setEditingAccount] = useState<Account | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
@@ -155,9 +156,56 @@ export const Accounts = () => {
           title={editingAccount ? 'Editar Conta' : 'Nova Conta'}
         >
           <AddAccountForm
-            onSubmit={async () => {
-              // A lógica de criação/edição será gerenciada pelo hook useAccounts
-              handleCloseModal()
+            initialAccount={editingAccount}
+            isLoading={isCreating || isUpdating}
+            onSubmit={async (data) => {
+              const { data: authData } = await supabase.auth.getUser()
+              const user = authData.user
+
+              if (!user) {
+                setToast({ message: 'Você precisa estar logado', type: 'error' })
+                return
+              }
+
+              if (editingAccount) {
+                updateAccount(
+                  {
+                    id: editingAccount.id,
+                    data: {
+                      name: data.name,
+                      type: data.type,
+                      initial_balance: data.balance,
+                      current_balance: editingAccount.current_balance,
+                    },
+                  },
+                  {
+                    onSuccess: () => {
+                      setToast({ message: 'Conta atualizada com sucesso!', type: 'success' })
+                      handleCloseModal()
+                    },
+                    onError: (error: Error) => {
+                      setToast({ message: error.message || 'Erro ao atualizar conta', type: 'error' })
+                    },
+                  }
+                )
+                return
+              }
+
+              createAccount({
+                user_id: user.id,
+                name: data.name,
+                type: data.type,
+                initial_balance: data.balance,
+                current_balance: data.balance,
+              }, {
+                onSuccess: () => {
+                  setToast({ message: 'Conta criada com sucesso!', type: 'success' })
+                  handleCloseModal()
+                },
+                onError: (error: Error) => {
+                  setToast({ message: error.message || 'Erro ao criar conta', type: 'error' })
+                },
+              })
             }}
             onCancel={handleCloseModal}
           />

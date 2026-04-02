@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Input, CurrencyInput, Button } from '@/components/ui'
 import { useCategories } from '@/hooks/useCategories'
+import { useAccounts } from '@/hooks/useAccounts'
 import type { Category, Transaction } from '@/types'
 
 interface AddTransactionFormProps {
@@ -10,6 +11,8 @@ interface AddTransactionFormProps {
     type: 'expense' | 'income' | 'balance'
     date: string
     category_id?: string
+    /** Conta onde o valor entra (receita) ou sai (despesa); atualiza o patrimônio. */
+    account_id?: string | null
   }) => void
   onCancel: () => void
   isLoading?: boolean
@@ -25,6 +28,7 @@ const getInitialState = (initialTransaction: Transaction | null | undefined, ini
       type: initialTransaction.type as 'expense' | 'income' | 'balance',
       date: initialTransaction.date.split('T')[0],
       categoryId: initialTransaction.category_id || '',
+      accountId: initialTransaction.account_id || '',
     }
   }
   return {
@@ -33,6 +37,7 @@ const getInitialState = (initialTransaction: Transaction | null | undefined, ini
     type: initialType,
     date: new Date().toISOString().split('T')[0],
     categoryId: '',
+    accountId: '',
   }
 }
 
@@ -49,10 +54,28 @@ export const AddTransactionForm = ({
   const [type, setType] = useState<'expense' | 'income' | 'balance'>(initialState.type)
   const [date, setDate] = useState(initialState.date)
   const [categoryId, setCategoryId] = useState<string>(initialState.categoryId)
+  const [accountId, setAccountId] = useState<string>(initialState.accountId)
   const [error, setError] = useState('')
   
   const { categories, isLoading: isLoadingCategories } = useCategories()
-  
+  const { accounts, isLoading: isLoadingAccounts } = useAccounts()
+
+  useEffect(() => {
+    if (initialTransaction) return
+    if (type !== 'income' && type !== 'expense') return
+    if (accounts.length !== 1) return
+    if (accountId) return
+    setAccountId(accounts[0].id)
+  }, [initialTransaction, type, accounts, accountId])
+
+  const selectedAccount = useMemo(
+    () => (accountId ? accounts.find(a => a.id === accountId) : undefined),
+    [accounts, accountId]
+  )
+
+  const formatBRL = (n: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n)
+
   // Filtra categorias baseado no tipo selecionado
   const filteredCategories = categories.filter((cat: Category) => {
     if (type === 'balance') {
@@ -66,6 +89,7 @@ export const AddTransactionForm = ({
   const handleTypeChange = (newType: 'expense' | 'income' | 'balance') => {
     setType(newType)
     setCategoryId('')
+    if (newType === 'balance') setAccountId('')
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -82,12 +106,24 @@ export const AddTransactionForm = ({
       return
     }
 
+    if (type === 'income' || type === 'expense') {
+      if (accounts.length === 0) {
+        setError('Cadastre uma conta em Contas para que o valor atualize o patrimônio.')
+        return
+      }
+      if (!accountId) {
+        setError('Selecione a conta em que o valor entra ou sai.')
+        return
+      }
+    }
+
     onSubmit({
       description: description.trim(),
       amount: type === 'expense' ? -Math.abs(amount) : Math.abs(amount),
       type,
       date,
       category_id: categoryId || undefined,
+      account_id: type === 'balance' ? null : type === 'income' || type === 'expense' ? accountId : null,
     })
   }
 
@@ -150,6 +186,43 @@ export const AddTransactionForm = ({
         </div>
       </div>
 
+      {/* Conta — receitas e despesas atualizam o saldo da conta (patrimônio) */}
+      {(type === 'income' || type === 'expense') && (
+        <div>
+          <label className="block text-label font-medium text-neutral-900 dark:text-neutral-50 mb-1.5">
+            Conta
+          </label>
+          <select
+            value={accountId}
+            onChange={(e) => setAccountId(e.target.value)}
+            className="w-full px-4 py-2.5 text-body rounded-input border-2 border-border dark:border-border-dark bg-white dark:bg-neutral-950/40 text-neutral-900 dark:text-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-600 dark:focus:ring-primary-400 focus:border-primary-600 dark:focus:border-primary-400 hover:border-neutral-400 dark:hover:border-neutral-700 transition-all duration-fast disabled:bg-neutral-100 dark:disabled:bg-neutral-900 disabled:cursor-not-allowed"
+            disabled={isLoadingAccounts || accounts.length === 0}
+            required
+          >
+            <option value="">Selecione a conta</option>
+            {accounts.map((acc) => (
+              <option key={acc.id} value={acc.id}>
+                {acc.name}
+                {acc.type === 'investment' ? ' (investimento)' : ''}
+              </option>
+            ))}
+          </select>
+          {isLoadingAccounts && (
+            <p className="mt-1.5 text-caption text-neutral-500 dark:text-neutral-400">Carregando contas...</p>
+          )}
+          {!isLoadingAccounts && accounts.length === 0 && (
+            <p className="mt-1.5 text-caption text-warning-600 dark:text-warning-400">
+              Nenhuma conta cadastrada. Crie uma em Contas para registrar receitas e despesas.
+            </p>
+          )}
+          {accounts.length > 0 && (
+            <p className="mt-1.5 text-caption text-neutral-500 dark:text-neutral-400">
+              O saldo desta conta será atualizado automaticamente (patrimônio total).
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Categoria */}
       {type !== 'balance' && (
         <div>
@@ -196,6 +269,29 @@ export const AddTransactionForm = ({
         onChange={setAmount}
         required
       />
+
+      {(type === 'income' || type === 'expense') && selectedAccount && (
+        <div className="p-4 rounded-input bg-primary-50/90 dark:bg-primary-950/35 border border-primary-200 dark:border-primary-800/60">
+          <p className="text-caption font-medium text-neutral-600 dark:text-neutral-400 mb-1">
+            Saldo atual nesta conta (patrimônio)
+          </p>
+          <p className="text-2xl font-bold text-neutral-900 dark:text-neutral-50 tabular-nums">
+            {formatBRL(Number(selectedAccount.current_balance) || 0)}
+          </p>
+          {!initialTransaction && amount > 0 && (
+            <p className="text-caption text-neutral-600 dark:text-neutral-400 mt-2 pt-2 border-t border-primary-200/70 dark:border-primary-800/50">
+              {type === 'income' ? 'Depois de salvar (estimado)' : 'Depois de salvar (estimado)'}:{' '}
+              <span className="font-semibold text-neutral-900 dark:text-neutral-100 tabular-nums">
+                {formatBRL(
+                  type === 'income'
+                    ? (Number(selectedAccount.current_balance) || 0) + amount
+                    : (Number(selectedAccount.current_balance) || 0) - amount
+                )}
+              </span>
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Data */}
       <Input

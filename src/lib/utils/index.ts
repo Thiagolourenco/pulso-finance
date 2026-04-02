@@ -30,10 +30,18 @@ export const formatDateTime = (date: string | Date): string => {
 
 /** Parse date string (YYYY-MM-DD ou ISO) como data local, evitando problemas de fuso */
 export const parseLocalDate = (dateStr: string): Date => {
-  const parts = dateStr.split(/[T\-]/).map(Number)
+  if (!dateStr || typeof dateStr !== 'string') {
+    return new Date(NaN)
+  }
+  // Só a parte da data (Supabase costuma devolver ISO com hora; split por T/- quebrava o dia)
+  const datePart = dateStr.length >= 10 ? dateStr.slice(0, 10) : dateStr
+  const parts = datePart.split('-').map(Number)
   const y = parts[0]
   const m = (parts[1] || 1) - 1
   const d = parts[2] || 1
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) {
+    return new Date(NaN)
+  }
   return new Date(y, m, d)
 }
 

@@ -29,6 +29,7 @@ export const useTransactions = () => {
       transactionService.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
     },
   })
 
@@ -36,6 +37,7 @@ export const useTransactions = () => {
     mutationFn: transactionService.delete,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
     },
   })
 
