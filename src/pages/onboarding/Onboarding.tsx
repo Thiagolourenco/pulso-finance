@@ -15,7 +15,7 @@ type StepId = 'welcome' | 'goal' | 'budget' | 'invested' | 'accounts' | 'cards' 
 
 type LocalAccountDraft = {
   name: string
-  type: 'checking' | 'savings' | 'investment'
+  type: 'bank' | 'cash' | 'investment' | 'wallet'
   balance: number
 }
 
@@ -205,7 +205,7 @@ export const Onboarding = ({ onCompleted }: { onCompleted?: () => void }) => {
           await accountService.create({
             user_id: userId,
             name: acc.name,
-            type: acc.type === 'checking' ? 'bank' : acc.type === 'savings' ? 'cash' : 'investment',
+            type: acc.type,
             initial_balance: acc.balance,
             current_balance: acc.balance,
           })
@@ -499,7 +499,13 @@ export const Onboarding = ({ onCompleted }: { onCompleted?: () => void }) => {
                         <div className="flex flex-col">
                           <span className="text-body-sm font-medium text-neutral-900 dark:text-neutral-50">{acc.name}</span>
                           <span className="text-caption text-neutral-600 dark:text-neutral-300">
-                            {acc.type === 'checking' ? 'Banco' : acc.type === 'savings' ? 'Carteira' : 'Investimento'}
+                            {acc.type === 'bank'
+                              ? 'Banco'
+                              : acc.type === 'cash'
+                                ? 'Dinheiro'
+                                : acc.type === 'wallet'
+                                  ? 'Carteira'
+                                  : 'Investimento'}
                           </span>
                         </div>
                         <span className="text-body-sm font-semibold text-neutral-900 dark:text-neutral-50">

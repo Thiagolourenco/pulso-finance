@@ -271,17 +271,17 @@ export const AddTransactionForm = ({
       />
 
       {(type === 'income' || type === 'expense') && selectedAccount && (
-        <div className="p-4 rounded-input bg-primary-50/90 dark:bg-primary-950/35 border border-primary-200 dark:border-primary-800/60">
-          <p className="text-caption font-medium text-neutral-600 dark:text-neutral-400 mb-1">
+        <div className="p-4 rounded-input border border-primary-200/80 dark:border-primary-700/70 bg-white dark:bg-neutral-900/70 shadow-sm">
+          <p className="text-caption font-medium text-primary-700 dark:text-primary-300 mb-1">
             Saldo atual nesta conta (patrimônio)
           </p>
-          <p className="text-2xl font-bold text-neutral-900 dark:text-neutral-50 tabular-nums">
+          <p className="text-2xl font-bold text-neutral-950 dark:text-neutral-50 tabular-nums">
             {formatBRL(Number(selectedAccount.current_balance) || 0)}
           </p>
           {!initialTransaction && amount > 0 && (
-            <p className="text-caption text-neutral-600 dark:text-neutral-400 mt-2 pt-2 border-t border-primary-200/70 dark:border-primary-800/50">
+            <p className="text-caption text-neutral-700 dark:text-neutral-300 mt-2 pt-2 border-t border-primary-100 dark:border-primary-900/70">
               {type === 'income' ? 'Depois de salvar (estimado)' : 'Depois de salvar (estimado)'}:{' '}
-              <span className="font-semibold text-neutral-900 dark:text-neutral-100 tabular-nums">
+              <span className="font-semibold text-primary-700 dark:text-primary-300 tabular-nums">
                 {formatBRL(
                   type === 'income'
                     ? (Number(selectedAccount.current_balance) || 0) + amount

@@ -187,14 +187,34 @@ export const Dashboard = () => {
   const reportCurrentMonth = getReportsMonthSummary(transactions, invoices, recurringExpenses, currentYear, currentMonth)
   const reportPreviousMonth = getReportsMonthSummary(transactions, invoices, recurringExpenses, previousYear, previousMonth)
 
-  const monthlyIncome = reportCurrentMonth.totalIncome
-  const monthlyExpenses = reportCurrentMonth.totalExpenses
-  const monthlyFlowBalance = reportCurrentMonth.totalBalance
+  const currentMonthStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}`
 
+  const monthlyIncome = reportCurrentMonth.totalIncome
   const previousMonthIncome = reportPreviousMonth.totalIncome
   const previousMonthExpenses = reportPreviousMonth.totalExpenses
 
-  const currentMonthStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}`
+  // Despesas do card do Dashboard: apenas o que foi efetivamente pago no mês.
+  const monthlyTransactionExpensesPaid = transactions
+    .filter(transaction => {
+      const transactionDate = parseLocalDate(transaction.date)
+      return (
+        transaction.type === 'expense' &&
+        transactionDate.getMonth() + 1 === currentMonth &&
+        transactionDate.getFullYear() === currentYear
+      )
+    })
+    .reduce((sum, transaction) => sum + Math.abs(Number(transaction.amount) || 0), 0)
+
+  const monthlyInvoicesPaid = invoices
+    .filter(invoice => invoice.status === 'paid' && invoice.last_paid_reference_month === currentMonthStr)
+    .reduce((sum, invoice) => sum + (invoice.total_amount || 0), 0)
+
+  const monthlyRecurringPaid = recurringExpenses
+    .filter(expense => expense.is_active && expense.last_paid_reference_month === currentMonthStr)
+    .reduce((sum, expense) => sum + (expense.amount || 0), 0)
+
+  const monthlyExpenses = monthlyTransactionExpensesPaid + monthlyInvoicesPaid + monthlyRecurringPaid
+  const monthlyFlowBalance = monthlyIncome - monthlyExpenses
 
   // Para o MODAL de despesas: faturas que vencem no mês ou pagas no mês; recorrentes com vencimento no mês
   const currentMonthInvoicesForDisplay = invoices.filter(invoice => {
@@ -478,7 +498,7 @@ export const Dashboard = () => {
 
   const handleAddAccount = async (data: {
     name: string
-    type: 'checking' | 'savings' | 'investment'
+    type: 'bank' | 'cash' | 'investment' | 'wallet'
     balance: number
   }) => {
     try {
@@ -491,7 +511,7 @@ export const Dashboard = () => {
       createAccount({
         user_id: user.id,
         name: data.name,
-        type: data.type === 'checking' ? 'bank' : data.type === 'savings' ? 'cash' : 'investment',
+        type: data.type,
         initial_balance: data.balance,
         current_balance: data.balance, // Saldo inicial = saldo atual
       }, {
@@ -930,7 +950,7 @@ export const Dashboard = () => {
           <FinancialCard
             title="Despesas do mês"
             value={monthlyExpenses}
-            subtitle="Mesma regra da página Relatórios (Mês)"
+            subtitle="Somente gastos pagos no mês"
             variant="danger"
             icon={
               <div className="w-12 h-12 rounded-full bg-danger-100 flex items-center justify-center">
@@ -1561,19 +1581,40 @@ export const Dashboard = () => {
               )
               const invoiceTotal = calculatedInvoiceTotal > 0 ? calculatedInvoiceTotal : (currentInvoice?.total_amount || 0)
               const availableLimit = card.credit_limit - invoiceTotal
+              const usagePercentage = card.credit_limit > 0
+                ? Math.max(0, Math.min(100, (invoiceTotal / card.credit_limit) * 100))
+                : 0
 
               return (
                 <div
                   key={card.id}
                   onClick={() => setSelectedCardForModal(card.id)}
-                  className="p-5 bg-white dark:bg-neutral-900/40 rounded-card-lg border-2 border-border dark:border-border-dark hover:border-primary-400 dark:hover:border-primary-500/70 hover:shadow-lg cursor-pointer transition-all duration-fast dark:backdrop-blur-xl"
+                  className="p-5 bg-white dark:bg-neutral-900/50 rounded-card-lg border border-border dark:border-border-dark/70 hover:border-primary-400/70 dark:hover:border-primary-500/70 hover:shadow-xl cursor-pointer transition-all duration-fast dark:backdrop-blur-xl"
                 >
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
-                      <span className="text-2xl">💳</span>
+                      <span className="text-xl">💳</span>
                       <h3 className="text-body font-semibold text-neutral-900 dark:text-neutral-50">{card.name}</h3>
                     </div>
-                    {currentInvoice && (() => {
+                    {(currentInvoice || lastInvoice) && (() => {
+                      const invoiceRef = currentInvoice || lastInvoice
+                      if (!invoiceRef) return null
+
+                      // Sem fatura aberta, manter padrão visual dos outros cartões:
+                      // usa apenas PAGA/A PAGAR com base na última fatura.
+                      if (!currentInvoice) {
+                        const isPaid = invoiceRef.status === 'paid'
+                        const badgeText = isPaid ? 'PAGA' : 'A PAGAR'
+                        const badgeColor = isPaid
+                          ? 'bg-success-100 text-success-700 border-success-300'
+                          : 'bg-warning-100 text-warning-700 border-warning-300'
+                        return (
+                          <span className={`px-2.5 py-1 text-caption font-semibold rounded-full border ${badgeColor} shadow-sm`}>
+                            {badgeText}
+                          </span>
+                        )
+                      }
+
                       const invoiceDueDate = new Date(currentInvoice.due_date)
                       const invoiceMonth = invoiceDueDate.getMonth() + 1
                       const invoiceDay = invoiceDueDate.getDate()
@@ -1611,14 +1652,14 @@ export const Dashboard = () => {
                       }
                       
                       return (
-                        <span className={`px-2 py-1 text-caption font-semibold rounded-full border ${badgeColor}`}>
+                        <span className={`px-2.5 py-1 text-caption font-semibold rounded-full border ${badgeColor} shadow-sm`}>
                           {badgeText}
                         </span>
                       )
                     })()}
                   </div>
                   
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <div className="flex justify-between text-body-sm">
                       <span className="text-neutral-600 dark:text-neutral-300">Limite:</span>
                       <span className="font-medium text-neutral-900 dark:text-neutral-50">
@@ -1631,6 +1672,26 @@ export const Dashboard = () => {
                       
                       return (
                         <>
+                          <div>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-caption text-neutral-500 dark:text-neutral-400">Uso do limite</span>
+                              <span className="text-caption font-semibold text-neutral-700 dark:text-neutral-200">
+                                {usagePercentage.toFixed(0)}%
+                              </span>
+                            </div>
+                            <div className="h-2 rounded-full bg-neutral-100 dark:bg-neutral-800 overflow-hidden">
+                              <div
+                                className={`h-full transition-all ${
+                                  usagePercentage >= 85
+                                    ? 'bg-danger-500'
+                                    : usagePercentage >= 60
+                                      ? 'bg-warning-500'
+                                      : 'bg-success-500'
+                                }`}
+                                style={{ width: `${usagePercentage}%` }}
+                              />
+                            </div>
+                          </div>
                           <div className="flex justify-between text-body-sm">
                             <span className="text-neutral-600 dark:text-neutral-300">Fatura atual:</span>
                             <span className="font-bold text-danger-600 dark:text-danger-400">
@@ -1643,7 +1704,7 @@ export const Dashboard = () => {
                               R$ {availableLimit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                             </span>
                           </div>
-                          <div className="flex items-center justify-between text-caption text-neutral-500 mt-2 pt-2 border-t border-border">
+                          <div className="flex items-center justify-between text-caption text-neutral-500 mt-2 pt-2 border-t border-border dark:border-border-dark">
                             <div className="flex items-center gap-2">
                               <span>Vence: {new Date(currentInvoice.due_date).toLocaleDateString('pt-BR')}</span>
                               <span>•</span>
@@ -1715,13 +1776,55 @@ export const Dashboard = () => {
                       )
                     })() : (
                       <div className="space-y-2">
-                        <div className="text-caption text-neutral-500">
-                          Nenhuma fatura aberta
-                        </div>
+                        <div className="text-caption text-neutral-500">Nenhuma fatura aberta</div>
                         {lastInvoice && (
-                          <div className="text-caption text-neutral-400 pt-2 border-t border-border">
-                            Última fatura: {lastInvoice.status === 'paid' ? 'Paga' : lastInvoice.status === 'closed' ? 'Fechada' : 'Aberta'} 
-                            {lastInvoice.due_date && ` • Venceu em ${new Date(lastInvoice.due_date).toLocaleDateString('pt-BR')}`}
+                          <div className="pt-2 border-t border-border space-y-2">
+                            <div className="text-caption text-neutral-400">
+                              Última fatura: {lastInvoice.status === 'paid' ? 'Paga' : lastInvoice.status === 'closed' ? 'Fechada' : 'Aberta'} 
+                              {lastInvoice.due_date && ` • Venceu em ${new Date(lastInvoice.due_date).toLocaleDateString('pt-BR')}`}
+                            </div>
+                            <div className="flex items-center justify-end">
+                              <label
+                                className="flex items-center gap-1.5 cursor-pointer"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={lastInvoice.status === 'paid'}
+                                  disabled={isUpdatingInvoice}
+                                  onChange={(e) => {
+                                    e.stopPropagation()
+                                    const checked = e.target.checked
+                                    updateInvoice(
+                                      {
+                                        id: lastInvoice.id,
+                                        data: {
+                                          status: checked ? 'paid' : 'open',
+                                          last_paid_reference_month: checked ? currentMonthStr : null,
+                                        },
+                                      },
+                                      {
+                                        onSuccess: () => {
+                                          queryClient.invalidateQueries({ queryKey: ['card_invoices'] })
+                                          setToast({
+                                            message: checked ? 'Fatura marcada como paga' : 'Fatura reaberta',
+                                            type: 'success',
+                                          })
+                                        },
+                                        onError: (error: Error) => {
+                                          setToast({
+                                            message: error.message || 'Erro ao atualizar fatura',
+                                            type: 'error',
+                                          })
+                                        },
+                                      }
+                                    )
+                                  }}
+                                  className="w-4 h-4 text-success-600 border-border dark:border-border-dark rounded focus:ring-success-500 focus:ring-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                />
+                                <span className="text-caption text-neutral-600">Paga</span>
+                              </label>
+                            </div>
                           </div>
                         )}
                       </div>

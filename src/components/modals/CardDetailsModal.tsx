@@ -38,10 +38,17 @@ export const CardDetailsModal = ({
   const currentMonth = currentDate.getMonth() + 1
   const currentYear = currentDate.getFullYear()
 
-  const activePurchases = purchases.filter(p => p.current_installment <= p.installments)
+  // Não recorrentes com current_installment >= installments são tratadas como concluídas.
+  // Recorrentes continuam ativas por ciclo.
+  const activePurchases = purchases.filter(p =>
+    p.is_recurring === true ? p.current_installment <= p.installments : p.current_installment < p.installments
+  )
   // Filtra compras recorrentes (trata null/undefined como false)
   const recurringPurchases = activePurchases.filter(p => p.is_recurring === true)
   const nonRecurringPurchases = activePurchases.filter(p => !p.is_recurring)
+  const totalActivePurchases = activePurchases.reduce((sum, p) => sum + (p.total_amount || 0), 0)
+  // Total em aberto do ciclo atual: soma da parcela atual de cada compra ativa.
+  const totalOpenInstallments = activePurchases.reduce((sum, p) => sum + (p.installment_amount || 0), 0)
 
   // Debug: log para verificar as compras recorrentes
   console.log('🔍 Debug Compras:', {
@@ -394,6 +401,22 @@ export const CardDetailsModal = ({
               <p className="text-body-sm text-neutral-500 dark:text-neutral-300">Nenhuma fatura aberta</p>
             </div>
           )}
+
+          {/* Resumo do cartão */}
+          <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="p-4 bg-neutral-50 dark:bg-neutral-900/20 rounded-lg border border-border dark:border-border-dark">
+              <p className="text-caption text-neutral-600 dark:text-neutral-300 mb-1">Total do cartão (em aberto)</p>
+              <p className="text-h3 font-bold text-danger-600 dark:text-danger-400">
+                R$ {totalOpenInstallments.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+            <div className="p-4 bg-neutral-50 dark:bg-neutral-900/20 rounded-lg border border-border dark:border-border-dark">
+              <p className="text-caption text-neutral-600 dark:text-neutral-300 mb-1">Total das compras ativas</p>
+              <p className="text-h3 font-bold text-neutral-900 dark:text-neutral-50">
+                R$ {totalActivePurchases.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+          </div>
 
           {/* Compras recorrentes */}
           {recurringPurchases.length > 0 && (
