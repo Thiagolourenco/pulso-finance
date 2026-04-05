@@ -401,6 +401,7 @@ export const Dashboard = () => {
     date: string
     category_id?: string
     account_id?: string | null
+    card_id?: string | null
   }) => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -450,9 +451,11 @@ export const Dashboard = () => {
           },
         })
       } else {
+        const cardId = data.card_id?.trim() || null
         createTransaction({
           user_id: user.id,
-          account_id: data.account_id || null,
+          account_id: cardId ? null : data.account_id || null,
+          card_id: cardId,
           category_id: categoryId,
           type: data.type,
           amount: Math.abs(data.amount),
@@ -463,11 +466,19 @@ export const Dashboard = () => {
             const accName = created.account_id
               ? accounts.find(a => a.id === created.account_id)?.name
               : undefined
+            const cardName = created.card_id
+              ? cards.find(c => c.id === created.card_id)?.name
+              : undefined
             const brl = new Intl.NumberFormat('pt-BR', {
               style: 'currency',
               currency: 'BRL',
             }).format(Math.abs(Number(created.amount) || 0))
-            if (accName) {
+            if (created.type === 'expense' && cardName) {
+              setToast({
+                message: `Gasto de ${brl} no cartão "${cardName}". O patrimônio das contas não muda até você pagar a fatura.`,
+                type: 'success',
+              })
+            } else if (accName) {
               setToast({
                 message:
                   created.type === 'income'
