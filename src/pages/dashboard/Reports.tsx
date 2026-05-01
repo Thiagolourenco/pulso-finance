@@ -12,6 +12,7 @@ import { ReportInsights } from '@/components/insights/ReportInsights'
 import { useTheme } from '@/contexts/ThemeProvider'
 import { SELIC_ANNUAL_RATE } from '@/lib/constants'
 import { parseLocalDate } from '@/lib/utils'
+import { getReportsMonthSummary } from '@/lib/utils/reportsMonthSummary'
 import type { ReportInsightsData } from '@/services/insightsService'
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16']
@@ -339,41 +340,37 @@ export const Reports = () => {
       .slice(0, 5)
   }, [transactions, categories, periodData])
 
-  // Evolução mensal de receitas e despesas
+  // Evolução mensal: um ponto por mês civil no período (inclui meses zerados), mesma regra do resumo (transações + faturas + recorrentes)
   const monthlyEvolution = useMemo(() => {
-    const months: { [key: string]: { month: string; receitas: number; despesas: number; saldo: number } } = {}
-
-    transactions.forEach(transaction => {
-      const transactionDate = parseLocalDate(transaction.date)
-      transactionDate.setHours(0, 0, 0, 0)
-      const start = new Date(periodData.startDate)
-      start.setHours(0, 0, 0, 0)
-      const end = new Date(periodData.endDate)
-      end.setHours(23, 59, 59, 999)
-      if (transactionDate < start || transactionDate > end) return
-
-      const monthKey = `${transactionDate.getMonth() + 1}/${transactionDate.getFullYear()}`
-      const monthName = transactionDate.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })
-
-      if (!months[monthKey]) {
-        months[monthKey] = { month: monthName, receitas: 0, despesas: 0, saldo: 0 }
-      }
-
-      if (transaction.type === 'income') {
-        months[monthKey].receitas += Number(transaction.amount) || 0
-        months[monthKey].saldo += Number(transaction.amount) || 0
-      } else if (transaction.type === 'expense') {
-        months[monthKey].despesas += Math.abs(Number(transaction.amount) || 0)
-        months[monthKey].saldo -= Math.abs(Number(transaction.amount) || 0)
+    return monthsInPeriod.map(({ year, monthIndex }) => {
+      const month = monthIndex + 1
+      const s = getReportsMonthSummary(transactions, invoices, recurringExpenses, year, month)
+      const monthLabel = new Date(year, monthIndex, 1).toLocaleDateString('pt-BR', {
+        month: 'short',
+        year: '2-digit',
+      })
+      return {
+        month: monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1),
+        receitas: s.totalIncome,
+        despesas: s.totalExpenses,
+        saldo: s.totalBalance,
       }
     })
+  }, [monthsInPeriod, transactions, invoices, recurringExpenses])
 
-    return Object.values(months).sort((a, b) => {
-      const [monthA, yearA] = a.month.split('/')
-      const [monthB, yearB] = b.month.split('/')
-      return new Date(parseInt(yearA), parseInt(monthA) - 1).getTime() - new Date(parseInt(yearB), parseInt(monthB) - 1).getTime()
-    })
-  }, [transactions, periodData])
+  const showsMultiMonthTrend =
+    selectedPeriod === 'previousMonth' ||
+    selectedPeriod === '3months' ||
+    selectedPeriod === '6months' ||
+    selectedPeriod === 'year'
+
+  const multiMonthChartTitle: Record<typeof selectedPeriod, string | null> = {
+    month: null,
+    previousMonth: 'Mês anterior — receitas, despesas e saldo',
+    '3months': 'Últimos 3 meses — receitas, despesas e saldo',
+    '6months': 'Últimos 6 meses — receitas, despesas e saldo',
+    year: 'Últimos 12 meses — receitas, despesas e saldo',
+  }
 
   // Gastos por dia da semana
   const expensesByDayOfWeek = useMemo(() => {
@@ -857,16 +854,26 @@ export const Reports = () => {
         </div>
       )}
 
-      {/* Comparativo: últimos 3 meses — mais visível quando período é 3 meses */}
-      {selectedPeriod === '3months' && monthlyEvolution.length > 0 && (
+      {/* Receitas / despesas / saldo por mês (períodos multi-mês) */}
+      {showsMultiMonthTrend && monthlyEvolution.length > 0 && multiMonthChartTitle[selectedPeriod] && (
         <div className="mb-8">
           <div className="p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
-            <h2 className="text-h3 font-semibold text-neutral-900 dark:text-neutral-50 mb-1">Comparativo: últimos 3 meses</h2>
-            <p className="text-body-sm text-neutral-500 dark:text-neutral-400 mb-4">Receitas, despesas e saldo por mês</p>
-            <ResponsiveContainer width="100%" height={380}>
-              <ComposedChart data={monthlyEvolution} margin={{ top: 12, right: 16, left: 8, bottom: 8 }}>
+            <h2 className="text-h3 font-semibold text-neutral-900 dark:text-neutral-50 mb-1">
+              {multiMonthChartTitle[selectedPeriod]}
+            </h2>
+            <p className="text-body-sm text-neutral-500 dark:text-neutral-400 mb-4">Cada barra é um mês do período selecionado</p>
+            <ResponsiveContainer width="100%" height={monthlyEvolution.length > 6 ? 420 : 380}>
+              <ComposedChart data={monthlyEvolution} margin={{ top: 12, right: 16, left: 8, bottom: monthlyEvolution.length > 6 ? 24 : 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={chartGridStroke} vertical={false} />
-                <XAxis dataKey="month" stroke={chartAxisStroke} tick={{ fill: chartAxisStroke, fontSize: 14 }} />
+                <XAxis
+                  dataKey="month"
+                  stroke={chartAxisStroke}
+                  tick={{ fill: chartAxisStroke, fontSize: monthlyEvolution.length > 6 ? 11 : 14 }}
+                  interval={0}
+                  angle={monthlyEvolution.length > 6 ? -35 : 0}
+                  textAnchor={monthlyEvolution.length > 6 ? 'end' : 'middle'}
+                  height={monthlyEvolution.length > 6 ? 56 : undefined}
+                />
                 <YAxis stroke={chartAxisStroke} tick={{ fill: chartAxisStroke, fontSize: 12 }} tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} />
                 <Tooltip
                   content={(props) => (
@@ -881,9 +888,9 @@ export const Reports = () => {
                   )}
                 />
                 <Legend wrapperStyle={legendStyle} />
-                <Bar dataKey="receitas" name="Receitas" fill="#10B981" radius={[8, 8, 0, 0]} barSize={48} />
-                <Bar dataKey="despesas" name="Despesas" fill="#EF4444" radius={[8, 8, 0, 0]} barSize={48} />
-                <Line type="monotone" dataKey="saldo" name="Saldo" stroke="#3B82F6" strokeWidth={3} dot={{ r: 6, fill: '#3B82F6' }} />
+                <Bar dataKey="receitas" name="Receitas" fill="#10B981" radius={[8, 8, 0, 0]} barSize={monthlyEvolution.length > 8 ? 28 : 48} />
+                <Bar dataKey="despesas" name="Despesas" fill="#EF4444" radius={[8, 8, 0, 0]} barSize={monthlyEvolution.length > 8 ? 28 : 48} />
+                <Line type="monotone" dataKey="saldo" name="Saldo" stroke="#3B82F6" strokeWidth={3} dot={{ r: monthlyEvolution.length > 8 ? 4 : 6, fill: '#3B82F6' }} />
               </ComposedChart>
             </ResponsiveContainer>
           </div>
@@ -995,33 +1002,35 @@ export const Reports = () => {
           </div>
         )}
 
-        {/* Evolução Mensal */}
-        <div className="p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
-          <h2 className="text-h3 font-semibold text-neutral-900 dark:text-neutral-50 mb-4">Evolução Mensal</h2>
-          {monthlyEvolution.length > 0 ? (
-            <ResponsiveContainer width="100%" height={monthlyEvolution.length <= 3 ? 380 : 300}>
-              <AreaChart data={monthlyEvolution} margin={{ top: 12, right: 16, left: 8, bottom: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={chartGridStroke} vertical={false} />
-                <XAxis dataKey="month" stroke={chartAxisStroke} tick={{ fill: chartAxisStroke, fontSize: 14 }} />
-                <YAxis stroke={chartAxisStroke} tick={{ fill: chartAxisStroke, fontSize: 12 }} tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} />
-                <Tooltip
-                  formatter={(value: number | undefined) => `R$ ${(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-                  contentStyle={tooltipContentStyle}
-                  labelStyle={tooltipLabelStyle}
-                  itemStyle={tooltipItemStyle}
-                />
-                <Legend wrapperStyle={legendStyle} />
-                <Area type="monotone" dataKey="receitas" stackId="1" stroke="#10B981" strokeWidth={2} fill="#10B981" fillOpacity={0.7} name="Receitas" />
-                <Area type="monotone" dataKey="despesas" stackId="2" stroke="#EF4444" strokeWidth={2} fill="#EF4444" fillOpacity={0.7} name="Despesas" />
-                <Line type="monotone" dataKey="saldo" stroke="#3B82F6" strokeWidth={3} dot={{ r: 6, fill: '#3B82F6' }} name="Saldo" />
-              </AreaChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-300 flex items-center justify-center text-neutral-500 dark:text-neutral-300">
-              <p>Nenhum dado disponível para o período selecionado</p>
-            </div>
-          )}
-        </div>
+        {/* Evolução mensal em área só no filtro “Mês”; nos demais o gráfico composto acima cobre os meses */}
+        {selectedPeriod === 'month' && (
+          <div className="p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
+            <h2 className="text-h3 font-semibold text-neutral-900 dark:text-neutral-50 mb-4">Evolução Mensal</h2>
+            {monthlyEvolution.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={monthlyEvolution} margin={{ top: 12, right: 16, left: 8, bottom: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={chartGridStroke} vertical={false} />
+                  <XAxis dataKey="month" stroke={chartAxisStroke} tick={{ fill: chartAxisStroke, fontSize: 14 }} />
+                  <YAxis stroke={chartAxisStroke} tick={{ fill: chartAxisStroke, fontSize: 12 }} tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip
+                    formatter={(value: number | undefined) => `R$ ${(value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                    contentStyle={tooltipContentStyle}
+                    labelStyle={tooltipLabelStyle}
+                    itemStyle={tooltipItemStyle}
+                  />
+                  <Legend wrapperStyle={legendStyle} />
+                  <Area type="monotone" dataKey="receitas" stackId="1" stroke="#10B981" strokeWidth={2} fill="#10B981" fillOpacity={0.7} name="Receitas" />
+                  <Area type="monotone" dataKey="despesas" stackId="2" stroke="#EF4444" strokeWidth={2} fill="#EF4444" fillOpacity={0.7} name="Despesas" />
+                  <Line type="monotone" dataKey="saldo" stroke="#3B82F6" strokeWidth={3} dot={{ r: 6, fill: '#3B82F6' }} name="Saldo" />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-300 flex items-center justify-center text-neutral-500 dark:text-neutral-300">
+                <p>Nenhum dado disponível para o período selecionado</p>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Gastos por Dia da Semana */}
         <div className="p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
