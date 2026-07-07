@@ -1,14 +1,30 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useCategories } from '@/hooks/useCategories'
 import { useTransactions } from '@/hooks/useTransactions'
+import { useCardPurchases } from '@/hooks/useCardPurchases'
+import { useRecurringExpenses } from '@/hooks/useRecurringExpenses'
 import { Button, Modal, Toast } from '@/components/ui'
 import { AddCategoryForm } from '@/components/forms/AddCategoryForm'
 import { EditCategoryLimitForm } from '@/components/forms/EditCategoryLimitForm'
+import {
+  calculateCategorySpending,
+  getCategorySpendingItems,
+} from '@/lib/utils/categorySpending'
 import type { Category } from '@/types'
 
 export const Categories = () => {
   const { categories, deleteCategory, isDeleting, updateCategory, isUpdating } = useCategories()
   const { transactions } = useTransactions()
+  const { purchases } = useCardPurchases()
+  const { expenses: recurringExpenses } = useRecurringExpenses()
+
+  const currentDate = new Date()
+  const currentMonth = currentDate.getMonth() + 1
+  const currentYear = currentDate.getFullYear()
+  const currentMonthLabel = currentDate.toLocaleDateString('pt-BR', {
+    month: 'long',
+    year: 'numeric',
+  })
 
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
@@ -112,6 +128,38 @@ export const Categories = () => {
       totalAmount
     }
   }
+
+  const editingLimitSpending = useMemo(() => {
+    if (!editingLimitCategory) {
+      return { items: [], monthSpent: 0 }
+    }
+
+    return {
+      items: getCategorySpendingItems(
+        editingLimitCategory.id,
+        transactions,
+        purchases,
+        recurringExpenses,
+        currentMonth,
+        currentYear
+      ),
+      monthSpent: calculateCategorySpending(
+        editingLimitCategory.id,
+        transactions,
+        purchases,
+        recurringExpenses,
+        currentMonth,
+        currentYear
+      ),
+    }
+  }, [
+    editingLimitCategory,
+    transactions,
+    purchases,
+    recurringExpenses,
+    currentMonth,
+    currentYear,
+  ])
 
   return (
     <div className="animate-fade-in">
@@ -251,13 +299,16 @@ export const Categories = () => {
           isOpen={!!editingLimitCategory}
           onClose={handleCloseLimitModal}
           title="Editar Limite Mensal"
-          size="md"
+          size="lg"
         >
           <EditCategoryLimitForm
             category={editingLimitCategory}
             onSubmit={handleSaveLimit}
             onCancel={handleCloseLimitModal}
             isLoading={isUpdating}
+            spendingItems={editingLimitSpending.items}
+            monthSpent={editingLimitSpending.monthSpent}
+            monthLabel={currentMonthLabel}
           />
         </Modal>
       )}

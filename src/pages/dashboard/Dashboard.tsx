@@ -27,7 +27,9 @@ import { useRecurringExpenses } from '@/hooks/useRecurringExpenses'
 import { supabase } from '@/lib/supabase/client'
 import { getOrCreateDefaultCategory, getOrCreateBalanceCategory } from '@/lib/utils/categories'
 import { parseLocalDate } from '@/lib/utils'
+import { getInvoiceCycleDates } from '@/lib/utils/cardInvoiceCycle'
 import { getReportsMonthSummary } from '@/lib/utils/reportsMonthSummary'
+import { cardInvoiceService } from '@/services/cardInvoiceService'
 
 type ModalType = 'transaction' | 'account' | 'card' | 'cardPurchase' | 'goal' | 'category' | 'recurringExpense' | 'totalMoney' | null
 type TransactionType = 'expense' | 'income' | 'balance'
@@ -127,29 +129,8 @@ export const Dashboard = () => {
     const startOfCurrentMonth = new Date(currentYear, currentMonth - 1, 1)
     startOfCurrentMonth.setHours(0, 0, 0, 0)
 
-    const getCurrentCycleDates = (card: { closing_day: number; due_day: number }) => {
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      const refM = today.getMonth()
-      const refY = today.getFullYear()
-      const closingDate = new Date(refY, refM, card.closing_day)
-      const invoiceMonth = today.getDate() <= card.closing_day
-        ? new Date(refY, refM, 1)
-        : new Date(refY, refM + 1, 1)
-      let dueDate = new Date(refY, refM, card.due_day)
-      if (dueDate <= closingDate) dueDate.setMonth(dueDate.getMonth() + 1)
-      if (dueDate < today) {
-        dueDate.setMonth(dueDate.getMonth() + 1)
-        if (invoiceMonth.getMonth() === refM && invoiceMonth.getFullYear() === refY) {
-          invoiceMonth.setMonth(invoiceMonth.getMonth() + 1)
-        }
-      }
-      return {
-        reference_month: invoiceMonth.toISOString().split('T')[0],
-        closing_date: closingDate.toISOString().split('T')[0],
-        due_date: dueDate.toISOString().split('T')[0],
-      }
-    }
+    const getCurrentCycleDates = (card: { closing_day: number; due_day: number }) =>
+      getInvoiceCycleDates(card)
 
     void (async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -587,88 +568,19 @@ export const Dashboard = () => {
         return
       }
 
-      // Calcula valor da parcela
       const installmentAmount = data.total_amount / data.installments
 
-      // Busca ou cria fatura aberta para o cartão
-      const { data: openInvoice } = await supabase
-        .from('card_invoices')
-        .select('*')
-        .eq('card_id', data.card_id)
-        .eq('status', 'open')
-        .maybeSingle()
-
-      let invoiceId: string
-
-      if (openInvoice) {
-        invoiceId = openInvoice.id
-        // Atualiza o total da fatura
-        await supabase
-          .from('card_invoices')
-          .update({ 
-            total_amount: (openInvoice.total_amount || 0) + installmentAmount 
-          })
-          .eq('id', invoiceId)
-      } else {
-        // Cria nova fatura aberta
-        const card = cards.find(c => c.id === data.card_id)
-        if (!card) {
-          throw new Error('Cartão não encontrado')
-        }
-
-        // Calcula datas da fatura baseado no dia de fechamento
-        const purchaseDate = new Date(data.purchase_date)
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
-        
-        // Se a data da compra for no passado, usa a data atual para calcular as datas da fatura
-        const referenceDate = purchaseDate < today ? today : purchaseDate
-        const referenceMonth = referenceDate.getMonth()
-        const referenceYear = referenceDate.getFullYear()
-        
-        // Calcula a data de fechamento baseada na data de referência
-        const closingDate = new Date(referenceYear, referenceMonth, card.closing_day)
-        
-        // Se já passou o dia de fechamento no mês de referência, a fatura é do próximo mês
-        const invoiceMonth = referenceDate.getDate() <= card.closing_day 
-          ? new Date(referenceYear, referenceMonth, 1)
-          : new Date(referenceYear, referenceMonth + 1, 1)
-        
-        // Calcula a data de vencimento
-        const dueDate = new Date(referenceYear, referenceMonth, card.due_day)
-        if (dueDate < closingDate) {
-          dueDate.setMonth(dueDate.getMonth() + 1)
-        }
-        
-        // Se a data de vencimento calculada já passou, ajusta para o próximo ciclo
-        if (dueDate < today) {
-          dueDate.setMonth(dueDate.getMonth() + 1)
-          // Ajusta o mês de referência também se necessário
-          if (invoiceMonth.getMonth() === referenceMonth && invoiceMonth.getFullYear() === referenceYear) {
-            invoiceMonth.setMonth(invoiceMonth.getMonth() + 1)
-          }
-        }
-
-        const { data: newInvoice, error: invoiceError } = await supabase
-          .from('card_invoices')
-          .insert({
-            user_id: user.id,
-            card_id: data.card_id,
-            reference_month: invoiceMonth.toISOString().split('T')[0],
-            closing_date: closingDate.toISOString().split('T')[0],
-            due_date: dueDate.toISOString().split('T')[0],
-            status: 'open',
-            total_amount: installmentAmount,
-          })
-          .select()
-          .single()
-
-        if (invoiceError || !newInvoice) {
-          throw new Error('Erro ao criar fatura: ' + (invoiceError?.message || 'Erro desconhecido'))
-        }
-
-        invoiceId = newInvoice.id
+      const card = cards.find(c => c.id === data.card_id)
+      if (!card) {
+        throw new Error('Cartão não encontrado')
       }
+
+      await cardInvoiceService.addAmountForPurchase({
+        userId: user.id,
+        card,
+        purchaseDate: data.purchase_date,
+        amount: installmentAmount,
+      })
 
       // Cria a compra
       createPurchase({

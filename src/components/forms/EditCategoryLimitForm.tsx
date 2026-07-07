@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { CurrencyInput, Button } from '@/components/ui'
+import { CategorySpendingList } from '@/components/budget/CategorySpendingList'
+import type { CategorySpendingItem } from '@/lib/utils/categorySpending'
 import type { Category } from '@/types'
 
 interface EditCategoryLimitFormProps {
@@ -7,6 +9,9 @@ interface EditCategoryLimitFormProps {
   onSubmit: (limit: number | null) => Promise<void>
   onCancel: () => void
   isLoading?: boolean
+  spendingItems?: CategorySpendingItem[]
+  monthSpent?: number
+  monthLabel?: string
 }
 
 export const EditCategoryLimitForm = ({
@@ -14,6 +19,9 @@ export const EditCategoryLimitForm = ({
   onSubmit,
   onCancel,
   isLoading = false,
+  spendingItems = [],
+  monthSpent = 0,
+  monthLabel,
 }: EditCategoryLimitFormProps) => {
   const [limit, setLimit] = useState<number>(category.monthly_limit || 0)
   const [error, setError] = useState<string | null>(null)
@@ -50,6 +58,14 @@ export const EditCategoryLimitForm = ({
           </p>
         </div>
       </div>
+
+      {category.type === 'expense' && monthLabel && (
+        <CategorySpendingList
+          items={spendingItems}
+          monthSpent={monthSpent}
+          monthLabel={monthLabel}
+        />
+      )}
 
       <CurrencyInput
         label="Limite mensal"

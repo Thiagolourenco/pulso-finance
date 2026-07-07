@@ -6,6 +6,10 @@ import { useCategories } from '@/hooks/useCategories'
 import type { Category, Transaction, CardPurchase, CardInvoice, RecurringExpense } from '@/types'
 import { supabase } from '@/lib/supabase/client'
 import { parseLocalDate } from '@/lib/utils'
+import {
+  calculateCategorySpending,
+  getCategorySpendingItems,
+} from '@/lib/utils/categorySpending'
 import { categoryPreferencesService } from '@/services/categoryPreferencesService'
 
 interface CategoryBudget {
@@ -117,58 +121,39 @@ export const CategoryBudgetsSection = ({
     }
   }, [selectedCategoryIds, showOnlyCritical, userId])
 
-  // Obtém o mês atual
   const currentDate = new Date()
   const currentMonth = currentDate.getMonth() + 1
   const currentYear = currentDate.getFullYear()
+  const currentMonthLabel = currentDate.toLocaleDateString('pt-BR', {
+    month: 'long',
+    year: 'numeric',
+  })
 
-  // Calcula gastos por categoria no mês atual
-  const calculateCategorySpending = useCallback((categoryId: string): number => {
-    let total = 0
+  const calculateCategorySpendingForMonth = useCallback(
+    (categoryId: string): number =>
+      calculateCategorySpending(
+        categoryId,
+        transactions,
+        cardPurchases,
+        recurringExpenses,
+        currentMonth,
+        currentYear
+      ),
+    [cardPurchases, currentMonth, currentYear, recurringExpenses, transactions]
+  )
 
-    // Transações diretas (usa data local para evitar problema de fuso)
-    const categoryTransactions = transactions.filter(t => {
-      if (t.category_id !== categoryId || t.type !== 'expense') return false
-      const transactionDate = parseLocalDate(t.date)
-      return (
-        transactionDate.getMonth() + 1 === currentMonth &&
-        transactionDate.getFullYear() === currentYear
-      )
-    })
-    total += categoryTransactions.reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0)
-
-    // Compras no cartão (parcelas que vencem no mês atual)
-    // A parcela N vence no mês (purchase_month + N). Ex: compra em jan, 1ª parcela vence em fev.
-    const categoryPurchases = cardPurchases.filter(p => {
-      if (p.category_id !== categoryId) return false
-      
-      const purchaseDate = parseLocalDate(p.purchase_date)
-      const purchaseMonth = purchaseDate.getMonth() + 1
-      const purchaseYear = purchaseDate.getFullYear()
-      
-      // Meses desde a compra: 0 = mesmo mês, 1 = mês seguinte, etc.
-      const monthsDiff = (currentYear - purchaseYear) * 12 + (currentMonth - purchaseMonth)
-      // Parcela que vence no mês atual (1ª parcela vence 1 mês após a compra)
-      const installmentDueThisMonth = monthsDiff
-      
-      return (
-        monthsDiff >= 1 &&
-        installmentDueThisMonth >= p.current_installment &&
-        installmentDueThisMonth <= p.installments
-      )
-    })
-    total += categoryPurchases.reduce((sum, p) => sum + (p.installment_amount || 0), 0)
-
-    // Despesas recorrentes ativas que vencem no mês atual
-    const categoryRecurring = recurringExpenses.filter(expense => {
-      if (!expense.is_active || expense.category_id !== categoryId) return false
-      const dueDate = new Date(currentYear, currentMonth - 1, expense.due_day)
-      return dueDate.getMonth() + 1 === currentMonth && dueDate.getFullYear() === currentYear
-    })
-    total += categoryRecurring.reduce((sum, e) => sum + (e.amount || 0), 0)
-
-    return total
-  }, [cardPurchases, currentMonth, currentYear, recurringExpenses, transactions])
+  const getSpendingItemsForCategory = useCallback(
+    (categoryId: string) =>
+      getCategorySpendingItems(
+        categoryId,
+        transactions,
+        cardPurchases,
+        recurringExpenses,
+        currentMonth,
+        currentYear
+      ),
+    [cardPurchases, currentMonth, currentYear, recurringExpenses, transactions]
+  )
 
   // Filtra apenas categorias de despesa que têm limite definido OU gastos no mês
   const expenseCategories = categories.filter(c => c.type === 'expense')
@@ -176,7 +161,7 @@ export const CategoryBudgetsSection = ({
   const budgets: CategoryBudget[] = useMemo(() => {
     return expenseCategories
       .map(category => {
-        const spent = calculateCategorySpending(category.id)
+        const spent = calculateCategorySpendingForMonth(category.id)
         // Usa o limite real da categoria, ou calcula um padrão se não tiver limite
         const limitFromCategory = category.monthly_limit ?? 0
         const hasLimit = limitFromCategory > 0
@@ -223,7 +208,7 @@ export const CategoryBudgetsSection = ({
         if (a.percentage < 80 && b.percentage >= 80) return 1
         return b.spent - a.spent
       })
-  }, [expenseCategories, calculateCategorySpending, currentMonth, currentYear, transactions])
+  }, [expenseCategories, calculateCategorySpendingForMonth, currentMonth, currentYear, transactions])
 
   // Aplica filtros de seleção e crítico
   const filteredBudgets = useMemo(() => {
@@ -377,13 +362,16 @@ export const CategoryBudgetsSection = ({
           isOpen={!!editingCategory}
           onClose={handleCloseModal}
           title="Editar Limite Mensal"
-          size="md"
+          size="lg"
         >
           <EditCategoryLimitForm
             category={editingCategory}
             onSubmit={handleSaveLimit}
             onCancel={handleCloseModal}
             isLoading={isUpdating}
+            spendingItems={getSpendingItemsForCategory(editingCategory.id)}
+            monthSpent={calculateCategorySpendingForMonth(editingCategory.id)}
+            monthLabel={currentMonthLabel}
           />
         </Modal>
       )}

@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { PurchaseItem } from '@/components/PurchaseItem'
 import type { Card, CardPurchase } from '@/types'
 import { supabase } from '@/lib/supabase/client'
+import { cardInvoiceService } from '@/services/cardInvoiceService'
 
 interface CardDetailsModalProps {
   card: Card
@@ -159,69 +160,12 @@ export const CardDetailsModal = ({
 
       const installmentAmount = totalAmount / installments
 
-      // Busca ou cria fatura aberta
-      let invoiceId: string
-      if (openInvoice) {
-        invoiceId = openInvoice.id
-        await supabase
-          .from('card_invoices')
-          .update({ 
-            total_amount: (openInvoice.total_amount || 0) + installmentAmount 
-          })
-          .eq('id', invoiceId)
-      } else {
-        const purchaseDateObj = new Date(purchaseDate)
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
-        
-        // Se a data da compra for no passado, usa a data atual para calcular as datas da fatura
-        const referenceDate = purchaseDateObj < today ? today : purchaseDateObj
-        const referenceMonth = referenceDate.getMonth()
-        const referenceYear = referenceDate.getFullYear()
-        
-        // Calcula a data de fechamento baseada na data de referência
-        const closingDate = new Date(referenceYear, referenceMonth, card.closing_day)
-        
-        // Se já passou o dia de fechamento no mês de referência, a fatura é do próximo mês
-        const invoiceMonth = referenceDate.getDate() <= card.closing_day 
-          ? new Date(referenceYear, referenceMonth, 1)
-          : new Date(referenceYear, referenceMonth + 1, 1)
-        
-        // Calcula a data de vencimento
-        const dueDate = new Date(referenceYear, referenceMonth, card.due_day)
-        if (dueDate < closingDate) {
-          dueDate.setMonth(dueDate.getMonth() + 1)
-        }
-        
-        // Se a data de vencimento calculada já passou, ajusta para o próximo ciclo
-        if (dueDate < today) {
-          dueDate.setMonth(dueDate.getMonth() + 1)
-          // Ajusta o mês de referência também se necessário
-          if (invoiceMonth.getMonth() === referenceMonth && invoiceMonth.getFullYear() === referenceYear) {
-            invoiceMonth.setMonth(invoiceMonth.getMonth() + 1)
-          }
-        }
-
-        const { data: newInvoice, error: invoiceError } = await supabase
-          .from('card_invoices')
-          .insert({
-            user_id: user.id,
-            card_id: card.id,
-            reference_month: invoiceMonth.toISOString().split('T')[0],
-            closing_date: closingDate.toISOString().split('T')[0],
-            due_date: dueDate.toISOString().split('T')[0],
-            status: 'open',
-            total_amount: installmentAmount,
-          })
-          .select()
-          .single()
-
-        if (invoiceError || !newInvoice) {
-          throw new Error('Erro ao criar fatura: ' + (invoiceError?.message || 'Erro desconhecido'))
-        }
-
-        invoiceId = newInvoice.id
-      }
+      await cardInvoiceService.addAmountForPurchase({
+        userId: user.id,
+        card,
+        purchaseDate,
+        amount: installmentAmount,
+      })
 
       // Cria a compra usando o serviço diretamente
       const { error: purchaseError } = await supabase
