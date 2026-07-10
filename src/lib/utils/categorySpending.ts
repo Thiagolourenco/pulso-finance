@@ -122,3 +122,68 @@ export const calculateCategorySpending = (
     month,
     year
   ).reduce((sum, item) => sum + item.amount, 0)
+
+export interface CategoryMonthTotal {
+  year: number
+  month: number
+  monthLabel: string
+  amount: number
+  changePercent: number | null
+}
+
+export const getCategoryMonthlyComparison = (
+  categoryId: string,
+  transactions: Transaction[],
+  cardPurchases: CardPurchase[],
+  recurringExpenses: RecurringExpense[],
+  months: { year: number; month: number }[]
+): CategoryMonthTotal[] => {
+  const totals = months.map(({ year, month }) => {
+    const monthLabel = new Date(year, month - 1, 1).toLocaleDateString('pt-BR', {
+      month: 'short',
+      year: '2-digit',
+    })
+    const amount = calculateCategorySpending(
+      categoryId,
+      transactions,
+      cardPurchases,
+      recurringExpenses,
+      month,
+      year
+    )
+
+    return {
+      year,
+      month,
+      monthLabel: monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1),
+      amount,
+      changePercent: null as number | null,
+    }
+  })
+
+  return totals.map((entry, index) => {
+    if (index === 0) return entry
+
+    const previousAmount = totals[index - 1].amount
+    const changePercent =
+      previousAmount > 0
+        ? ((entry.amount - previousAmount) / previousAmount) * 100
+        : entry.amount > 0
+          ? 100
+          : 0
+
+    return { ...entry, changePercent }
+  })
+}
+
+export const getLastMonths = (count: number, fromDate: Date = new Date()) => {
+  const months: { year: number; month: number }[] = []
+  const base = new Date(fromDate.getFullYear(), fromDate.getMonth(), 1)
+
+  for (let i = count - 1; i >= 0; i--) {
+    const date = new Date(base.getFullYear(), base.getMonth() - i, 1)
+    months.push({ year: date.getFullYear(), month: date.getMonth() + 1 })
+  }
+
+  return months
+}

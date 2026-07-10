@@ -9,6 +9,7 @@ import { useRecurringExpenses } from '@/hooks/useRecurringExpenses'
 import { PieChart, Pie, Cell, BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, ComposedChart, type PieLabelRenderProps } from 'recharts'
 import { Button, Modal } from '@/components/ui'
 import { ReportInsights } from '@/components/insights/ReportInsights'
+import { CategoryComparisonSection } from '@/components/reports/CategoryComparisonSection'
 import { useTheme } from '@/contexts/ThemeProvider'
 import { SELIC_ANNUAL_RATE } from '@/lib/constants'
 import { parseLocalDate } from '@/lib/utils'
@@ -72,7 +73,7 @@ export const Reports = () => {
   const { accounts, isLoading: isLoadingAccounts } = useAccounts()
   const { cards, isLoading: isLoadingCards } = useCards()
   const { invoices, isLoading: isLoadingInvoices } = useCardInvoices()
-  const { isLoading: isLoadingPurchases } = useCardPurchases()
+  const { purchases, isLoading: isLoadingPurchases } = useCardPurchases()
   const { categories, isLoading: isLoadingCategories } = useCategories()
   const { expenses: recurringExpenses, isLoading: isLoadingRecurring } = useRecurringExpenses()
 
@@ -817,6 +818,19 @@ export const Reports = () => {
       <div className="mb-8">
         <ReportInsights data={reportInsightsData} />
       </div>
+
+      {/* Análise por categoria com filtro e comparação mensal */}
+      <CategoryComparisonSection
+        categories={categories}
+        transactions={transactions}
+        cardPurchases={purchases}
+        recurringExpenses={recurringExpenses}
+        chartAxisStroke={chartAxisStroke}
+        chartGridStroke={chartGridStroke}
+        tooltipContentStyle={tooltipContentStyle}
+        tooltipLabelStyle={tooltipLabelStyle}
+        tooltipItemStyle={tooltipItemStyle}
+      />
 
       {/* Comparativo Mês Atual vs Anterior */}
       {selectedPeriod === 'month' && (
