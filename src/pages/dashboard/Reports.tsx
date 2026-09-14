@@ -13,6 +13,7 @@ import { CategoryComparisonSection } from '@/components/reports/CategoryComparis
 import { useTheme } from '@/contexts/ThemeProvider'
 import { SELIC_ANNUAL_RATE } from '@/lib/constants'
 import { parseLocalDate } from '@/lib/utils'
+import { isCardExpense } from '@/lib/utils/accountBalance'
 import { getReportsMonthSummary } from '@/lib/utils/reportsMonthSummary'
 import type { ReportInsightsData } from '@/services/insightsService'
 
@@ -211,7 +212,7 @@ export const Reports = () => {
         .reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
 
       const transactionExpenses = monthTransactions
-        .filter(t => t.type === 'expense')
+        .filter(t => t.type === 'expense' && !isCardExpense(t))
         .reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0)
 
       const invoiceExpenses = invoices
@@ -263,6 +264,7 @@ export const Reports = () => {
         end.setHours(23, 59, 59, 999)
         return (
           t.type === 'expense' &&
+          !isCardExpense(t) &&
           transactionDate >= start &&
           transactionDate <= end
         )
@@ -388,6 +390,7 @@ export const Reports = () => {
         end.setHours(23, 59, 59, 999)
         return (
           t.type === 'expense' &&
+          !isCardExpense(t) &&
           transactionDate >= start &&
           transactionDate <= end
         )
@@ -418,6 +421,7 @@ export const Reports = () => {
         end.setHours(23, 59, 59, 999)
         return (
           t.type === 'expense' &&
+          !isCardExpense(t) &&
           transactionDate >= start &&
           transactionDate <= end
         )
@@ -450,6 +454,7 @@ export const Reports = () => {
         end.setHours(23, 59, 59, 999)
         return (
           t.type === 'expense' &&
+          !isCardExpense(t) &&
           transactionDate >= start &&
           transactionDate <= end
         )
@@ -578,7 +583,7 @@ export const Reports = () => {
       .reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
 
     const transactionExpenses = periodTransactions
-      .filter(t => t.type === 'expense')
+      .filter(t => t.type === 'expense' && !isCardExpense(t))
       .reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0)
 
     const totalExpenses = transactionExpenses + periodInvoiceTotal + periodRecurringTotal

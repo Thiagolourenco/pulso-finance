@@ -1,16 +1,10 @@
 import { supabase } from '@/lib/supabase/client'
+import { balanceDeltaForTransaction } from '@/lib/utils/accountBalance'
 import type { Transaction, Database } from '@/types'
 import { accountService } from './accountService'
 
 type TransactionInsert = Database['public']['Tables']['transactions']['Insert']
 type TransactionUpdate = Database['public']['Tables']['transactions']['Update']
-
-/** Variação no saldo da conta causada por esta transação (receita +, despesa -). */
-function balanceDeltaForTransaction(t: Pick<Transaction, 'type' | 'amount'>): number {
-  if (t.type === 'income') return Math.abs(Number(t.amount) || 0)
-  if (t.type === 'expense') return -Math.abs(Number(t.amount) || 0)
-  return 0
-}
 
 async function applyBalanceDelta(accountId: string, delta: number) {
   const account = await accountService.getById(accountId)

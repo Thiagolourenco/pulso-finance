@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useTransactions } from '@/hooks/useTransactions'
 import { useAccounts } from '@/hooks/useAccounts'
 import { useCards } from '@/hooks/useCards'
@@ -8,9 +9,11 @@ import { AddTransactionForm } from '@/components/forms/AddTransactionForm'
 import { supabase } from '@/lib/supabase/client'
 import { getOrCreateDefaultCategory, getOrCreateBalanceCategory } from '@/lib/utils/categories'
 import { parseLocalDate } from '@/lib/utils'
+import { cardPurchaseService } from '@/services/cardPurchaseService'
 import type { Transaction } from '@/types'
 
 export const Transactions = () => {
+  const queryClient = useQueryClient()
   const { transactions, deleteTransaction, updateTransaction, createTransaction, isDeleting, isUpdating, isCreating } = useTransactions()
   const { accounts } = useAccounts()
   const { cards } = useCards()
@@ -531,13 +534,35 @@ export const Transactions = () => {
                     })
                   } else {
                     const cardId = data.card_id?.trim() || null
+                    const installments = Math.max(1, data.installments || 1)
+                    const totalAmount = Math.abs(data.amount)
+
+                    if (cardId && data.type === 'expense') {
+                      const card = cards.find(c => c.id === cardId)
+                      if (!card) {
+                        setToast({ message: 'Cartão não encontrado', type: 'error' })
+                        return
+                      }
+                      await cardPurchaseService.createFromExpense({
+                        userId: user.id,
+                        card,
+                        description: data.description,
+                        totalAmount,
+                        installments,
+                        purchaseDate: data.date,
+                        categoryId,
+                      })
+                      queryClient.invalidateQueries({ queryKey: ['card_purchases'] })
+                      queryClient.invalidateQueries({ queryKey: ['card_invoices'] })
+                    }
+
                     createTransaction({
                       user_id: user.id,
                       account_id: cardId ? null : data.account_id || null,
                       card_id: cardId,
                       category_id: categoryId,
                       type: data.type,
-                      amount: Math.abs(data.amount),
+                      amount: totalAmount,
                       description: data.description,
                       date: data.date,
                     }, {
@@ -551,11 +576,13 @@ export const Transactions = () => {
                         const brl = new Intl.NumberFormat('pt-BR', {
                           style: 'currency',
                           currency: 'BRL',
-                        }).format(Math.abs(Number(created.amount) || 0))
+                        }).format(totalAmount)
                         setToast({
                           message:
                             created.type === 'expense' && cardName
-                              ? `Gasto de ${brl} no cartão "${cardName}". O patrimônio das contas não muda até você pagar a fatura.`
+                              ? installments > 1
+                                ? `Compra de ${brl} no cartão "${cardName}" em ${installments}x.`
+                                : `Gasto de ${brl} no cartão "${cardName}". A compra aparece na fatura do cartão.`
                               : accName
                                 ? `${created.type === 'income' ? 'Receita' : 'Despesa'} de ${brl} na conta "${accName}". Patrimônio atualizado.`
                                 : data.type === 'income'

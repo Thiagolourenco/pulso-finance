@@ -175,7 +175,8 @@ export const CategoryBudgetsSection = ({
           const totalMonthlyExpenses = transactions
             .filter(t => {
               const tDate = parseLocalDate(t.date)
-              return t.type === 'expense' && 
+              return t.type === 'expense' &&
+                     !t.card_id &&
                      tDate.getMonth() + 1 === currentMonth && 
                      tDate.getFullYear() === currentYear
             })

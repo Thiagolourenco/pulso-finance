@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase/client'
-import type { CardPurchase, Database } from '@/types'
+import type { Card, CardPurchase, Database } from '@/types'
+import { cardInvoiceService } from './cardInvoiceService'
 
 type CardPurchaseInsert = Database['public']['Tables']['card_purchases']['Insert']
 type CardPurchaseUpdate = Database['public']['Tables']['card_purchases']['Update']
@@ -39,6 +40,41 @@ export const cardPurchaseService = {
 
     if (error) throw error
     return data as CardPurchase
+  },
+
+  /** Cria a compra no cartão e soma a parcela na fatura do ciclo. */
+  async createFromExpense(params: {
+    userId: string
+    card: Pick<Card, 'id' | 'closing_day' | 'due_day'>
+    description: string
+    totalAmount: number
+    installments: number
+    purchaseDate: string
+    categoryId?: string | null
+    isRecurring?: boolean
+  }) {
+    const installments = Math.max(1, Math.floor(params.installments) || 1)
+    const installmentAmount = params.totalAmount / installments
+
+    await cardInvoiceService.addAmountForPurchase({
+      userId: params.userId,
+      card: params.card,
+      purchaseDate: params.purchaseDate,
+      amount: installmentAmount,
+    })
+
+    return this.create({
+      user_id: params.userId,
+      card_id: params.card.id,
+      description: params.description,
+      total_amount: params.totalAmount,
+      installments,
+      installment_amount: installmentAmount,
+      current_installment: 1,
+      purchase_date: params.purchaseDate,
+      category_id: params.categoryId || null,
+      is_recurring: params.isRecurring ?? false,
+    })
   },
 
   async update(id: string, purchase: CardPurchaseUpdate) {

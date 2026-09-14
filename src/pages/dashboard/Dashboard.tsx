@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { FinancialCard, Button, Modal, Toast } from '@/components/ui'
 import { AddTransactionForm } from '@/components/forms/AddTransactionForm'
 import { AddAccountForm } from '@/components/forms/AddAccountForm'
@@ -26,10 +26,12 @@ import { useGoals } from '@/hooks/useGoals'
 import { useRecurringExpenses } from '@/hooks/useRecurringExpenses'
 import { supabase } from '@/lib/supabase/client'
 import { getOrCreateDefaultCategory, getOrCreateBalanceCategory } from '@/lib/utils/categories'
-import { parseLocalDate } from '@/lib/utils'
+import { parseLocalDate, formatCurrency } from '@/lib/utils'
 import { getInvoiceCycleDates } from '@/lib/utils/cardInvoiceCycle'
 import { getReportsMonthSummary } from '@/lib/utils/reportsMonthSummary'
-import { cardInvoiceService } from '@/services/cardInvoiceService'
+import { cardPurchaseService } from '@/services/cardPurchaseService'
+import { accountService } from '@/services/accountService'
+import { isCardExpense } from '@/lib/utils/accountBalance'
 
 type ModalType = 'transaction' | 'account' | 'card' | 'cardPurchase' | 'goal' | 'category' | 'recurringExpense' | 'totalMoney' | null
 type TransactionType = 'expense' | 'income' | 'balance'
@@ -40,11 +42,12 @@ export const Dashboard = () => {
   const [modalType, setModalType] = useState<ModalType>(null)
   const [transactionType, setTransactionType] = useState<TransactionType>('expense')
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
+  const [isCreatingPurchase, setIsCreatingPurchase] = useState(false)
 
   const { transactions, createTransaction, isCreating } = useTransactions()
   const { accounts, createAccount, isCreating: isCreatingAccount } = useAccounts()
   const { cards, createCard, isCreating: isCreatingCard } = useCards()
-  const { purchases, createPurchase, isCreating: isCreatingPurchase } = useCardPurchases()
+  const { purchases } = useCardPurchases()
   const { invoices, updateInvoice, createInvoice, isUpdating: isUpdatingInvoice } = useCardInvoices()
   const { categories, createCategory, isCreating: isCreatingCategory } = useCategories()
   
@@ -180,6 +183,7 @@ export const Dashboard = () => {
       const transactionDate = parseLocalDate(transaction.date)
       return (
         transaction.type === 'expense' &&
+        !isCardExpense(transaction) &&
         transactionDate.getMonth() + 1 === currentMonth &&
         transactionDate.getFullYear() === currentYear
       )
@@ -233,65 +237,65 @@ export const Dashboard = () => {
 
   const totalRealWealth = sumOfAccounts
 
-  // Migração automática: receitas sem conta (mês anterior + atual) viram conta "Banco Inter - Salario".
-  // Isso evita receitas "perdidas" e faz o patrimônio refletir o total em conta.
-  const isInitialBalanceEntry = (description?: string | null) =>
-    (description || '').toLowerCase().startsWith('saldo inicial:')
-  const isAutoLinkingIncomeRef = useRef(false)
-  const autoLinkedTransactionIdsRef = useRef<Set<string>>(new Set())
+  const negativeAccounts = accounts.filter(
+    (account) => (Number(account.current_balance) || 0) < -0.009
+  )
+  const isTotalWealthNegative = totalRealWealth < -0.009
+  const hasNegativeBalance = isTotalWealthNegative || negativeAccounts.length > 0
 
+  // Corrige saldos inflados pelo antigo auto-vínculo de receitas sem conta (executa uma vez).
   useEffect(() => {
-    const interAccount = accounts.find(a => a.name.trim().toLowerCase() === 'banco inter - salario')
-    if (!interAccount || isAutoLinkingIncomeRef.current) return
+    if (accounts.length === 0 || transactions.length === 0) return
 
-    const windowStart = new Date(currentYear, currentMonth - 2, 1)
-    windowStart.setHours(0, 0, 0, 0)
-
-    const candidates = transactions.filter(t => {
-      if (t.type !== 'income' || t.account_id || isInitialBalanceEntry(t.description)) return false
-      const d = parseLocalDate(t.date)
-      if (Number.isNaN(d.getTime())) return false
-      d.setHours(0, 0, 0, 0)
-      return d >= windowStart && !autoLinkedTransactionIdsRef.current.has(t.id)
-    })
-    if (candidates.length === 0) return
-
-    const candidateIds = candidates.map(t => t.id)
-    candidateIds.forEach(id => autoLinkedTransactionIdsRef.current.add(id))
-    isAutoLinkingIncomeRef.current = true
+    const repairKey = 'pulso_auto_link_repair_v1'
+    if (localStorage.getItem(repairKey)) return
 
     void (async () => {
       try {
-        const totalToAdd = candidates.reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0)
-        const { error: txError } = await supabase
-          .from('transactions')
-          .update({ account_id: interAccount.id })
-          .in('id', candidateIds)
-        if (txError) throw txError
-
-        const { error: accError } = await supabase
-          .from('accounts')
-          .update({
-            current_balance: (Number(interAccount.current_balance) || 0) + totalToAdd,
-            updated_at: new Date().toISOString(),
+        const { unlinkedCount, accountsFixed } = await accountService.repairAutoLinkDamage(
+          accounts,
+          transactions
+        )
+        if (unlinkedCount > 0 || accountsFixed > 0) {
+          queryClient.invalidateQueries({ queryKey: ['accounts'] })
+          queryClient.invalidateQueries({ queryKey: ['transactions'] })
+          setToast({
+            message:
+              unlinkedCount > 0
+                ? `Saldo corrigido: ${unlinkedCount} receita(s) desvinculadas de contas (eram só para relatório). Confira em Contas.`
+                : 'Saldos das contas foram recalculados.',
+            type: 'info',
           })
-          .eq('id', interAccount.id)
-        if (accError) throw accError
-
-        setToast({
-          message: `${candidates.length} receita(s) sem conta foram vinculadas automaticamente a "Banco Inter - Salario".`,
-          type: 'success',
-        })
-        queryClient.invalidateQueries({ queryKey: ['transactions'] })
-        queryClient.invalidateQueries({ queryKey: ['accounts'] })
+        }
+        localStorage.setItem(repairKey, '1')
       } catch (error) {
-        candidateIds.forEach(id => autoLinkedTransactionIdsRef.current.delete(id))
-        console.error('Erro ao vincular receitas sem conta para Banco Inter - Salario:', error)
-      } finally {
-        isAutoLinkingIncomeRef.current = false
+        console.error('Erro ao corrigir saldos:', error)
       }
     })()
-  }, [accounts, transactions, currentMonth, currentYear, queryClient])
+  }, [accounts, transactions, queryClient])
+
+  // Alerta quando patrimônio ou alguma conta ficar negativo
+  useEffect(() => {
+    if (!hasNegativeBalance) return
+
+    const alertKey = `pulso_negative_balance_${totalRealWealth.toFixed(2)}_${negativeAccounts.map(a => a.id).join(',')}`
+    if (sessionStorage.getItem(alertKey)) return
+
+    const parts: string[] = []
+    if (isTotalWealthNegative) {
+      parts.push(`Valor total negativo: ${formatCurrency(totalRealWealth)}`)
+    }
+    if (negativeAccounts.length > 0) {
+      const names = negativeAccounts.map((a) => a.name).join(', ')
+      parts.push(`Conta(s) no vermelho: ${names}`)
+    }
+
+    setToast({
+      message: `⚠️ ${parts.join('. ')}`,
+      type: 'error',
+    })
+    sessionStorage.setItem(alertKey, '1')
+  }, [hasNegativeBalance, isTotalWealthNegative, totalRealWealth, negativeAccounts])
 
   // Total da fatura por ciclo (mês/ano alvo), baseado nas parcelas realmente devidas
   const calculateCardInvoiceTotalForMonth = (cardId: string, targetMonth: number, targetYear: number) => {
@@ -383,6 +387,7 @@ export const Dashboard = () => {
     category_id?: string
     account_id?: string | null
     card_id?: string | null
+    installments?: number
   }) => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -433,13 +438,34 @@ export const Dashboard = () => {
         })
       } else {
         const cardId = data.card_id?.trim() || null
+        const installments = Math.max(1, data.installments || 1)
+        const totalAmount = Math.abs(data.amount)
+
+        if (cardId && data.type === 'expense') {
+          const card = cards.find(c => c.id === cardId)
+          if (!card) {
+            throw new Error('Cartão não encontrado')
+          }
+          await cardPurchaseService.createFromExpense({
+            userId: user.id,
+            card,
+            description: data.description,
+            totalAmount,
+            installments,
+            purchaseDate: data.date,
+            categoryId,
+          })
+          queryClient.invalidateQueries({ queryKey: ['card_purchases'] })
+          queryClient.invalidateQueries({ queryKey: ['card_invoices'] })
+        }
+
         createTransaction({
           user_id: user.id,
           account_id: cardId ? null : data.account_id || null,
           card_id: cardId,
           category_id: categoryId,
           type: data.type,
-          amount: Math.abs(data.amount),
+          amount: totalAmount,
           description: data.description,
           date: data.date,
         }, {
@@ -453,10 +479,14 @@ export const Dashboard = () => {
             const brl = new Intl.NumberFormat('pt-BR', {
               style: 'currency',
               currency: 'BRL',
-            }).format(Math.abs(Number(created.amount) || 0))
+            }).format(totalAmount)
             if (created.type === 'expense' && cardName) {
+              const installmentAmount = totalAmount / installments
               setToast({
-                message: `Gasto de ${brl} no cartão "${cardName}". O patrimônio das contas não muda até você pagar a fatura.`,
+                message:
+                  installments > 1
+                    ? `Compra de ${brl} no cartão "${cardName}" em ${installments}x de ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(installmentAmount)}.`
+                    : `Gasto de ${brl} no cartão "${cardName}". A compra aparece na fatura do cartão.`,
                 type: 'success',
               })
             } else if (accName) {
@@ -568,47 +598,37 @@ export const Dashboard = () => {
         return
       }
 
-      const installmentAmount = data.total_amount / data.installments
-
       const card = cards.find(c => c.id === data.card_id)
       if (!card) {
         throw new Error('Cartão não encontrado')
       }
 
-      await cardInvoiceService.addAmountForPurchase({
+      const installmentAmount = data.total_amount / data.installments
+
+      setIsCreatingPurchase(true)
+      await cardPurchaseService.createFromExpense({
         userId: user.id,
         card,
-        purchaseDate: data.purchase_date,
-        amount: installmentAmount,
-      })
-
-      // Cria a compra
-      createPurchase({
-        user_id: user.id,
-        card_id: data.card_id,
         description: data.description,
-        total_amount: data.total_amount,
+        totalAmount: data.total_amount,
         installments: data.installments,
-        installment_amount: installmentAmount,
-        current_installment: 1,
-        purchase_date: data.purchase_date,
-        category_id: data.category_id || null,
-      }, {
-        onSuccess: () => {
-          setToast({ 
-            message: `Compra adicionada! ${data.installments}x de R$ ${installmentAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 
-            type: 'success' 
-          })
-          setModalType(null)
-          setSelectedCardId(undefined)
-        },
-        onError: (error: Error) => {
-          setToast({ message: error.message || 'Erro ao adicionar compra', type: 'error' })
-        },
+        purchaseDate: data.purchase_date,
+        categoryId: data.category_id || null,
       })
+      queryClient.invalidateQueries({ queryKey: ['card_purchases'] })
+      queryClient.invalidateQueries({ queryKey: ['card_invoices'] })
+
+      setToast({
+        message: `Compra adicionada! ${data.installments}x de R$ ${installmentAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+        type: 'success',
+      })
+      setModalType(null)
+      setSelectedCardId(undefined)
     } catch (error: any) {
       console.error('Erro ao adicionar compra:', error)
       setToast({ message: error.message || 'Erro ao adicionar compra', type: 'error' })
+    } finally {
+      setIsCreatingPurchase(false)
     }
   }
 
@@ -827,16 +847,60 @@ export const Dashboard = () => {
 
       {/* Cards financeiros com melhor visual */}
       <div className="space-y-4 lg:space-y-6 mb-6 lg:mb-8">
+        {hasNegativeBalance && (
+          <div
+            role="alert"
+            className="p-4 rounded-card-lg border border-danger-300 dark:border-danger-700 bg-danger-50 dark:bg-danger-950/50 flex gap-3"
+          >
+            <span className="text-xl flex-shrink-0" aria-hidden="true">
+              ⚠️
+            </span>
+            <div className="space-y-1">
+              <p className="text-body-sm font-semibold text-danger-800 dark:text-danger-200">
+                Saldo negativo detectado
+              </p>
+              {isTotalWealthNegative && (
+                <p className="text-body-sm text-danger-700 dark:text-danger-300">
+                  Seu valor total está em{' '}
+                  <span className="font-bold tabular-nums">{formatCurrency(totalRealWealth)}</span>.
+                  Revise suas contas ou lance receitas para regularizar.
+                </p>
+              )}
+              {negativeAccounts.length > 0 && (
+                <p className="text-caption text-danger-700 dark:text-danger-300">
+                  Contas no vermelho:{' '}
+                  {negativeAccounts
+                    .map(
+                      (account) =>
+                        `${account.name} (${formatCurrency(Number(account.current_balance) || 0)})`
+                    )
+                    .join(' · ')}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Valor total = soma dos saldos atuais em contas */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
           <FinancialCard
             title="Valor total"
             value={totalRealWealth}
-            subtitle="Soma dos saldos atuais em todas as contas."
-            variant="purple"
+            subtitle={
+              isTotalWealthNegative
+                ? 'Atenção: patrimônio total negativo.'
+                : 'Soma dos saldos atuais em todas as contas.'
+            }
+            variant={isTotalWealthNegative ? 'danger' : 'purple'}
             icon={
-              <div className="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
-                <span className="text-2xl">💵</span>
+              <div
+                className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                  isTotalWealthNegative
+                    ? 'bg-danger-100 dark:bg-danger-900'
+                    : 'bg-purple-100 dark:bg-purple-900'
+                }`}
+              >
+                <span className="text-2xl">{isTotalWealthNegative ? '🚨' : '💵'}</span>
               </div>
             }
             onClick={() => setShowTotalMoneyModal(true)}
@@ -892,6 +956,7 @@ export const Dashboard = () => {
               const transactionDate = parseLocalDate(transaction.date)
               return (
                 transaction.type === 'expense' &&
+                !isCardExpense(transaction) &&
                 transactionDate.getMonth() + 1 === nextMonth &&
                 transactionDate.getFullYear() === nextMonthYear
               )
@@ -1072,6 +1137,7 @@ export const Dashboard = () => {
                 const transactionDate = parseLocalDate(transaction.date)
                 return (
                   transaction.type === 'expense' &&
+                  !isCardExpense(transaction) &&
                   transactionDate.getMonth() + 1 === nextMonth &&
                   transactionDate.getFullYear() === nextMonthYear
                 )
@@ -1901,6 +1967,7 @@ export const Dashboard = () => {
           const transactionDate = parseLocalDate(transaction.date)
           return (
             transaction.type === 'expense' &&
+            !isCardExpense(transaction) &&
             transactionDate.getMonth() + 1 === currentMonth &&
             transactionDate.getFullYear() === currentYear
           )
@@ -1932,15 +1999,23 @@ export const Dashboard = () => {
           <div className="bg-purple-50 dark:bg-purple-900/20 rounded-card-lg p-4 border border-purple-200 dark:border-purple-800">
             <div className="flex items-center justify-between mb-2">
               <span className="text-label font-medium text-neutral-700 dark:text-neutral-300">Valor total</span>
-              <span className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                {new Intl.NumberFormat('pt-BR', {
-                  style: 'currency',
-                  currency: 'BRL',
-                }).format(totalRealWealth)}
+              <span
+                className={`text-2xl font-bold tabular-nums ${
+                  isTotalWealthNegative
+                    ? 'text-danger-600 dark:text-danger-400'
+                    : 'text-purple-600 dark:text-purple-400'
+                }`}
+              >
+                {formatCurrency(totalRealWealth)}
               </span>
             </div>
+            {isTotalWealthNegative && (
+              <p className="text-caption font-medium text-danger-600 dark:text-danger-400 mb-2">
+                ⚠️ Patrimônio total negativo — confira os saldos em Contas.
+              </p>
+            )}
             <p className="text-caption text-neutral-600 dark:text-neutral-400">
-              Soma do saldo atual em todas as contas. Receitas sem conta do mês atual e anterior são vinculadas automaticamente para &quot;Banco Inter - Salario&quot;.
+              Soma do saldo atual em todas as contas (inclui investimentos). Receitas só entram no patrimônio quando vinculadas a uma conta ao lançar.
             </p>
           </div>
 

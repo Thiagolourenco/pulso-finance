@@ -7,6 +7,7 @@ interface AddAccountFormProps {
     name: string
     type: 'bank' | 'cash' | 'investment' | 'wallet'
     balance: number
+    currentBalance?: number
   }) => void
   onCancel: () => void
   isLoading?: boolean
@@ -22,6 +23,7 @@ export const AddAccountForm = ({
   const [name, setName] = useState(initialAccount?.name || '')
   const [type, setType] = useState<'bank' | 'cash' | 'investment' | 'wallet'>(initialAccount?.type || 'bank')
   const [balance, setBalance] = useState(initialAccount?.initial_balance || 0)
+  const [currentBalance, setCurrentBalance] = useState(initialAccount?.current_balance || 0)
   const [error, setError] = useState('')
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -37,6 +39,7 @@ export const AddAccountForm = ({
       name: name.trim(),
       type,
       balance,
+      ...(initialAccount ? { currentBalance } : {}),
     })
   }
 
@@ -124,11 +127,20 @@ export const AddAccountForm = ({
 
       {/* Saldo inicial */}
       <CurrencyInput
-        label="Saldo inicial"
+        label={initialAccount ? 'Saldo inicial (referência)' : 'Saldo inicial'}
         value={balance}
         onChange={setBalance}
         required
       />
+
+      {initialAccount && (
+        <CurrencyInput
+          label="Saldo atual"
+          value={currentBalance}
+          onChange={setCurrentBalance}
+          required
+        />
+      )}
 
       {/* Botões */}
       <div className="flex gap-3 pt-4">

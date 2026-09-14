@@ -6,6 +6,7 @@ import { useCategories } from '@/hooks/useCategories'
 import { useRecurringExpenses } from '@/hooks/useRecurringExpenses'
 import { InsightsCard } from '@/components/insights/InsightsCard'
 import { parseLocalDate } from '@/lib/utils'
+import { isCardExpense } from '@/lib/utils/accountBalance'
 
 export const Insights = () => {
   const { transactions } = useTransactions()
@@ -53,6 +54,7 @@ export const Insights = () => {
       const transactionDate = parseLocalDate(transaction.date)
       return (
         transaction.type === 'expense' &&
+        !isCardExpense(transaction) &&
         transactionDate.getMonth() + 1 === currentMonth &&
         transactionDate.getFullYear() === currentYear
       )
@@ -80,6 +82,7 @@ export const Insights = () => {
       const transactionDate = parseLocalDate(transaction.date)
       return (
         transaction.type === 'expense' &&
+        !isCardExpense(transaction) &&
         transactionDate.getMonth() + 1 === previousMonth &&
         transactionDate.getFullYear() === previousYear
       )
@@ -122,6 +125,7 @@ export const Insights = () => {
       const transactionDate = parseLocalDate(transaction.date)
       return (
         transaction.type === 'expense' &&
+        !isCardExpense(transaction) &&
         transactionDate.getMonth() + 1 === nextMonth &&
         transactionDate.getFullYear() === nextMonthYear
       )

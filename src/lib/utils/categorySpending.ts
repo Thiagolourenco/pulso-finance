@@ -33,7 +33,7 @@ export const getCategorySpendingItems = (
 
   transactions
     .filter(t => {
-      if (t.category_id !== categoryId || t.type !== 'expense') return false
+      if (t.category_id !== categoryId || t.type !== 'expense' || t.card_id) return false
       const transactionDate = parseLocalDate(t.date)
       return (
         transactionDate.getMonth() + 1 === month &&

@@ -1,5 +1,6 @@
 import type { CardInvoice, RecurringExpense, Transaction } from '@/types'
 import { parseLocalDate } from '@/lib/utils'
+import { isCardExpense } from '@/lib/utils/accountBalance'
 
 export type ReportsMonthSummary = {
   totalIncome: number
@@ -36,7 +37,7 @@ export function getReportsMonthSummary(
     .reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
 
   const transactionExpenses = periodTransactions
-    .filter(t => t.type === 'expense')
+    .filter(t => t.type === 'expense' && !isCardExpense(t))
     .reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0)
 
   const periodInvoiceTotal = invoices

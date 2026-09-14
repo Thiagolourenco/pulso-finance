@@ -16,6 +16,8 @@ interface AddTransactionFormProps {
     account_id?: string | null
     /** Despesa no cartão (type expense); não altera saldo de conta. */
     card_id?: string | null
+    /** Quantidade de parcelas (só despesa no cartão). */
+    installments?: number
   }) => void
   onCancel: () => void
   isLoading?: boolean
@@ -36,6 +38,7 @@ const getInitialState = (initialTransaction: Transaction | null | undefined, ini
       accountId: initialTransaction.account_id || '',
       cardId: initialTransaction.card_id || '',
       expenseSource: (isCardExpense ? 'card' : 'account') as 'account' | 'card',
+      installments: 1,
     }
   }
   return {
@@ -47,6 +50,7 @@ const getInitialState = (initialTransaction: Transaction | null | undefined, ini
     accountId: '',
     cardId: '',
     expenseSource: 'account' as const,
+    installments: 1,
   }
 }
 
@@ -66,6 +70,7 @@ export const AddTransactionForm = ({
   const [accountId, setAccountId] = useState<string>(initialState.accountId)
   const [cardId, setCardId] = useState<string>(initialState.cardId)
   const [expenseSource, setExpenseSource] = useState<'account' | 'card'>(initialState.expenseSource)
+  const [installments, setInstallments] = useState(initialState.installments)
   const [error, setError] = useState('')
   
   const { categories, isLoading: isLoadingCategories } = useCategories()
@@ -126,6 +131,7 @@ export const AddTransactionForm = ({
     if (newType === 'expense' && !initialTransaction) {
       setExpenseSource('account')
       setCardId('')
+      setInstallments(1)
     }
   }
 
@@ -174,6 +180,10 @@ export const AddTransactionForm = ({
         setError('Selecione o cartão de crédito.')
         return
       }
+      if (installments < 1) {
+        setError('Número de parcelas deve ser pelo menos 1')
+        return
+      }
     }
 
     const isExpenseOnCard = type === 'expense' && expenseSource === 'card'
@@ -191,6 +201,7 @@ export const AddTransactionForm = ({
             ? accountId
             : null,
       card_id: isExpenseOnCard ? cardId : null,
+      installments: isExpenseOnCard ? installments : undefined,
     })
   }
 
@@ -259,6 +270,7 @@ export const AddTransactionForm = ({
               onClick={() => {
                 setExpenseSource('account')
                 setCardId('')
+                setInstallments(1)
               }}
               className={`
               px-4 py-3 rounded-input border-2 transition-all duration-fast
@@ -405,32 +417,79 @@ export const AddTransactionForm = ({
 
       {/* Valor */}
       <CurrencyInput
-        label="Valor"
+        label={type === 'expense' && expenseSource === 'card' ? 'Valor total' : 'Valor'}
         value={amount}
         onChange={setAmount}
         required
       />
+
+      {type === 'expense' && expenseSource === 'card' && !initialTransaction && (
+        <div>
+          <Input
+            label="Parcelas"
+            type="number"
+            min={1}
+            max={24}
+            value={installments}
+            onChange={(e) => setInstallments(Math.max(1, Math.min(24, parseInt(e.target.value, 10) || 1)))}
+            required
+          />
+          {amount > 0 && (
+            <p className="mt-1.5 text-caption text-neutral-500 dark:text-neutral-400">
+              {installments > 1
+                ? `${installments}x de ${formatBRL(amount / installments)}`
+                : 'À vista (1x)'}
+            </p>
+          )}
+        </div>
+      )}
 
       {(type === 'income' || (type === 'expense' && expenseSource === 'account')) && selectedAccount && (
         <div className="p-4 rounded-input border border-primary-200/80 dark:border-primary-700/70 bg-white dark:bg-neutral-900/70 shadow-sm">
           <p className="text-caption font-medium text-primary-700 dark:text-primary-300 mb-1">
             Saldo atual nesta conta (patrimônio)
           </p>
-          <p className="text-2xl font-bold text-neutral-950 dark:text-neutral-50 tabular-nums">
+          <p
+            className={`text-2xl font-bold tabular-nums ${
+              (Number(selectedAccount.current_balance) || 0) < 0
+                ? 'text-danger-600 dark:text-danger-400'
+                : 'text-neutral-950 dark:text-neutral-50'
+            }`}
+          >
             {formatBRL(Number(selectedAccount.current_balance) || 0)}
           </p>
-          {!initialTransaction && amount > 0 && (
-            <p className="text-caption text-neutral-700 dark:text-neutral-300 mt-2 pt-2 border-t border-primary-100 dark:border-primary-900/70">
-              {type === 'income' ? 'Depois de salvar (estimado)' : 'Depois de salvar (estimado)'}:{' '}
-              <span className="font-semibold text-primary-700 dark:text-primary-300 tabular-nums">
-                {formatBRL(
-                  type === 'income'
-                    ? (Number(selectedAccount.current_balance) || 0) + amount
-                    : (Number(selectedAccount.current_balance) || 0) - amount
+          {!initialTransaction && amount > 0 && (() => {
+            const projectedBalance =
+              type === 'income'
+                ? (Number(selectedAccount.current_balance) || 0) + amount
+                : (Number(selectedAccount.current_balance) || 0) - amount
+            const willBeNegative = projectedBalance < -0.009
+
+            return (
+              <>
+                <p className="text-caption text-neutral-700 dark:text-neutral-300 mt-2 pt-2 border-t border-primary-100 dark:border-primary-900/70">
+                  {type === 'income' ? 'Depois de salvar (estimado)' : 'Depois de salvar (estimado)'}:{' '}
+                  <span
+                    className={`font-semibold tabular-nums ${
+                      willBeNegative
+                        ? 'text-danger-600 dark:text-danger-400'
+                        : 'text-primary-700 dark:text-primary-300'
+                    }`}
+                  >
+                    {formatBRL(projectedBalance)}
+                  </span>
+                </p>
+                {willBeNegative && (
+                  <p
+                    role="alert"
+                    className="mt-2 text-caption font-medium text-danger-700 dark:text-danger-300 bg-danger-50 dark:bg-danger-950/40 border border-danger-200 dark:border-danger-800 rounded-input px-3 py-2"
+                  >
+                    ⚠️ Esta operação deixará a conta no negativo.
+                  </p>
                 )}
-              </span>
-            </p>
-          )}
+              </>
+            )
+          })()}
         </div>
       )}
 

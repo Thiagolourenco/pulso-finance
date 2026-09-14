@@ -1,12 +1,16 @@
 import { useState } from 'react'
 import { useAccounts } from '@/hooks/useAccounts'
+import { useTransactions } from '@/hooks/useTransactions'
+import { computeTransactionDeltaForAccount } from '@/lib/utils/accountBalance'
 import { Button, Modal, Toast } from '@/components/ui'
+import { formatCurrency } from '@/lib/utils'
 import { AddAccountForm } from '@/components/forms/AddAccountForm'
 import type { Account } from '@/types'
 import { supabase } from '@/lib/supabase/client'
 
 export const Accounts = () => {
   const { accounts, deleteAccount, createAccount, updateAccount, isDeleting, isCreating, isUpdating } = useAccounts()
+  const { transactions } = useTransactions()
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingAccount, setEditingAccount] = useState<Account | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
@@ -56,6 +60,10 @@ export const Accounts = () => {
 
   // Estatísticas
   const totalBalance = accounts.reduce((sum, account) => sum + (account.current_balance || 0), 0)
+  const negativeAccounts = accounts.filter(
+    (account) => (Number(account.current_balance) || 0) < -0.009
+  )
+  const hasNegativeBalance = totalBalance < -0.009 || negativeAccounts.length > 0
 
   return (
     <div className="animate-fade-in">
@@ -76,7 +84,39 @@ export const Accounts = () => {
       </div>
 
       {/* Resumo */}
-      <div className="mb-8">
+      <div className="mb-8 space-y-4">
+        {hasNegativeBalance && (
+          <div
+            role="alert"
+            className="p-4 rounded-card-lg border border-danger-300 dark:border-danger-700 bg-danger-50 dark:bg-danger-950/50 flex gap-3"
+          >
+            <span className="text-xl flex-shrink-0" aria-hidden="true">
+              ⚠️
+            </span>
+            <div className="space-y-1">
+              <p className="text-body-sm font-semibold text-danger-800 dark:text-danger-200">
+                Saldo negativo detectado
+              </p>
+              {totalBalance < -0.009 && (
+                <p className="text-body-sm text-danger-700 dark:text-danger-300">
+                  Saldo total das contas:{' '}
+                  <span className="font-bold tabular-nums">{formatCurrency(totalBalance)}</span>
+                </p>
+              )}
+              {negativeAccounts.length > 0 && (
+                <p className="text-caption text-danger-700 dark:text-danger-300">
+                  {negativeAccounts
+                    .map(
+                      (account) =>
+                        `${account.name}: ${formatCurrency(Number(account.current_balance) || 0)}`
+                    )
+                    .join(' · ')}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="p-6 bg-white dark:bg-neutral-900/40 dark:backdrop-blur-xl rounded-card-lg border border-border dark:border-border-dark/70">
           <p className="text-caption text-neutral-600 dark:text-neutral-300 mb-2">Saldo Total</p>
           <p className={`text-h1 font-bold ${totalBalance >= 0 ? 'text-success-600 dark:text-success-500' : 'text-danger-600 dark:text-danger-400'}`}>
@@ -168,14 +208,19 @@ export const Accounts = () => {
               }
 
               if (editingAccount) {
+                const txDelta = computeTransactionDeltaForAccount(editingAccount.id, transactions)
+                const adjustedInitialBalance = data.currentBalance != null
+                  ? data.currentBalance - txDelta
+                  : data.balance
+
                 updateAccount(
                   {
                     id: editingAccount.id,
                     data: {
                       name: data.name,
                       type: data.type,
-                      initial_balance: data.balance,
-                      current_balance: editingAccount.current_balance,
+                      initial_balance: adjustedInitialBalance,
+                      current_balance: data.currentBalance ?? editingAccount.current_balance,
                     },
                   },
                   {
