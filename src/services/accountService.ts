@@ -131,5 +131,16 @@ export const accountService = {
 
     return { unlinkedCount, accountsFixed }
   },
+
+  async setCurrentBalances(
+    updates: { id: string; current_balance: number; initial_balance: number }[]
+  ) {
+    for (const update of updates) {
+      await this.update(update.id, {
+        current_balance: update.current_balance,
+        initial_balance: update.initial_balance,
+      })
+    }
+  },
 }
 

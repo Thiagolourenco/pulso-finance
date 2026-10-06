@@ -46,3 +46,16 @@ export function computeTotalWealth(
 ): number {
   return accounts.reduce((sum, account) => sum + (Number(account.current_balance) || 0), 0)
 }
+
+/** Ajusta o saldo inicial para o saldo atual informado continuar batendo com o razão. */
+export function payloadForManualCurrentBalance(
+  accountId: string,
+  transactions: Pick<Transaction, 'account_id' | 'type' | 'amount' | 'description'>[],
+  newCurrentBalance: number
+): { current_balance: number; initial_balance: number } {
+  const txDelta = computeTransactionDeltaForAccount(accountId, transactions)
+  return {
+    current_balance: newCurrentBalance,
+    initial_balance: newCurrentBalance - txDelta,
+  }
+}

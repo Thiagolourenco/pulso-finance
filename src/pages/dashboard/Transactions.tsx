@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useTransactions } from '@/hooks/useTransactions'
 import { useAccounts } from '@/hooks/useAccounts'
 import { useCards } from '@/hooks/useCards'
+import { useCardPurchases } from '@/hooks/useCardPurchases'
 import { useCategories } from '@/hooks/useCategories'
 import { Button, Modal, Toast } from '@/components/ui'
 import { AddTransactionForm } from '@/components/forms/AddTransactionForm'
@@ -10,6 +11,13 @@ import { supabase } from '@/lib/supabase/client'
 import { getOrCreateDefaultCategory, getOrCreateBalanceCategory } from '@/lib/utils/categories'
 import { parseLocalDate } from '@/lib/utils'
 import { cardPurchaseService } from '@/services/cardPurchaseService'
+import { reimbursementService } from '@/services/reimbursementService'
+import {
+  getExpenseOrigin,
+  isCompanyExpense,
+  isPendingReimbursement,
+  originFieldsForCreate,
+} from '@/lib/utils/expenseOrigin'
 import type { Transaction } from '@/types'
 
 export const Transactions = () => {
@@ -17,12 +25,15 @@ export const Transactions = () => {
   const { transactions, deleteTransaction, updateTransaction, createTransaction, isDeleting, isUpdating, isCreating } = useTransactions()
   const { accounts } = useAccounts()
   const { cards } = useCards()
+  const { purchases } = useCardPurchases()
   const { categories } = useCategories()
 
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all')
+  const [filterOrigin, setFilterOrigin] = useState<'all' | 'personal' | 'company'>('all')
+  const [isReimbursing, setIsReimbursing] = useState(false)
   const [filterCategory, setFilterCategory] = useState<string>('all')
   const [filterAccount, setFilterAccount] = useState<string>('all')
   const [searchTerm, setSearchTerm] = useState('')
@@ -43,6 +54,9 @@ export const Transactions = () => {
     return transactions.filter(transaction => {
       // Filtro por tipo
       if (filterType !== 'all' && transaction.type !== filterType) return false
+
+      if (filterOrigin === 'personal' && isCompanyExpense(transaction)) return false
+      if (filterOrigin === 'company' && !isCompanyExpense(transaction)) return false
 
       // Filtro por categoria
       if (filterCategory !== 'all' && transaction.category_id !== filterCategory) return false
@@ -78,7 +92,7 @@ export const Transactions = () => {
 
       return true
     }).sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime())
-  }, [transactions, filterType, filterCategory, filterAccount, searchTerm, filterByDate, filterMonth, filterYear, minValue, maxValue])
+  }, [transactions, filterType, filterOrigin, filterCategory, filterAccount, searchTerm, filterByDate, filterMonth, filterYear, minValue, maxValue])
 
   const handleDelete = async (id: string) => {
     if (!confirm('Tem certeza que deseja excluir esta transação?')) return
@@ -101,6 +115,38 @@ export const Transactions = () => {
   const handleCloseModal = () => {
     setShowAddModal(false)
     setEditingTransaction(null)
+  }
+
+  const handleReimburse = async (transaction: Transaction) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setToast({ message: 'Você precisa estar logado', type: 'error' })
+        return
+      }
+      setIsReimbursing(true)
+      await reimbursementService.markReimbursed({
+        userId: user.id,
+        transaction,
+        purchases,
+      })
+      queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
+      queryClient.invalidateQueries({ queryKey: ['card_purchases'] })
+      setToast({
+        message: transaction.account_id
+          ? 'Reembolso marcado. O valor voltou para a conta.'
+          : 'Reembolso marcado. Lance o depósito na conta quando o valor cair.',
+        type: 'success',
+      })
+    } catch (error: unknown) {
+      setToast({
+        message: error instanceof Error ? error.message : 'Erro ao marcar reembolso',
+        type: 'error',
+      })
+    } finally {
+      setIsReimbursing(false)
+    }
   }
 
   // Estatísticas
@@ -130,6 +176,26 @@ export const Transactions = () => {
           <p className="text-body-sm text-neutral-500 dark:text-neutral-400">
             Gerencie todas as suas transações financeiras
           </p>
+          <div className="mt-3 inline-flex rounded-input border-2 border-border dark:border-border-dark p-1 bg-white dark:bg-neutral-950/40">
+            {([
+              { id: 'all', label: 'Todas' },
+              { id: 'personal', label: 'Pessoal' },
+              { id: 'company', label: 'Empresa' },
+            ] as const).map(option => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setFilterOrigin(option.id)}
+                className={`px-3 py-1.5 rounded-md text-body-sm font-medium transition-all duration-fast ${
+                  filterOrigin === option.id
+                    ? 'bg-primary-600 dark:bg-primary-500 text-white shadow-sm'
+                    : 'text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
         </div>
         <Button
           onClick={() => {
@@ -393,6 +459,15 @@ export const Transactions = () => {
                           <span className="text-caption text-neutral-500 dark:text-neutral-400">
                             • {parseLocalDate(transaction.date).toLocaleDateString('pt-BR')}
                           </span>
+                          {isCompanyExpense(transaction) && (
+                            <span className={`text-caption font-medium px-2 py-0.5 rounded-full ${
+                              isPendingReimbursement(transaction)
+                                ? 'bg-warning-100 dark:bg-warning-900/40 text-warning-700 dark:text-warning-300'
+                                : 'bg-success-100 dark:bg-success-900/40 text-success-700 dark:text-success-300'
+                            }`}>
+                              {isPendingReimbursement(transaction) ? 'Empresa · a receber' : 'Empresa · reembolsado'}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -405,6 +480,17 @@ export const Transactions = () => {
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
+                        {isPendingReimbursement(transaction) && (
+                          <button
+                            type="button"
+                            onClick={() => handleReimburse(transaction)}
+                            disabled={isReimbursing}
+                            className="px-2 py-1 rounded-lg text-caption font-medium bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/50 disabled:opacity-50"
+                            title="Marcar reembolso"
+                          >
+                            Reembolsar
+                          </button>
+                        )}
                         <button
                           onClick={() => handleEdit(transaction)}
                           className="p-2 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-500/10 transition-colors text-primary-600 dark:text-primary-400"
@@ -430,11 +516,11 @@ export const Transactions = () => {
         ) : (
           <div className="p-12 text-center">
             <p className="text-body text-neutral-500 dark:text-neutral-300 mb-4">
-              {searchTerm || filterType !== 'all' || filterCategory !== 'all' || filterAccount !== 'all' || filterByDate || minValue || maxValue
+              {searchTerm || filterType !== 'all' || filterOrigin !== 'all' || filterCategory !== 'all' || filterAccount !== 'all' || filterByDate || minValue || maxValue
                 ? 'Nenhuma transação encontrada com os filtros aplicados'
                 : 'Nenhuma transação cadastrada ainda'}
             </p>
-            {!searchTerm && filterType === 'all' && filterCategory === 'all' && filterAccount === 'all' && !filterByDate && !minValue && !maxValue && (
+            {!searchTerm && filterType === 'all' && filterOrigin === 'all' && filterCategory === 'all' && filterAccount === 'all' && !filterByDate && !minValue && !maxValue && (
               <Button
                 onClick={() => {
                   setEditingTransaction(null)
@@ -459,9 +545,18 @@ export const Transactions = () => {
             key={editingTransaction?.id ?? 'new'}
             initialType={editingTransaction?.type || 'expense'}
             initialTransaction={editingTransaction}
+            initialOrigin={filterOrigin === 'company' ? 'company' : 'personal'}
             isLoading={isUpdating || isCreating}
             onSubmit={async (data) => {
               if (editingTransaction) {
+                const originData = originFieldsForCreate(data.origin, data.type)
+                if (
+                  getExpenseOrigin(editingTransaction) === 'company' &&
+                  originData.origin === 'company' &&
+                  editingTransaction.reimbursement_status === 'reimbursed'
+                ) {
+                  originData.reimbursement_status = 'reimbursed'
+                }
                 updateTransaction(
                   {
                     id: editingTransaction.id,
@@ -483,6 +578,8 @@ export const Transactions = () => {
                         data.type === 'expense' && data.card_id
                           ? data.card_id
                           : null,
+                      origin: originData.origin,
+                      reimbursement_status: originData.reimbursement_status,
                     },
                   },
                   {
@@ -523,6 +620,8 @@ export const Transactions = () => {
                       amount: Math.abs(data.amount),
                       description: `Saldo inicial: ${data.description}`,
                       date: data.date,
+                      origin: 'personal',
+                      reimbursement_status: null,
                     }, {
                       onSuccess: () => {
                         setToast({ message: 'Saldo inicial adicionado com sucesso!', type: 'success' })
@@ -536,6 +635,7 @@ export const Transactions = () => {
                     const cardId = data.card_id?.trim() || null
                     const installments = Math.max(1, data.installments || 1)
                     const totalAmount = Math.abs(data.amount)
+                    const originData = originFieldsForCreate(data.origin, data.type)
 
                     if (cardId && data.type === 'expense') {
                       const card = cards.find(c => c.id === cardId)
@@ -551,6 +651,8 @@ export const Transactions = () => {
                         installments,
                         purchaseDate: data.date,
                         categoryId,
+                        origin: originData.origin,
+                        reimbursement_status: originData.reimbursement_status,
                       })
                       queryClient.invalidateQueries({ queryKey: ['card_purchases'] })
                       queryClient.invalidateQueries({ queryKey: ['card_invoices'] })
@@ -565,6 +667,8 @@ export const Transactions = () => {
                       amount: totalAmount,
                       description: data.description,
                       date: data.date,
+                      origin: originData.origin,
+                      reimbursement_status: originData.reimbursement_status,
                     }, {
                       onSuccess: (created) => {
                         const accName = created.account_id

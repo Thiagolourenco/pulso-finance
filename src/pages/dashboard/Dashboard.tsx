@@ -10,10 +10,13 @@ import { MonthlyExpensesModal } from '@/components/modals/MonthlyExpensesModal'
 import { AddGoalForm } from '@/components/forms/AddGoalForm'
 import { AddCategoryForm } from '@/components/forms/AddCategoryForm'
 import { AddRecurringExpenseForm } from '@/components/forms/AddRecurringExpenseForm'
+import { UpdateBalancesForm } from '@/components/forms/UpdateBalancesForm'
 import { GoalCard } from '@/components/goals/GoalCard'
 import { RecurringExpenseCard } from '@/components/recurring/RecurringExpenseCard'
 import { InsightsCard } from '@/components/insights/InsightsCard'
 import { CategoryBudgetsSection } from '@/components/budget/CategoryBudgetsSection'
+import { FinanceScopeSwitcher } from '@/components/finance/FinanceScopeSwitcher'
+import { CompanyFinanceSection } from '@/components/finance/CompanyFinanceSection'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTransactions } from '@/hooks/useTransactions'
@@ -30,8 +33,17 @@ import { parseLocalDate, formatCurrency } from '@/lib/utils'
 import { getInvoiceCycleDates } from '@/lib/utils/cardInvoiceCycle'
 import { getReportsMonthSummary } from '@/lib/utils/reportsMonthSummary'
 import { cardPurchaseService } from '@/services/cardPurchaseService'
+import { reimbursementService } from '@/services/reimbursementService'
 import { accountService } from '@/services/accountService'
 import { isCardExpense } from '@/lib/utils/accountBalance'
+import {
+  isCompanyExpense,
+  isPersonalPaidExpense,
+  originFieldsForCreate,
+  pendingCompanyInstallmentsForPaidInvoices,
+  type FinanceView,
+} from '@/lib/utils/expenseOrigin'
+import type { Transaction } from '@/types'
 
 type ModalType = 'transaction' | 'account' | 'card' | 'cardPurchase' | 'goal' | 'category' | 'recurringExpense' | 'totalMoney' | null
 type TransactionType = 'expense' | 'income' | 'balance'
@@ -43,6 +55,8 @@ export const Dashboard = () => {
   const [transactionType, setTransactionType] = useState<TransactionType>('expense')
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
   const [isCreatingPurchase, setIsCreatingPurchase] = useState(false)
+  const [financeView, setFinanceView] = useState<FinanceView>('personal')
+  const [isReimbursing, setIsReimbursing] = useState(false)
 
   const { transactions, createTransaction, isCreating } = useTransactions()
   const { accounts, createAccount, isCreating: isCreatingAccount } = useAccounts()
@@ -116,6 +130,8 @@ export const Dashboard = () => {
   const [editingRecurringExpense, setEditingRecurringExpense] = useState<any>(null)
   const [showAllCards, setShowAllCards] = useState(false) // Para mobile: controla se mostra todos os cards
   const [showTotalMoneyModal, setShowTotalMoneyModal] = useState(false) // Controla modal do resumo do total do dinheiro
+  const [showUpdateBalances, setShowUpdateBalances] = useState(false)
+  const [isSavingBalances, setIsSavingBalances] = useState(false)
 
   // Obtém o mês atual e anterior
   const currentDate = new Date()
@@ -182,7 +198,7 @@ export const Dashboard = () => {
     .filter(transaction => {
       const transactionDate = parseLocalDate(transaction.date)
       return (
-        transaction.type === 'expense' &&
+        isPersonalPaidExpense(transaction) &&
         !isCardExpense(transaction) &&
         transactionDate.getMonth() + 1 === currentMonth &&
         transactionDate.getFullYear() === currentYear
@@ -194,12 +210,25 @@ export const Dashboard = () => {
     .filter(invoice => invoice.status === 'paid' && invoice.last_paid_reference_month === currentMonthStr)
     .reduce((sum, invoice) => sum + (invoice.total_amount || 0), 0)
 
+  const companyInvoiceShare = pendingCompanyInstallmentsForPaidInvoices(
+    purchases,
+    invoices,
+    currentMonthStr
+  )
+
   const monthlyRecurringPaid = recurringExpenses
     .filter(expense => expense.is_active && expense.last_paid_reference_month === currentMonthStr)
     .reduce((sum, expense) => sum + (expense.amount || 0), 0)
 
-  const monthlyExpenses = monthlyTransactionExpensesPaid + monthlyInvoicesPaid + monthlyRecurringPaid
+  const monthlyExpenses =
+    monthlyTransactionExpensesPaid +
+    Math.max(0, monthlyInvoicesPaid - companyInvoiceShare) +
+    monthlyRecurringPaid
   const monthlyFlowBalance = monthlyIncome - monthlyExpenses
+
+  const pendingCompanyTotal = transactions
+    .filter(t => t.type === 'expense' && isCompanyExpense(t) && t.reimbursement_status !== 'reimbursed')
+    .reduce((sum, t) => sum + Math.abs(Number(t.amount) || 0), 0)
 
   // Para o MODAL de despesas: faturas que vencem no mês ou pagas no mês; recorrentes com vencimento no mês
   const currentMonthInvoicesForDisplay = invoices.filter(invoice => {
@@ -388,6 +417,7 @@ export const Dashboard = () => {
     account_id?: string | null
     card_id?: string | null
     installments?: number
+    origin?: 'personal' | 'company'
   }) => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -427,6 +457,8 @@ export const Dashboard = () => {
           amount: Math.abs(data.amount),
           description: `Saldo inicial: ${data.description}`,
           date: data.date,
+          origin: 'personal',
+          reimbursement_status: null,
         }, {
           onSuccess: () => {
             setToast({ message: 'Saldo inicial adicionado com sucesso!', type: 'success' })
@@ -440,6 +472,7 @@ export const Dashboard = () => {
         const cardId = data.card_id?.trim() || null
         const installments = Math.max(1, data.installments || 1)
         const totalAmount = Math.abs(data.amount)
+        const originData = originFieldsForCreate(data.origin, data.type)
 
         if (cardId && data.type === 'expense') {
           const card = cards.find(c => c.id === cardId)
@@ -454,6 +487,8 @@ export const Dashboard = () => {
             installments,
             purchaseDate: data.date,
             categoryId,
+            origin: originData.origin,
+            reimbursement_status: originData.reimbursement_status,
           })
           queryClient.invalidateQueries({ queryKey: ['card_purchases'] })
           queryClient.invalidateQueries({ queryKey: ['card_invoices'] })
@@ -468,6 +503,8 @@ export const Dashboard = () => {
           amount: totalAmount,
           description: data.description,
           date: data.date,
+          origin: originData.origin,
+          reimbursement_status: originData.reimbursement_status,
         }, {
           onSuccess: (created) => {
             const accName = created.account_id
@@ -480,7 +517,12 @@ export const Dashboard = () => {
               style: 'currency',
               currency: 'BRL',
             }).format(totalAmount)
-            if (created.type === 'expense' && cardName) {
+            if (created.type === 'expense' && originData.origin === 'company') {
+              setToast({
+                message: `Gasto de ${brl} da empresa. Não entra nas despesas pessoais; fica em A receber até o reembolso.`,
+                type: 'success',
+              })
+            } else if (created.type === 'expense' && cardName) {
               const installmentAmount = totalAmount / installments
               setToast({
                 message:
@@ -515,6 +557,38 @@ export const Dashboard = () => {
       }
     } catch (error: any) {
       setToast({ message: error.message || 'Erro ao adicionar transação', type: 'error' })
+    }
+  }
+
+  const handleReimburse = async (transaction: Transaction) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setToast({ message: 'Você precisa estar logado', type: 'error' })
+        return
+      }
+      setIsReimbursing(true)
+      await reimbursementService.markReimbursed({
+        userId: user.id,
+        transaction,
+        purchases,
+      })
+      queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
+      queryClient.invalidateQueries({ queryKey: ['card_purchases'] })
+      setToast({
+        message: transaction.account_id
+          ? 'Reembolso marcado. O valor voltou para a conta.'
+          : 'Reembolso marcado. Lance o depósito na conta quando o valor cair.',
+        type: 'success',
+      })
+    } catch (error: unknown) {
+      setToast({
+        message: error instanceof Error ? error.message : 'Erro ao marcar reembolso',
+        type: 'error',
+      })
+    } finally {
+      setIsReimbursing(false)
     }
   }
 
@@ -804,11 +878,16 @@ export const Dashboard = () => {
         <div>
           <h1 className="text-xl lg:text-h1 font-bold text-neutral-900 dark:text-neutral-50 mb-1 lg:mb-2">Dashboard</h1>
           <p className="text-sm lg:text-body-sm text-neutral-500 dark:text-neutral-400">
-            Visão geral das suas finanças • {new Date().toLocaleDateString('pt-BR', { 
+            {financeView === 'company' ? 'Gastos da empresa e reembolsos' : 'Visão geral das suas finanças'}
+            {' • '}
+            {new Date().toLocaleDateString('pt-BR', { 
               month: 'long', 
               year: 'numeric' 
             })}
           </p>
+          <div className="mt-3">
+            <FinanceScopeSwitcher value={financeView} onChange={setFinanceView} />
+          </div>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 lg:gap-3">
           <Button 
@@ -845,6 +924,18 @@ export const Dashboard = () => {
         </div>
       </div>
 
+      {financeView === 'company' ? (
+        <CompanyFinanceSection
+          transactions={transactions}
+          accounts={accounts}
+          cards={cards}
+          currentMonth={currentMonth}
+          currentYear={currentYear}
+          isReimbursing={isReimbursing}
+          onReimburse={handleReimburse}
+        />
+      ) : (
+      <>
       {/* Cards financeiros com melhor visual */}
       <div className="space-y-4 lg:space-y-6 mb-6 lg:mb-8">
         {hasNegativeBalance && (
@@ -933,7 +1024,7 @@ export const Dashboard = () => {
         </div>
 
         {/* Linha inferior: Despesas do mês e Próximo mês */}
-        <div className={`grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 ${showAllCards ? 'block' : 'hidden lg:grid'}`}>
+        <div className={`grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 ${showAllCards ? 'block' : 'hidden lg:grid'}`}>
           <FinancialCard
             title="Despesas do mês"
             value={monthlyExpenses}
@@ -956,6 +1047,7 @@ export const Dashboard = () => {
               const transactionDate = parseLocalDate(transaction.date)
               return (
                 transaction.type === 'expense' &&
+                !isCompanyExpense(transaction) &&
                 !isCardExpense(transaction) &&
                 transactionDate.getMonth() + 1 === nextMonth &&
                 transactionDate.getFullYear() === nextMonthYear
@@ -967,6 +1059,7 @@ export const Dashboard = () => {
 
             const nextMonthFixedPurchases = purchases.filter(purchase => {
               // Verifica se ainda há parcelas a pagar
+              if (isCompanyExpense(purchase)) return false
               if (purchase.current_installment > purchase.installments) {
                 return false
               }
@@ -1073,6 +1166,19 @@ export const Dashboard = () => {
               </>
             )
           })()}
+          <FinancialCard
+            title="A receber da empresa"
+            value={pendingCompanyTotal}
+            subtitle="Gastos aguardando reembolso"
+            variant="purple"
+            icon={
+              <div className="w-12 h-12 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
+                <span className="text-2xl">🏢</span>
+              </div>
+            }
+            onClick={() => setFinanceView('company')}
+            className="cursor-pointer hover:shadow-xl transition-shadow"
+          />
         </div>
 
         {/* Botão Ver mais / Ver menos - apenas no mobile */}
@@ -1137,6 +1243,7 @@ export const Dashboard = () => {
                 const transactionDate = parseLocalDate(transaction.date)
                 return (
                   transaction.type === 'expense' &&
+                  !isCompanyExpense(transaction) &&
                   !isCardExpense(transaction) &&
                   transactionDate.getMonth() + 1 === nextMonth &&
                   transactionDate.getFullYear() === nextMonthYear
@@ -1148,6 +1255,7 @@ export const Dashboard = () => {
               const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1
               const nextMonthYear = currentMonth === 12 ? currentYear + 1 : currentYear
               const nextMonthFixedPurchases = purchases.filter(purchase => {
+                if (isCompanyExpense(purchase)) return false
                 if (purchase.current_installment > purchase.installments) return false
                 const purchaseDate = new Date(purchase.purchase_date)
                 const purchaseMonth = purchaseDate.getMonth() + 1
@@ -1826,6 +1934,9 @@ export const Dashboard = () => {
         </div>
       )}
 
+      </>
+      )}
+
       {/* Modais */}
       <Modal
         isOpen={modalType === 'transaction'}
@@ -1834,9 +1945,11 @@ export const Dashboard = () => {
         size="md"
       >
         <AddTransactionForm
+          key={`${transactionType}-${financeView}`}
           onSubmit={handleAddTransaction}
           onCancel={() => setModalType(null)}
           initialType={transactionType}
+          initialOrigin={financeView}
           isLoading={isCreating}
         />
       </Modal>
@@ -1966,7 +2079,7 @@ export const Dashboard = () => {
         const currentMonthExpenses = transactions.filter(transaction => {
           const transactionDate = parseLocalDate(transaction.date)
           return (
-            transaction.type === 'expense' &&
+            isPersonalPaidExpense(transaction) &&
             !isCardExpense(transaction) &&
             transactionDate.getMonth() + 1 === currentMonth &&
             transactionDate.getFullYear() === currentYear
@@ -2093,13 +2206,58 @@ export const Dashboard = () => {
               </span>
             </div>
 
-            <div className="pt-4 border-t border-border dark:border-border-dark">
+            <div className="pt-4 border-t border-border dark:border-border-dark space-y-3">
               <p className="text-caption text-neutral-600 dark:text-neutral-400 leading-relaxed">
                 Para manter o valor total fiel ao que existe nas contas, sempre que possivel vincule receitas e despesas a uma conta ao lancar.
               </p>
+              <Button
+                variant="secondary"
+                className="w-full"
+                onClick={() => {
+                  setShowTotalMoneyModal(false)
+                  setShowUpdateBalances(true)
+                }}
+              >
+                Atualizar saldos guardados
+              </Button>
             </div>
           </div>
         </div>
+      </Modal>
+
+      <Modal
+        isOpen={showUpdateBalances}
+        onClose={() => setShowUpdateBalances(false)}
+        title="Atualizar saldos"
+        size="lg"
+      >
+        <UpdateBalancesForm
+          key={accounts.map(account => `${account.id}:${account.current_balance}`).join('|')}
+          accounts={accounts}
+          transactions={transactions}
+          isLoading={isSavingBalances}
+          onCancel={() => setShowUpdateBalances(false)}
+          onSubmit={async (updates) => {
+            if (updates.length === 0) {
+              setShowUpdateBalances(false)
+              return
+            }
+            setIsSavingBalances(true)
+            try {
+              await accountService.setCurrentBalances(updates)
+              await queryClient.invalidateQueries({ queryKey: ['accounts'] })
+              setToast({ message: 'Saldos atualizados com sucesso!', type: 'success' })
+              setShowUpdateBalances(false)
+            } catch (error) {
+              setToast({
+                message: error instanceof Error ? error.message : 'Erro ao atualizar saldos',
+                type: 'error',
+              })
+            } finally {
+              setIsSavingBalances(false)
+            }
+          }}
+        />
       </Modal>
 
       {/* Toast de notificação */}

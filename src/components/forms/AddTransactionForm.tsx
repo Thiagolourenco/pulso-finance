@@ -3,6 +3,8 @@ import { Input, CurrencyInput, Button } from '@/components/ui'
 import { useCategories } from '@/hooks/useCategories'
 import { useAccounts } from '@/hooks/useAccounts'
 import { useCards } from '@/hooks/useCards'
+import type { ExpenseOrigin } from '@/lib/utils/expenseOrigin'
+import { getExpenseOrigin, originFieldsForCreate } from '@/lib/utils/expenseOrigin'
 import type { Category, Transaction } from '@/types'
 
 interface AddTransactionFormProps {
@@ -18,14 +20,20 @@ interface AddTransactionFormProps {
     card_id?: string | null
     /** Quantidade de parcelas (só despesa no cartão). */
     installments?: number
+    origin?: ExpenseOrigin
   }) => void
   onCancel: () => void
   isLoading?: boolean
   initialType?: 'expense' | 'income' | 'balance'
   initialTransaction?: Transaction | null
+  initialOrigin?: ExpenseOrigin
 }
 
-const getInitialState = (initialTransaction: Transaction | null | undefined, initialType: 'expense' | 'income' | 'balance') => {
+const getInitialState = (
+  initialTransaction: Transaction | null | undefined,
+  initialType: 'expense' | 'income' | 'balance',
+  initialOrigin: ExpenseOrigin = 'personal'
+) => {
   if (initialTransaction) {
     const isCardExpense =
       initialTransaction.type === 'expense' && Boolean(initialTransaction.card_id)
@@ -39,6 +47,7 @@ const getInitialState = (initialTransaction: Transaction | null | undefined, ini
       cardId: initialTransaction.card_id || '',
       expenseSource: (isCardExpense ? 'card' : 'account') as 'account' | 'card',
       installments: 1,
+      origin: getExpenseOrigin(initialTransaction),
     }
   }
   return {
@@ -51,6 +60,7 @@ const getInitialState = (initialTransaction: Transaction | null | undefined, ini
     cardId: '',
     expenseSource: 'account' as const,
     installments: 1,
+    origin: initialType === 'expense' ? initialOrigin : 'personal' as const,
   }
 }
 
@@ -60,8 +70,9 @@ export const AddTransactionForm = ({
   isLoading = false,
   initialType = 'expense',
   initialTransaction = null,
+  initialOrigin = 'personal',
 }: AddTransactionFormProps) => {
-  const initialState = getInitialState(initialTransaction, initialType)
+  const initialState = getInitialState(initialTransaction, initialType, initialOrigin)
   const [description, setDescription] = useState(initialState.description)
   const [amount, setAmount] = useState(initialState.amount)
   const [type, setType] = useState<'expense' | 'income' | 'balance'>(initialState.type)
@@ -71,6 +82,7 @@ export const AddTransactionForm = ({
   const [cardId, setCardId] = useState<string>(initialState.cardId)
   const [expenseSource, setExpenseSource] = useState<'account' | 'card'>(initialState.expenseSource)
   const [installments, setInstallments] = useState(initialState.installments)
+  const [origin, setOrigin] = useState<ExpenseOrigin>(initialState.origin)
   const [error, setError] = useState('')
   
   const { categories, isLoading: isLoadingCategories } = useCategories()
@@ -123,10 +135,12 @@ export const AddTransactionForm = ({
     if (newType === 'balance') {
       setAccountId('')
       setCardId('')
+      setOrigin('personal')
     }
     if (newType === 'income') {
       setCardId('')
       setExpenseSource('account')
+      setOrigin('personal')
     }
     if (newType === 'expense' && !initialTransaction) {
       setExpenseSource('account')
@@ -202,6 +216,7 @@ export const AddTransactionForm = ({
             : null,
       card_id: isExpenseOnCard ? cardId : null,
       installments: isExpenseOnCard ? installments : undefined,
+      origin: originFieldsForCreate(origin, type).origin,
     })
   }
 
@@ -262,6 +277,45 @@ export const AddTransactionForm = ({
             💳 Saldo inicial
           </button>
         </div>
+
+        {type === 'expense' && (
+          <div className="grid grid-cols-2 gap-3 mt-3">
+            <button
+              type="button"
+              onClick={() => setOrigin('personal')}
+              className={`
+              px-4 py-3 rounded-input border-2 transition-all duration-fast
+              ${
+                origin === 'personal'
+                  ? 'border-primary-500 bg-primary-50 dark:bg-primary-500/10 text-primary-700 dark:text-primary-300 font-medium'
+                  : 'border-border dark:border-border-dark bg-white dark:bg-neutral-950/40 text-neutral-700 dark:text-neutral-300 hover:border-primary-300 dark:hover:border-primary-500/50'
+              }
+            `}
+            >
+              Pessoal
+            </button>
+            <button
+              type="button"
+              onClick={() => setOrigin('company')}
+              className={`
+              px-4 py-3 rounded-input border-2 transition-all duration-fast
+              ${
+                origin === 'company'
+                  ? 'border-primary-500 bg-primary-50 dark:bg-primary-500/10 text-primary-700 dark:text-primary-300 font-medium'
+                  : 'border-border dark:border-border-dark bg-white dark:bg-neutral-950/40 text-neutral-700 dark:text-neutral-300 hover:border-primary-300 dark:hover:border-primary-500/50'
+              }
+            `}
+            >
+              Empresa
+            </button>
+          </div>
+        )}
+
+        {type === 'expense' && origin === 'company' && (
+          <p className="mt-2 text-caption text-neutral-500 dark:text-neutral-400">
+            Sai da conta ou fatura agora, mas não conta como gasto pessoal. Fica em A receber da empresa até o reembolso.
+          </p>
+        )}
 
         {type === 'expense' && (
           <div className="grid grid-cols-2 gap-3 mt-3">

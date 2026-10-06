@@ -1,19 +1,25 @@
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useAccounts } from '@/hooks/useAccounts'
 import { useTransactions } from '@/hooks/useTransactions'
 import { computeTransactionDeltaForAccount } from '@/lib/utils/accountBalance'
 import { Button, Modal, Toast } from '@/components/ui'
 import { formatCurrency } from '@/lib/utils'
 import { AddAccountForm } from '@/components/forms/AddAccountForm'
+import { UpdateBalancesForm } from '@/components/forms/UpdateBalancesForm'
 import type { Account } from '@/types'
 import { supabase } from '@/lib/supabase/client'
+import { accountService } from '@/services/accountService'
 
 export const Accounts = () => {
+  const queryClient = useQueryClient()
   const { accounts, deleteAccount, createAccount, updateAccount, isDeleting, isCreating, isUpdating } = useAccounts()
   const { transactions } = useTransactions()
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showUpdateBalances, setShowUpdateBalances] = useState(false)
   const [editingAccount, setEditingAccount] = useState<Account | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
+  const [isSavingBalances, setIsSavingBalances] = useState(false)
 
   const handleDelete = async (id: string) => {
     if (!confirm('Tem certeza que deseja excluir esta conta? Todas as transações vinculadas serão mantidas.')) return
@@ -75,12 +81,23 @@ export const Accounts = () => {
             Gerencie suas contas bancárias, carteiras e investimentos
           </p>
         </div>
-        <Button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2"
-        >
-          ➕ Nova Conta
-        </Button>
+        <div className="flex items-center gap-2">
+          {accounts.length > 0 && (
+            <Button
+              variant="secondary"
+              onClick={() => setShowUpdateBalances(true)}
+              className="flex items-center gap-2"
+            >
+              Atualizar saldos
+            </Button>
+          )}
+          <Button
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-2"
+          >
+            ➕ Nova Conta
+          </Button>
+        </div>
       </div>
 
       {/* Resumo */}
@@ -187,6 +204,41 @@ export const Accounts = () => {
           </div>
         )}
       </div>
+
+      <Modal
+        isOpen={showUpdateBalances}
+        onClose={() => setShowUpdateBalances(false)}
+        title="Atualizar saldos"
+        size="lg"
+      >
+        <UpdateBalancesForm
+          key={accounts.map(account => `${account.id}:${account.current_balance}`).join('|')}
+          accounts={accounts}
+          transactions={transactions}
+          isLoading={isSavingBalances}
+          onCancel={() => setShowUpdateBalances(false)}
+          onSubmit={async (updates) => {
+            if (updates.length === 0) {
+              setShowUpdateBalances(false)
+              return
+            }
+            setIsSavingBalances(true)
+            try {
+              await accountService.setCurrentBalances(updates)
+              await queryClient.invalidateQueries({ queryKey: ['accounts'] })
+              setToast({ message: 'Saldos atualizados com sucesso!', type: 'success' })
+              setShowUpdateBalances(false)
+            } catch (error) {
+              setToast({
+                message: error instanceof Error ? error.message : 'Erro ao atualizar saldos',
+                type: 'error',
+              })
+            } finally {
+              setIsSavingBalances(false)
+            }
+          }}
+        />
+      </Modal>
 
       {/* Modal de Adicionar/Editar */}
       {showAddModal && (

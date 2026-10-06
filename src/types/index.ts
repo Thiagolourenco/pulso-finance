@@ -39,6 +39,8 @@ export interface Database {
           description: string
           type: 'income' | 'expense'
           date: string
+          origin: 'personal' | 'company'
+          reimbursement_status: 'pending' | 'reimbursed' | null
           created_at: string
           updated_at: string
         }
@@ -52,6 +54,8 @@ export interface Database {
           description: string
           type: 'income' | 'expense'
           date: string
+          origin?: 'personal' | 'company'
+          reimbursement_status?: 'pending' | 'reimbursed' | null
           created_at?: string
           updated_at?: string
         }
@@ -65,6 +69,8 @@ export interface Database {
           description?: string
           type?: 'income' | 'expense'
           date?: string
+          origin?: 'personal' | 'company'
+          reimbursement_status?: 'pending' | 'reimbursed' | null
           created_at?: string
           updated_at?: string
         }
@@ -217,6 +223,8 @@ export interface Database {
           category_id: string | null
           is_recurring: boolean
           is_paid_current_month?: boolean
+          origin: 'personal' | 'company'
+          reimbursement_status: 'pending' | 'reimbursed' | null
           created_at: string
           updated_at: string
         }
@@ -233,6 +241,8 @@ export interface Database {
           category_id?: string | null
           is_recurring?: boolean
           is_paid_current_month?: boolean
+          origin?: 'personal' | 'company'
+          reimbursement_status?: 'pending' | 'reimbursed' | null
           created_at?: string
           updated_at?: string
         }
@@ -249,6 +259,8 @@ export interface Database {
           category_id?: string | null
           is_recurring?: boolean
           is_paid_current_month?: boolean
+          origin?: 'personal' | 'company'
+          reimbursement_status?: 'pending' | 'reimbursed' | null
           created_at?: string
           updated_at?: string
         }

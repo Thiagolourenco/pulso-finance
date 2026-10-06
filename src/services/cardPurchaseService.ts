@@ -52,6 +52,8 @@ export const cardPurchaseService = {
     purchaseDate: string
     categoryId?: string | null
     isRecurring?: boolean
+    origin?: 'personal' | 'company'
+    reimbursement_status?: 'pending' | 'reimbursed' | null
   }) {
     const installments = Math.max(1, Math.floor(params.installments) || 1)
     const installmentAmount = params.totalAmount / installments
@@ -74,6 +76,8 @@ export const cardPurchaseService = {
       purchase_date: params.purchaseDate,
       category_id: params.categoryId || null,
       is_recurring: params.isRecurring ?? false,
+      origin: params.origin ?? 'personal',
+      reimbursement_status: params.reimbursement_status ?? null,
     })
   },
 
