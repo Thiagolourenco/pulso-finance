@@ -11,6 +11,7 @@ interface CompanyFinanceSectionProps {
   currentYear: number
   isReimbursing?: boolean
   onReimburse: (transaction: Transaction) => void
+  onRemove: (transaction: Transaction) => void
 }
 
 export const CompanyFinanceSection = ({
@@ -21,6 +22,7 @@ export const CompanyFinanceSection = ({
   currentYear,
   isReimbursing = false,
   onReimburse,
+  onRemove,
 }: CompanyFinanceSectionProps) => {
   const companyExpenses = transactions.filter(
     t => t.type === 'expense' && isCompanyExpense(t)
@@ -115,6 +117,14 @@ export const CompanyFinanceSection = ({
                       onClick={() => onReimburse(transaction)}
                     >
                       Marcar reembolsado
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      disabled={isReimbursing}
+                      onClick={() => onRemove(transaction)}
+                    >
+                      Remover
                     </Button>
                   </div>
                 </div>

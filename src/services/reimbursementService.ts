@@ -1,5 +1,5 @@
 import { getOrCreateDefaultCategory } from '@/lib/utils/categories'
-import { isPendingReimbursement } from '@/lib/utils/expenseOrigin'
+import { isPendingReimbursement, isCompanyExpense } from '@/lib/utils/expenseOrigin'
 import type { CardPurchase, Transaction } from '@/types'
 import { cardPurchaseService } from './cardPurchaseService'
 import { transactionService } from './transactionService'
@@ -58,5 +58,22 @@ export const reimbursementService = {
         reimbursement_status: null,
       })
     }
+  },
+
+  async removeExpense(params: {
+    transaction: Transaction
+    purchases: CardPurchase[]
+  }) {
+    const { transaction, purchases } = params
+    if (transaction.type !== 'expense' || !isCompanyExpense(transaction)) {
+      throw new Error('Só é possível remover um gasto da empresa')
+    }
+
+    const matchingPurchase = findMatchingCompanyPurchase(transaction, purchases)
+    if (matchingPurchase) {
+      await cardPurchaseService.delete(matchingPurchase.id)
+    }
+
+    await transactionService.delete(transaction.id)
   },
 }

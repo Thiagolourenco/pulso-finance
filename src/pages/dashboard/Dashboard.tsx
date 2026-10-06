@@ -592,6 +592,38 @@ export const Dashboard = () => {
     }
   }
 
+  const handleRemoveCompanyExpense = async (transaction: Transaction) => {
+    if (
+      !confirm(
+        transaction.account_id
+          ? 'Remover este gasto da empresa? O valor volta para a conta.'
+          : 'Remover este gasto da empresa? Ele sai da lista e da fatura do cartão, se houver compra vinculada.'
+      )
+    ) {
+      return
+    }
+
+    try {
+      setIsReimbursing(true)
+      await reimbursementService.removeExpense({
+        transaction,
+        purchases,
+      })
+      queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
+      queryClient.invalidateQueries({ queryKey: ['card_purchases'] })
+      queryClient.invalidateQueries({ queryKey: ['card_invoices'] })
+      setToast({ message: 'Gasto da empresa removido.', type: 'success' })
+    } catch (error: unknown) {
+      setToast({
+        message: error instanceof Error ? error.message : 'Erro ao remover gasto',
+        type: 'error',
+      })
+    } finally {
+      setIsReimbursing(false)
+    }
+  }
+
   const handleAddAccount = async (data: {
     name: string
     type: 'bank' | 'cash' | 'investment' | 'wallet'
@@ -933,6 +965,7 @@ export const Dashboard = () => {
           currentYear={currentYear}
           isReimbursing={isReimbursing}
           onReimburse={handleReimburse}
+          onRemove={handleRemoveCompanyExpense}
         />
       ) : (
       <>
