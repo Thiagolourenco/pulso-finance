@@ -30,7 +30,11 @@ import { useRecurringExpenses } from '@/hooks/useRecurringExpenses'
 import { supabase } from '@/lib/supabase/client'
 import { getOrCreateDefaultCategory, getOrCreateBalanceCategory } from '@/lib/utils/categories'
 import { parseLocalDate, formatCurrency } from '@/lib/utils'
-import { getInvoiceCycleDates } from '@/lib/utils/cardInvoiceCycle'
+import {
+  getInvoiceCycleDates,
+  isPurchaseDueInInvoiceMonth,
+  sumPurchasesDueInInvoiceMonth,
+} from '@/lib/utils/cardInvoiceCycle'
 import { getReportsMonthSummary } from '@/lib/utils/reportsMonthSummary'
 import { cardPurchaseService } from '@/services/cardPurchaseService'
 import { reimbursementService } from '@/services/reimbursementService'
@@ -326,48 +330,19 @@ export const Dashboard = () => {
     sessionStorage.setItem(alertKey, '1')
   }, [hasNegativeBalance, isTotalWealthNegative, totalRealWealth, negativeAccounts])
 
-  // Total da fatura por ciclo (mês/ano alvo), baseado nas parcelas realmente devidas
+  // Total da fatura por ciclo (mês/ano alvo), incluindo recorrentes ativos
   const calculateCardInvoiceTotalForMonth = (cardId: string, targetMonth: number, targetYear: number) => {
-    const cardPurchases = purchases.filter(purchase => purchase.card_id === cardId)
-
-    return cardPurchases
-      .filter(purchase => {
-        if (purchase.current_installment > purchase.installments) return false
-
-        const purchaseDate = new Date(purchase.purchase_date)
-        const purchaseMonth = purchaseDate.getMonth() + 1
-        const purchaseYear = purchaseDate.getFullYear()
-
-        // Se compra foi no mês M, a parcela 1 vence em M+1.
-        const monthsDiff = (targetYear - purchaseYear) * 12 + (targetMonth - purchaseMonth)
-        const installmentDueInTargetMonth = monthsDiff
-
-        return (
-          monthsDiff >= 1 &&
-          installmentDueInTargetMonth >= purchase.current_installment &&
-          installmentDueInTargetMonth <= purchase.installments
-        )
-      })
-      .reduce((sum, purchase) => sum + (purchase.installment_amount || 0), 0)
+    return sumPurchasesDueInInvoiceMonth(
+      purchases.filter(purchase => purchase.card_id === cardId),
+      targetMonth,
+      targetYear
+    )
   }
 
   const getPurchasesDueForInvoiceMonth = (cardId: string, targetMonth: number, targetYear: number) => {
-    return purchases.filter(purchase => {
-      if (purchase.card_id !== cardId) return false
-      if (purchase.current_installment > purchase.installments) return false
-
-      const purchaseDate = new Date(purchase.purchase_date)
-      const purchaseMonth = purchaseDate.getMonth() + 1
-      const purchaseYear = purchaseDate.getFullYear()
-      const monthsDiff = (targetYear - purchaseYear) * 12 + (targetMonth - purchaseMonth)
-      const installmentDueInTargetMonth = monthsDiff
-
-      return (
-        monthsDiff >= 1 &&
-        installmentDueInTargetMonth >= purchase.current_installment &&
-        installmentDueInTargetMonth <= purchase.installments
-      )
-    })
+    return purchases.filter(purchase =>
+      purchase.card_id === cardId && isPurchaseDueInInvoiceMonth(purchase, targetMonth, targetYear)
+    )
   }
 
   const advanceInstallmentsAfterInvoicePayment = async (cardId: string, targetMonth: number, targetYear: number) => {
@@ -1709,7 +1684,8 @@ export const Dashboard = () => {
                 invoiceMonthForCalculation,
                 invoiceYearForCalculation
               )
-              const invoiceTotal = calculatedInvoiceTotal > 0 ? calculatedInvoiceTotal : (currentInvoice?.total_amount || 0)
+              const storedInvoiceTotal = Number(currentInvoice?.total_amount) || 0
+              const invoiceTotal = Math.max(storedInvoiceTotal, calculatedInvoiceTotal)
               const availableLimit = card.credit_limit - invoiceTotal
               const usagePercentage = card.credit_limit > 0
                 ? Math.max(0, Math.min(100, (invoiceTotal / card.credit_limit) * 100))

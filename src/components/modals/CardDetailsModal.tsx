@@ -7,6 +7,10 @@ import { PurchaseItem } from '@/components/PurchaseItem'
 import type { Card, CardPurchase } from '@/types'
 import { supabase } from '@/lib/supabase/client'
 import { cardInvoiceService } from '@/services/cardInvoiceService'
+import {
+  isPurchaseDueInInvoiceMonth,
+  sumPurchasesDueInInvoiceMonth,
+} from '@/lib/utils/cardInvoiceCycle'
 
 interface CardDetailsModalProps {
   card: Card
@@ -28,6 +32,9 @@ export const CardDetailsModal = ({
   const [purchaseDate, setPurchaseDate] = useState(new Date().toISOString().split('T')[0])
   const [isRecurring, setIsRecurring] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showUpdateInvoiceAmount, setShowUpdateInvoiceAmount] = useState(false)
+  const [manualInvoiceAmount, setManualInvoiceAmount] = useState(0)
+  const [isSavingInvoiceAmount, setIsSavingInvoiceAmount] = useState(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   const queryClient = useQueryClient()
@@ -60,51 +67,19 @@ export const CardDetailsModal = ({
     allPurchases: purchases.map(p => ({ id: p.id, description: p.description, is_recurring: p.is_recurring }))
   })
 
-  // Calcula total da fatura pelo ciclo (mês/ano), usando parcelas realmente devidas
-  const calculateInvoiceTotalForCycle = (targetMonth: number, targetYear: number) => {
-    return purchases
-      .filter(purchase => {
-        if (purchase.current_installment > purchase.installments) return false
-
-        const purchaseDateObj = new Date(purchase.purchase_date)
-        const purchaseMonth = purchaseDateObj.getMonth() + 1
-        const purchaseYear = purchaseDateObj.getFullYear()
-
-        // Se compra foi no mês M, a parcela 1 vence em M+1.
-        const monthsDiff = (targetYear - purchaseYear) * 12 + (targetMonth - purchaseMonth)
-        const installmentDueInTargetMonth = monthsDiff
-
-        return (
-          monthsDiff >= 1 &&
-          installmentDueInTargetMonth >= purchase.current_installment &&
-          installmentDueInTargetMonth <= purchase.installments
-        )
-      })
-      .reduce((sum, purchase) => sum + (purchase.installment_amount || 0), 0)
-  }
-
   const openInvoiceDueDate = openInvoice ? new Date(openInvoice.due_date) : null
   const invoiceMonthForCalculation = openInvoiceDueDate ? openInvoiceDueDate.getMonth() + 1 : currentMonth
   const invoiceYearForCalculation = openInvoiceDueDate ? openInvoiceDueDate.getFullYear() : currentYear
-  const calculatedInvoiceTotal = calculateInvoiceTotalForCycle(invoiceMonthForCalculation, invoiceYearForCalculation)
-  const invoiceTotal = calculatedInvoiceTotal > 0 ? calculatedInvoiceTotal : (openInvoice?.total_amount || 0)
+  const calculatedInvoiceTotal = sumPurchasesDueInInvoiceMonth(
+    purchases,
+    invoiceMonthForCalculation,
+    invoiceYearForCalculation
+  )
+  const storedInvoiceTotal = Number(openInvoice?.total_amount) || 0
+  const invoiceTotal = Math.max(storedInvoiceTotal, calculatedInvoiceTotal)
 
   const getPurchasesDueForInvoiceMonth = (targetMonth: number, targetYear: number) => {
-    return purchases.filter(purchase => {
-      if (purchase.current_installment > purchase.installments) return false
-
-      const purchaseDateObj = new Date(purchase.purchase_date)
-      const purchaseMonth = purchaseDateObj.getMonth() + 1
-      const purchaseYear = purchaseDateObj.getFullYear()
-      const monthsDiff = (targetYear - purchaseYear) * 12 + (targetMonth - purchaseMonth)
-      const installmentDueInTargetMonth = monthsDiff
-
-      return (
-        monthsDiff >= 1 &&
-        installmentDueInTargetMonth >= purchase.current_installment &&
-        installmentDueInTargetMonth <= purchase.installments
-      )
-    })
+    return purchases.filter(purchase => isPurchaseDueInInvoiceMonth(purchase, targetMonth, targetYear))
   }
 
   const advanceInstallmentsAfterInvoicePayment = async (targetMonth: number, targetYear: number) => {
@@ -133,6 +108,87 @@ export const CardDetailsModal = ({
       })
     )
   }
+
+  const openInvoiceAmountEditor = () => {
+    const suggested = invoiceTotal > 0 ? invoiceTotal : totalOpenInstallments
+    setManualInvoiceAmount(suggested)
+    setShowUpdateInvoiceAmount(true)
+  }
+
+  const handleSaveInvoiceAmount = async () => {
+    if (manualInvoiceAmount < 0) {
+      setToast({ message: 'Valor inválido', type: 'error' })
+      return
+    }
+
+    setIsSavingInvoiceAmount(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        setToast({ message: 'Você precisa estar logado', type: 'error' })
+        return
+      }
+
+      await cardInvoiceService.setManualAmount({
+        userId: user.id,
+        card,
+        amount: manualInvoiceAmount,
+      })
+
+      queryClient.invalidateQueries({ queryKey: ['card_invoices'] })
+      setShowUpdateInvoiceAmount(false)
+      setToast({ message: 'Valor da fatura atualizado', type: 'success' })
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao atualizar valor da fatura'
+      setToast({ message: errorMessage, type: 'error' })
+    } finally {
+      setIsSavingInvoiceAmount(false)
+    }
+  }
+
+  const invoiceAmountEditor = (
+    <div className="space-y-3">
+      <p className="text-caption text-neutral-500 dark:text-neutral-400">
+        Informe o valor que aparece no app do banco, se o calculado estiver diferente.
+      </p>
+      <CurrencyInput
+        label="Valor da fatura"
+        value={manualInvoiceAmount}
+        onChange={setManualInvoiceAmount}
+      />
+      {totalOpenInstallments > 0 && Math.abs(totalOpenInstallments - manualInvoiceAmount) >= 0.009 && (
+        <button
+          type="button"
+          onClick={() => setManualInvoiceAmount(totalOpenInstallments)}
+          className="text-caption text-primary-600 dark:text-primary-400 hover:underline"
+        >
+          Usar compras ativas, incluindo recorrentes ({totalOpenInstallments.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })})
+        </button>
+      )}
+      <div className="flex gap-2">
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={() => setShowUpdateInvoiceAmount(false)}
+          disabled={isSavingInvoiceAmount}
+          className="flex-1"
+        >
+          Cancelar
+        </Button>
+        <Button
+          type="button"
+          variant="primary"
+          size="sm"
+          onClick={handleSaveInvoiceAmount}
+          isLoading={isSavingInvoiceAmount}
+          className="flex-1"
+        >
+          Salvar valor
+        </Button>
+      </div>
+    </div>
+  )
 
   const handleAddPurchase = async () => {
     if (!description.trim()) {
@@ -269,6 +325,20 @@ export const CardDetailsModal = ({
                   </p>
                 </div>
               </div>
+              <div className="mt-3 pt-3 border-t border-border dark:border-border-dark space-y-3">
+                {!showUpdateInvoiceAmount ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={openInvoiceAmountEditor}
+                  >
+                    Atualizar valor
+                  </Button>
+                ) : (
+                  invoiceAmountEditor
+                )}
+              </div>
               {/* Checkbox para marcar como paga - só mostra se vence no mês atual */}
               {(() => {
                 const invoiceDueDate = new Date(openInvoice.due_date)
@@ -341,8 +411,22 @@ export const CardDetailsModal = ({
               })()}
             </div>
           ) : (
-            <div className="p-4 bg-neutral-50 dark:bg-neutral-900/20 rounded-lg border border-border dark:border-border-dark text-center">
-              <p className="text-body-sm text-neutral-500 dark:text-neutral-300">Nenhuma fatura aberta</p>
+            <div className="p-4 bg-neutral-50 dark:bg-neutral-900/20 rounded-lg border border-border dark:border-border-dark space-y-3">
+              <p className="text-body-sm text-neutral-500 dark:text-neutral-300 text-center">Nenhuma fatura aberta</p>
+              {!showUpdateInvoiceAmount ? (
+                <div className="flex justify-center">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={openInvoiceAmountEditor}
+                  >
+                    Informar valor da fatura
+                  </Button>
+                </div>
+              ) : (
+                invoiceAmountEditor
+              )}
             </div>
           )}
 

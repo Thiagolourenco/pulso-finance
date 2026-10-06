@@ -138,6 +138,41 @@ export const cardInvoiceService = {
     return data as CardInvoice
   },
 
+  /** Define o valor da fatura aberta (ou cria a do ciclo atual) para bater com o app do banco. */
+  async setManualAmount(params: {
+    userId: string
+    card: CardBillingDays & { id: string }
+    amount: number
+  }): Promise<CardInvoice> {
+    const amount = Math.round((Number(params.amount) || 0) * 100) / 100
+    const open = await this.getOpenByCard(params.card.id)
+
+    if (open) {
+      return this.update(open.id, { total_amount: amount })
+    }
+
+    const dates = getInvoiceCycleDates(params.card)
+    const existing = await this.getByCardAndReferenceMonth(params.card.id, dates.reference_month)
+
+    if (existing) {
+      return this.update(existing.id, {
+        total_amount: amount,
+        status: 'open',
+        last_paid_reference_month: null,
+      })
+    }
+
+    return this.create({
+      user_id: params.userId,
+      card_id: params.card.id,
+      reference_month: dates.reference_month,
+      closing_date: dates.closing_date,
+      due_date: dates.due_date,
+      status: 'open',
+      total_amount: amount,
+    })
+  },
+
   async delete(id: string) {
     const { error } = await supabase
       .from('card_invoices')

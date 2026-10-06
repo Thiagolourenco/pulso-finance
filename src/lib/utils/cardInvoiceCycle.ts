@@ -61,3 +61,46 @@ export const getInvoiceCycleDates = (
     due_date: toLocalDateString(dueDate),
   }
 }
+
+export type PurchaseDueLike = {
+  purchase_date: string
+  current_installment: number
+  installments: number
+  is_recurring?: boolean | null
+  installment_amount?: number
+}
+
+/** Recorrente ativo entra em todo ciclo após a compra; demais seguem a janela de parcelas. */
+export const isPurchaseDueInInvoiceMonth = (
+  purchase: PurchaseDueLike,
+  targetMonth: number,
+  targetYear: number
+): boolean => {
+  if (purchase.current_installment > purchase.installments) return false
+
+  const purchaseDateObj = new Date(
+    purchase.purchase_date.includes('T') ? purchase.purchase_date : `${purchase.purchase_date}T12:00:00`
+  )
+  const purchaseMonth = purchaseDateObj.getMonth() + 1
+  const purchaseYear = purchaseDateObj.getFullYear()
+  const monthsDiff = (targetYear - purchaseYear) * 12 + (targetMonth - purchaseMonth)
+
+  if (purchase.is_recurring) {
+    return monthsDiff >= 0
+  }
+
+  return (
+    monthsDiff >= 1 &&
+    monthsDiff >= purchase.current_installment &&
+    monthsDiff <= purchase.installments
+  )
+}
+
+export const sumPurchasesDueInInvoiceMonth = (
+  purchases: PurchaseDueLike[],
+  targetMonth: number,
+  targetYear: number
+): number =>
+  purchases
+    .filter(purchase => isPurchaseDueInInvoiceMonth(purchase, targetMonth, targetYear))
+    .reduce((sum, purchase) => sum + (purchase.installment_amount || 0), 0)
