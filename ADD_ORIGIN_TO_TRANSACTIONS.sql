@@ -1,6 +1,8 @@
 -- ============================================
 -- Origem Pessoal/Empresa e status de reembolso
--- Execute este script no SQL Editor do Supabase
+-- OBRIGATÓRIO: rode no SQL Editor do Supabase
+-- (Table Editor > SQL > New query > Run)
+-- Sem isso o app quebra com PGRST204: origin column
 -- ============================================
 
 -- transactions
@@ -47,6 +49,7 @@ COMMENT ON COLUMN card_purchases.origin IS 'personal = compra pessoal; company =
 COMMENT ON COLUMN card_purchases.reimbursement_status IS 'Só para origin=company: pending ou reimbursed';
 
 NOTIFY pgrst, 'reload schema';
+SELECT pg_notify('pgrst', 'reload schema');
 
 SELECT table_name, column_name, data_type, column_default, is_nullable
 FROM information_schema.columns

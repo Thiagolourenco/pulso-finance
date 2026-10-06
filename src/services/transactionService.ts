@@ -1,4 +1,11 @@
 import { supabase } from '@/lib/supabase/client'
+import {
+  canUseOriginColumns,
+  isMissingOriginColumnError,
+  markOriginColumnsUnavailable,
+  omitOriginFields,
+  withOriginFieldsIfSupported,
+} from '@/lib/supabase/schemaCache'
 import { balanceDeltaForTransaction } from '@/lib/utils/accountBalance'
 import type { Transaction, Database } from '@/types'
 import { accountService } from './accountService'
@@ -6,41 +13,82 @@ import { accountService } from './accountService'
 type TransactionInsert = Database['public']['Tables']['transactions']['Insert']
 type TransactionUpdate = Database['public']['Tables']['transactions']['Update']
 
+const TRANSACTION_SAFE_SELECT =
+  'id, user_id, account_id, card_id, category_id, amount, description, type, date, created_at, updated_at'
+
 async function applyBalanceDelta(accountId: string, delta: number) {
   const account = await accountService.getById(accountId)
   const current = Number(account.current_balance) || 0
   await accountService.update(accountId, { current_balance: current + delta })
 }
 
-export const transactionService = {
-  async getAll(userId: string) {
-    const { data, error } = await supabase
+async function selectTransactions(userId: string) {
+  const primary = await supabase
+    .from('transactions')
+    .select('*')
+    .eq('user_id', userId)
+    .order('date', { ascending: false })
+
+  if (!primary.error) return primary.data as Transaction[]
+
+  if (isMissingOriginColumnError(primary.error)) {
+    markOriginColumnsUnavailable()
+    const fallback = await supabase
       .from('transactions')
-      .select('*')
+      .select(TRANSACTION_SAFE_SELECT)
       .eq('user_id', userId)
       .order('date', { ascending: false })
+    if (fallback.error) throw fallback.error
+    return fallback.data as Transaction[]
+  }
 
-    if (error) throw error
-    return data as Transaction[]
+  throw primary.error
+}
+
+export const transactionService = {
+  async getAll(userId: string) {
+    return selectTransactions(userId)
   },
 
   async getById(id: string) {
-    const { data, error } = await supabase
-      .from('transactions')
-      .select('*')
-      .eq('id', id)
-      .single()
+    const primary = await supabase.from('transactions').select('*').eq('id', id).single()
+    if (!primary.error) return primary.data as Transaction
 
-    if (error) throw error
-    return data as Transaction
+    if (isMissingOriginColumnError(primary.error)) {
+      markOriginColumnsUnavailable()
+      const fallback = await supabase
+        .from('transactions')
+        .select(TRANSACTION_SAFE_SELECT)
+        .eq('id', id)
+        .single()
+      if (fallback.error) throw fallback.error
+      return fallback.data as Transaction
+    }
+
+    throw primary.error
   },
 
   async create(transaction: TransactionInsert) {
-    const { data, error } = await supabase
+    const payload = withOriginFieldsIfSupported(
+      transaction as Record<string, unknown>
+    ) as TransactionInsert
+
+    let { data, error } = await supabase
       .from('transactions')
-      .insert(transaction)
+      .insert(payload)
       .select()
       .single()
+
+    if (error && isMissingOriginColumnError(error) && canUseOriginColumns()) {
+      markOriginColumnsUnavailable()
+      const retry = await supabase
+        .from('transactions')
+        .insert(omitOriginFields(transaction as Record<string, unknown>) as TransactionInsert)
+        .select()
+        .single()
+      data = retry.data
+      error = retry.error
+    }
 
     if (error) throw error
     const created = data as Transaction
@@ -59,12 +107,34 @@ export const transactionService = {
       await applyBalanceDelta(old.account_id!, -balanceDeltaForTransaction(old))
     }
 
-    const { data, error } = await supabase
+    const payload = withOriginFieldsIfSupported({
+      ...transaction,
+      updated_at: new Date().toISOString(),
+    } as Record<string, unknown>) as TransactionUpdate
+
+    let { data, error } = await supabase
       .from('transactions')
-      .update({ ...transaction, updated_at: new Date().toISOString() })
+      .update(payload)
       .eq('id', id)
       .select()
       .single()
+
+    if (error && isMissingOriginColumnError(error) && canUseOriginColumns()) {
+      markOriginColumnsUnavailable()
+      const retry = await supabase
+        .from('transactions')
+        .update(
+          omitOriginFields({
+            ...transaction,
+            updated_at: new Date().toISOString(),
+          } as Record<string, unknown>) as TransactionUpdate
+        )
+        .eq('id', id)
+        .select()
+        .single()
+      data = retry.data
+      error = retry.error
+    }
 
     if (error) {
       if (hadLinkedBalance) {
