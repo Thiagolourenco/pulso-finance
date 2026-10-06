@@ -8,6 +8,7 @@ import type { Card, CardPurchase } from '@/types'
 import { supabase } from '@/lib/supabase/client'
 import { cardInvoiceService } from '@/services/cardInvoiceService'
 import {
+  getInvoiceCycleDates,
   isPurchaseDueInInvoiceMonth,
   sumPurchasesDueInInvoiceMonth,
 } from '@/lib/utils/cardInvoiceCycle'
@@ -39,7 +40,8 @@ export const CardDetailsModal = ({
 
   const queryClient = useQueryClient()
   const { purchases, updatePurchase } = useCardPurchases(card.id)
-  const { openInvoice, updateInvoice, isUpdating: isUpdatingInvoice } = useCardInvoices(card.id)
+  const { invoices, openInvoice: fetchedOpenInvoice, updateInvoice, isUpdating: isUpdatingInvoice } = useCardInvoices(card.id)
+  const openInvoice = fetchedOpenInvoice ?? invoices.find(invoice => invoice.status === 'open') ?? null
 
   // Obtém mês e ano atual
   const currentDate = new Date()
@@ -67,16 +69,22 @@ export const CardDetailsModal = ({
     allPurchases: purchases.map(p => ({ id: p.id, description: p.description, is_recurring: p.is_recurring }))
   })
 
-  const openInvoiceDueDate = openInvoice ? new Date(openInvoice.due_date) : null
-  const invoiceMonthForCalculation = openInvoiceDueDate ? openInvoiceDueDate.getMonth() + 1 : currentMonth
-  const invoiceYearForCalculation = openInvoiceDueDate ? openInvoiceDueDate.getFullYear() : currentYear
+  const cycleDates = getInvoiceCycleDates(card)
+  const latestInvoice = [...invoices].sort(
+    (a, b) => new Date(b.due_date).getTime() - new Date(a.due_date).getTime()
+  )[0]
+  const displayInvoice = openInvoice ?? latestInvoice ?? null
+  const openInvoiceDueDate = displayInvoice ? new Date(displayInvoice.due_date) : new Date(`${cycleDates.due_date}T12:00:00`)
+  const invoiceMonthForCalculation = openInvoiceDueDate.getMonth() + 1
+  const invoiceYearForCalculation = openInvoiceDueDate.getFullYear()
   const calculatedInvoiceTotal = sumPurchasesDueInInvoiceMonth(
     purchases,
     invoiceMonthForCalculation,
     invoiceYearForCalculation
   )
-  const storedInvoiceTotal = Number(openInvoice?.total_amount) || 0
-  const invoiceTotal = Math.max(storedInvoiceTotal, calculatedInvoiceTotal)
+  const storedInvoiceTotal = Number(displayInvoice?.total_amount) || 0
+  const invoiceTotal = Math.max(storedInvoiceTotal, calculatedInvoiceTotal, totalOpenInstallments)
+  const invoiceDueDateLabel = openInvoiceDueDate.toLocaleDateString('pt-BR')
 
   const getPurchasesDueForInvoiceMonth = (targetMonth: number, targetYear: number) => {
     return purchases.filter(purchase => isPurchaseDueInInvoiceMonth(purchase, targetMonth, targetYear))
@@ -139,8 +147,13 @@ export const CardDetailsModal = ({
       setShowUpdateInvoiceAmount(false)
       setToast({ message: 'Valor da fatura atualizado', type: 'success' })
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Erro ao atualizar valor da fatura'
-      setToast({ message: errorMessage, type: 'error' })
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : typeof error === 'object' && error && 'message' in error
+            ? String((error as { message: unknown }).message)
+            : 'Erro ao atualizar valor da fatura'
+      setToast({ message: errorMessage || 'Erro ao atualizar valor da fatura', type: 'error' })
     } finally {
       setIsSavingInvoiceAmount(false)
     }
@@ -306,41 +319,40 @@ export const CardDetailsModal = ({
             </div>
           </div>
 
-          {/* Fatura atual */}
-          {openInvoice ? (
-            <div className="p-4 bg-white dark:bg-neutral-900/30 rounded-lg border-2 border-danger-200 dark:border-danger-700/50">
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <h3 className="text-h3 font-semibold text-neutral-900 dark:text-neutral-50">Próxima fatura</h3>
-                  <p className="text-caption text-neutral-500 dark:text-neutral-400">
-                    Vencimento: {new Date(openInvoice.due_date).toLocaleDateString('pt-BR')}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-h2 font-bold text-danger-600 dark:text-danger-400">
-                    R$ {invoiceTotal.toLocaleString('pt-BR', { 
-                      minimumFractionDigits: 2, 
-                      maximumFractionDigits: 2 
-                    })}
-                  </p>
-                </div>
+          {/* Fatura atual — sempre mostra o valor da fatura para poder atualizar */}
+          <div className="p-4 bg-white dark:bg-neutral-900/30 rounded-lg border-2 border-danger-200 dark:border-danger-700/50">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="text-h3 font-semibold text-neutral-900 dark:text-neutral-50">Próxima fatura</h3>
+                <p className="text-caption text-neutral-500 dark:text-neutral-400">
+                  Vencimento: {invoiceDueDateLabel}
+                </p>
               </div>
-              <div className="mt-3 pt-3 border-t border-border dark:border-border-dark space-y-3">
-                {!showUpdateInvoiceAmount ? (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={openInvoiceAmountEditor}
-                  >
-                    Atualizar valor
-                  </Button>
-                ) : (
-                  invoiceAmountEditor
-                )}
+              <div className="text-right">
+                <p className="text-h2 font-bold text-danger-600 dark:text-danger-400">
+                  R$ {invoiceTotal.toLocaleString('pt-BR', { 
+                    minimumFractionDigits: 2, 
+                    maximumFractionDigits: 2 
+                  })}
+                </p>
               </div>
-              {/* Checkbox para marcar como paga - só mostra se vence no mês atual */}
-              {(() => {
+            </div>
+            <div className="mt-3 pt-3 border-t border-border dark:border-border-dark space-y-3">
+              {!showUpdateInvoiceAmount ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={openInvoiceAmountEditor}
+                >
+                  Atualizar valor
+                </Button>
+              ) : (
+                invoiceAmountEditor
+              )}
+            </div>
+            {/* Checkbox para marcar como paga - só mostra se vence no mês atual */}
+            {openInvoice && (() => {
                 const invoiceDueDate = new Date(openInvoice.due_date)
                 const invoiceMonth = invoiceDueDate.getMonth() + 1
                 const invoiceYear = invoiceDueDate.getFullYear()
@@ -409,26 +421,7 @@ export const CardDetailsModal = ({
                   </div>
                 ) : null
               })()}
-            </div>
-          ) : (
-            <div className="p-4 bg-neutral-50 dark:bg-neutral-900/20 rounded-lg border border-border dark:border-border-dark space-y-3">
-              <p className="text-body-sm text-neutral-500 dark:text-neutral-300 text-center">Nenhuma fatura aberta</p>
-              {!showUpdateInvoiceAmount ? (
-                <div className="flex justify-center">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={openInvoiceAmountEditor}
-                  >
-                    Informar valor da fatura
-                  </Button>
-                </div>
-              ) : (
-                invoiceAmountEditor
-              )}
-            </div>
-          )}
+          </div>
 
           {/* Resumo do cartão */}
           <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-3">

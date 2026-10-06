@@ -26,6 +26,66 @@ interface Insight {
   suggestion?: string
 }
 
+type OpenAIErrorBody = {
+  error?: { code?: string; type?: string; message?: string }
+}
+
+let openaiUnavailableUntil = 0
+const OPENAI_BACKOFF_MS = 30 * 60 * 1000
+
+const isOpenAIQuotaError = (status: number, body: OpenAIErrorBody | null) => {
+  if (status === 402) return true
+  const code = body?.error?.code || body?.error?.type || ''
+  return (
+    code === 'insufficient_quota' ||
+    code === 'credit_balance_exhausted' ||
+    code === 'billing_not_active'
+  )
+}
+
+async function fetchOpenAIChatContent(
+  systemPrompt: string,
+  userPrompt: string,
+  options: { maxTokens: number; temperature: number }
+): Promise<string | null> {
+  const apiKey = import.meta.env.VITE_OPENAI_API_KEY
+  if (!apiKey) return null
+  if (Date.now() < openaiUnavailableUntil) return null
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: options.temperature,
+      max_tokens: options.maxTokens,
+    }),
+  })
+
+  if (!response.ok) {
+    let body: OpenAIErrorBody | null = null
+    try {
+      body = (await response.json()) as OpenAIErrorBody
+    } catch {
+      body = null
+    }
+    if (isOpenAIQuotaError(response.status, body) || response.status === 429) {
+      openaiUnavailableUntil = Date.now() + OPENAI_BACKOFF_MS
+    }
+    return null
+  }
+
+  const result = await response.json()
+  return result.choices?.[0]?.message?.content ?? null
+}
+
 export const generateInsights = async (data: MonthlyData): Promise<Insight[]> => {
   const apiKey = import.meta.env.VITE_OPENAI_API_KEY
 
@@ -78,38 +138,14 @@ Seja específico, use os valores reais e dê conselhos práticos. Foque em:
 
 Retorne APENAS o JSON array, sem markdown, sem explicações adicionais.`
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: 'Você é um assistente financeiro especializado. Retorne sempre JSON válido, sem markdown.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 800
-      })
-    })
-
-    if (!response.ok) {
-      throw new Error('Erro ao gerar insights')
-    }
-
-    const result = await response.json()
-    const content = result.choices[0]?.message?.content
+    const content = await fetchOpenAIChatContent(
+      'Você é um assistente financeiro especializado. Retorne sempre JSON válido, sem markdown.',
+      prompt,
+      { temperature: 0.7, maxTokens: 800 }
+    )
 
     if (!content) {
-      throw new Error('Resposta vazia da API')
+      return generateBasicInsights(data)
     }
 
     // Tenta extrair JSON da resposta
@@ -290,28 +326,15 @@ Gere um JSON array com 4 a 8 insights. Para cada insight use:
 
 Inclua pelo menos 2 insights de "comparativo" (tendências, comparações) e 2 de "melhoria" (o que o usuário pode fazer melhor). Seja específico com os números quando fizer sentido. Retorne APENAS o JSON array, sem markdown.`
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: 'Você é um analista financeiro. Retorne apenas um JSON array válido, sem markdown.' },
-          { role: 'user', content: prompt },
-        ],
-        temperature: 0.6,
-        max_tokens: 1000,
-      }),
-    })
+    const content = await fetchOpenAIChatContent(
+      'Você é um analista financeiro. Retorne apenas um JSON array válido, sem markdown.',
+      prompt,
+      { temperature: 0.6, maxTokens: 1000 }
+    )
 
-    if (!response.ok) throw new Error('Erro ao gerar insights do relatório')
-
-    const result = await response.json()
-    const content = result.choices[0]?.message?.content
-    if (!content) throw new Error('Resposta vazia')
+    if (!content) {
+      return generateBasicReportInsights(data)
+    }
 
     const jsonMatch = content.match(/\[[\s\S]*\]/)
     if (jsonMatch) {

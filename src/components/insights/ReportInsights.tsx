@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { generateReportInsights, type ReportInsight, type ReportInsightsData } from '@/services/insightsService'
 
 interface ReportInsightsProps {
@@ -30,13 +30,15 @@ const getTypeIcon = (type: ReportInsight['type']) => {
 export const ReportInsights = ({ data }: ReportInsightsProps) => {
   const [insights, setInsights] = useState<ReportInsight[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const dataKey = useMemo(() => JSON.stringify(data), [data])
 
   useEffect(() => {
     let cancelled = false
+    const payload = JSON.parse(dataKey) as ReportInsightsData
     const load = async () => {
       setIsLoading(true)
       try {
-        const result = await generateReportInsights(data)
+        const result = await generateReportInsights(payload)
         if (!cancelled) setInsights(result)
       } catch (error) {
         console.error('Erro ao carregar insights do relatório:', error)
@@ -47,7 +49,7 @@ export const ReportInsights = ({ data }: ReportInsightsProps) => {
     }
     load()
     return () => { cancelled = true }
-  }, [data])
+  }, [dataKey])
 
   if (isLoading) {
     return (

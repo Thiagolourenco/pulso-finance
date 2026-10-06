@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { generateInsights } from '@/services/insightsService'
 
 interface Insight {
@@ -32,22 +32,29 @@ interface InsightsCardProps {
 export const InsightsCard = ({ monthlyData }: InsightsCardProps) => {
   const [insights, setInsights] = useState<Insight[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const dataKey = useMemo(() => JSON.stringify(monthlyData), [monthlyData])
 
   useEffect(() => {
+    let cancelled = false
+    const payload = JSON.parse(dataKey) as InsightsCardProps['monthlyData']
+
     const loadInsights = async () => {
       setIsLoading(true)
       try {
-        const generatedInsights = await generateInsights(monthlyData)
-        setInsights(generatedInsights)
+        const generatedInsights = await generateInsights(payload)
+        if (!cancelled) setInsights(generatedInsights)
       } catch (error) {
         console.error('Erro ao carregar insights:', error)
       } finally {
-        setIsLoading(false)
+        if (!cancelled) setIsLoading(false)
       }
     }
 
     loadInsights()
-  }, [monthlyData])
+    return () => {
+      cancelled = true
+    }
+  }, [dataKey])
 
   const getTypeStyles = (type: Insight['type']) => {
     switch (type) {
