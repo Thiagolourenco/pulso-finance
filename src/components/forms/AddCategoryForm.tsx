@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Input, Button } from '@/components/ui'
+import type { Category } from '@/types'
 
 interface AddCategoryFormProps {
   onSubmit: (data: {
@@ -10,17 +11,19 @@ interface AddCategoryFormProps {
   }) => void
   onCancel: () => void
   isLoading?: boolean
+  initialCategory?: Category | null
 }
 
 export const AddCategoryForm = ({
   onSubmit,
   onCancel,
   isLoading = false,
+  initialCategory = null,
 }: AddCategoryFormProps) => {
-  const [name, setName] = useState('')
-  const [type, setType] = useState<'expense' | 'income'>('expense')
-  const [selectedIcon, setSelectedIcon] = useState('')
-  const [selectedColor, setSelectedColor] = useState('')
+  const [name, setName] = useState(initialCategory?.name || '')
+  const [type, setType] = useState<'expense' | 'income'>(initialCategory?.type || 'expense')
+  const [selectedIcon, setSelectedIcon] = useState(initialCategory?.icon || '')
+  const [selectedColor, setSelectedColor] = useState(initialCategory?.color || '')
   const [error, setError] = useState('')
 
   const colors = [
@@ -209,7 +212,7 @@ export const AddCategoryForm = ({
           className="flex-1"
           isLoading={isLoading}
         >
-          Criar categoria
+          {initialCategory ? 'Salvar' : 'Criar categoria'}
         </Button>
       </div>
     </form>

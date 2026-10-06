@@ -10,10 +10,11 @@ import {
   calculateCategorySpending,
   getCategorySpendingItems,
 } from '@/lib/utils/categorySpending'
+import { supabase } from '@/lib/supabase/client'
 import type { Category } from '@/types'
 
 export const Categories = () => {
-  const { categories, deleteCategory, isDeleting, updateCategory, isUpdating } = useCategories()
+  const { categories, deleteCategory, isDeleting, updateCategory, isUpdating, createCategory, isCreating } = useCategories()
   const { transactions } = useTransactions()
   const { purchases } = useCardPurchases()
   const { expenses: recurringExpenses } = useRecurringExpenses()
@@ -284,9 +285,73 @@ export const Categories = () => {
           title={editingCategory ? 'Editar Categoria' : 'Nova Categoria'}
         >
           <AddCategoryForm
-            onSubmit={async () => {
-              // A lógica de criação/edição será gerenciada pelo hook useCategories
-              handleCloseModal()
+            key={editingCategory?.id ?? 'new'}
+            initialCategory={editingCategory}
+            isLoading={isCreating || isUpdating}
+            onSubmit={async (data) => {
+              const { data: authData } = await supabase.auth.getUser()
+              const user = authData.user
+              if (!user) {
+                setToast({ message: 'Você precisa estar logado', type: 'error' })
+                return
+              }
+
+              const name = data.name.trim()
+              const duplicate = categories.find(
+                category =>
+                  category.name.toLowerCase() === name.toLowerCase() &&
+                  category.id !== editingCategory?.id
+              )
+              if (duplicate) {
+                setToast({
+                  message: `Já existe uma categoria chamada "${name}"`,
+                  type: 'error',
+                })
+                return
+              }
+
+              if (editingCategory) {
+                updateCategory(
+                  {
+                    id: editingCategory.id,
+                    data: {
+                      name,
+                      type: data.type,
+                      icon: data.icon || null,
+                      color: data.color || null,
+                    },
+                  },
+                  {
+                    onSuccess: () => {
+                      setToast({ message: 'Categoria atualizada com sucesso!', type: 'success' })
+                      handleCloseModal()
+                    },
+                    onError: (error: Error) => {
+                      setToast({ message: error.message || 'Erro ao atualizar categoria', type: 'error' })
+                    },
+                  }
+                )
+                return
+              }
+
+              createCategory(
+                {
+                  user_id: user.id,
+                  name,
+                  type: data.type,
+                  icon: data.icon || null,
+                  color: data.color || null,
+                },
+                {
+                  onSuccess: () => {
+                    setToast({ message: 'Categoria criada com sucesso!', type: 'success' })
+                    handleCloseModal()
+                  },
+                  onError: (error: Error) => {
+                    setToast({ message: error.message || 'Erro ao criar categoria', type: 'error' })
+                  },
+                }
+              )
             }}
             onCancel={handleCloseModal}
           />
