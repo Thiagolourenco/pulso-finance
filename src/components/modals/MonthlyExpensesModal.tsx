@@ -1,6 +1,7 @@
 import { Modal } from '@/components/ui'
+import { isPurchaseBilledInInvoiceMonth } from '@/lib/utils/cardInvoiceCycle'
 import { parseLocalDate } from '@/lib/utils'
-import type { Transaction, Category, CardInvoice, RecurringExpense, Card } from '@/types'
+import type { Transaction, Category, CardInvoice, RecurringExpense, Card, CardPurchase } from '@/types'
 
 interface MonthlyExpensesModalProps {
   isOpen: boolean
@@ -12,6 +13,7 @@ interface MonthlyExpensesModalProps {
   cardInvoices?: CardInvoice[]
   recurringExpensesList?: RecurringExpense[]
   cards?: Card[]
+  cardPurchases?: CardPurchase[]
 }
 
 export const MonthlyExpensesModal = ({
@@ -24,9 +26,29 @@ export const MonthlyExpensesModal = ({
   cardInvoices = [],
   recurringExpensesList = [],
   cards = [],
+  cardPurchases = [],
 }: MonthlyExpensesModalProps) => {
   const hasCardInvoices = cardInvoices.length > 0
   const hasRecurring = recurringExpensesList.length > 0
+
+  const purchasesForInvoice = (invoice: CardInvoice) => {
+    const due = parseLocalDate(invoice.due_date)
+    const month = due.getMonth() + 1
+    const year = due.getFullYear()
+
+    return cardPurchases
+      .filter(
+        purchase =>
+          purchase.card_id === invoice.card_id &&
+          isPurchaseBilledInInvoiceMonth(purchase, month, year)
+      )
+      .sort((a, b) => (b.installment_amount || 0) - (a.installment_amount || 0))
+  }
+
+  const creditItemCount = cardInvoices.reduce(
+    (sum, invoice) => sum + purchasesForInvoice(invoice).length,
+    0
+  )
 
   // Agrupa despesas por categoria (só transações)
   const expensesByCategory = expenses.reduce((acc, expense) => {
@@ -74,7 +96,7 @@ export const MonthlyExpensesModal = ({
             </span>
           </div>
           <div className="mt-1 text-caption text-danger-600 dark:text-danger-200/80">
-            {expenses.length + cardInvoices.length + recurringExpensesList.length} itens (transações + faturas e recorrentes pagas)
+            {expenses.length + cardInvoices.length + recurringExpensesList.length + creditItemCount} itens (transações + faturas, lançamentos no crédito e recorrentes)
           </div>
         </div>
 
@@ -96,21 +118,64 @@ export const MonthlyExpensesModal = ({
               {cardInvoices.map((invoice) => {
                 const card = cards.find(c => c.id === invoice.card_id)
                 const isPaid = invoice.status === 'paid'
+                const lineItems = purchasesForInvoice(invoice)
+                const due = parseLocalDate(invoice.due_date)
                 return (
-                  <div key={invoice.id} className="p-3 hover:bg-neutral-50 dark:hover:bg-neutral-950/30 transition-colors">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="text-body-sm font-medium text-neutral-900 dark:text-neutral-50">
-                          {card?.name ?? 'Cartão'} · Vence {parseLocalDate(invoice.due_date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
-                        </p>
-                        <p className="text-caption text-neutral-500 dark:text-neutral-400 mt-1">
-                          {isPaid ? 'Paga' : 'A pagar'}
+                  <div key={invoice.id}>
+                    <div className="p-3 hover:bg-neutral-50 dark:hover:bg-neutral-950/30 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <p className="text-body-sm font-medium text-neutral-900 dark:text-neutral-50">
+                            {card?.name ?? 'Cartão'} · Vence {due.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </p>
+                          <p className="text-caption text-neutral-500 dark:text-neutral-400 mt-1">
+                            {isPaid ? 'Paga' : 'A pagar'}
+                          </p>
+                        </div>
+                        <p className="text-body-sm font-semibold text-danger-600 dark:text-danger-400">
+                          R$ {(invoice.total_amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </p>
                       </div>
-                      <p className="text-body-sm font-semibold text-danger-600 dark:text-danger-400">
-                        R$ {(invoice.total_amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </p>
                     </div>
+                    {lineItems.length > 0 && (
+                      <div className="border-t border-border dark:border-border-dark divide-y divide-border dark:divide-border-dark bg-neutral-50/80 dark:bg-neutral-950/40">
+                        {lineItems.map((purchase) => {
+                          const category = categories.find(c => c.id === purchase.category_id)
+                          const purchaseDate = parseLocalDate(purchase.purchase_date)
+                          const installmentNumber =
+                            (due.getFullYear() - purchaseDate.getFullYear()) * 12 +
+                            (due.getMonth() - purchaseDate.getMonth())
+                          const detail = purchase.is_recurring
+                            ? 'Recorrente'
+                            : purchase.installments > 1
+                              ? `Parcela ${installmentNumber}/${purchase.installments}`
+                              : null
+
+                          return (
+                            <div key={purchase.id} className="px-3 py-2.5 pl-8">
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <p className="text-body-sm font-medium text-neutral-900 dark:text-neutral-50 truncate">
+                                      {purchase.description || 'Sem descrição'}
+                                    </p>
+                                    <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-wide bg-primary-100 text-primary-700 dark:bg-primary-500/15 dark:text-primary-300">
+                                      CREDITO
+                                    </span>
+                                  </div>
+                                  <p className="text-caption text-neutral-500 dark:text-neutral-400 mt-0.5">
+                                    {[category?.name, detail].filter(Boolean).join(' · ') || 'Lançamento no cartão'}
+                                  </p>
+                                </div>
+                                <p className="text-body-sm font-semibold text-danger-600 dark:text-danger-400 shrink-0">
+                                  R$ {(purchase.installment_amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </p>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
                 )
               })}

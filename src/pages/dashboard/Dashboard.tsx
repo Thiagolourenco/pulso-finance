@@ -2106,6 +2106,7 @@ export const Dashboard = () => {
             cardInvoices={currentMonthInvoicesForDisplay}
             recurringExpensesList={currentMonthRecurringExpensesList}
             cards={cards}
+            cardPurchases={purchases}
           />
         )
       })()}

@@ -96,6 +96,27 @@ export const isPurchaseDueInInvoiceMonth = (
   )
 }
 
+/** Parcela que compôs a fatura daquele mês, inclusive depois de já ter sido paga. */
+export const isPurchaseBilledInInvoiceMonth = (
+  purchase: PurchaseDueLike,
+  targetMonth: number,
+  targetYear: number
+): boolean => {
+  const purchaseDateObj = new Date(
+    purchase.purchase_date.includes('T') ? purchase.purchase_date : `${purchase.purchase_date}T12:00:00`
+  )
+  const purchaseMonth = purchaseDateObj.getMonth() + 1
+  const purchaseYear = purchaseDateObj.getFullYear()
+  const monthsDiff = (targetYear - purchaseYear) * 12 + (targetMonth - purchaseMonth)
+
+  if (purchase.is_recurring) {
+    if (purchase.current_installment > purchase.installments) return false
+    return monthsDiff >= 0
+  }
+
+  return monthsDiff >= 1 && monthsDiff <= purchase.installments
+}
+
 export const sumPurchasesDueInInvoiceMonth = (
   purchases: PurchaseDueLike[],
   targetMonth: number,
