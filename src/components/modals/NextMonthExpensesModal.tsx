@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Modal } from '@/components/ui'
 import { parseLocalDate } from '@/lib/utils'
-import type { Transaction, CardPurchase, RecurringExpense } from '@/types'
+import type { Transaction, CardPurchase, RecurringExpense, Category, Card } from '@/types'
 
 interface NextMonthExpensesModalProps {
   isOpen: boolean
@@ -14,6 +14,9 @@ interface NextMonthExpensesModalProps {
   recurringExpensesDetails?: RecurringExpense[]
   transactionsDetails?: Transaction[]
   nextMonthName: string
+  categories?: Category[]
+  cards?: Card[]
+  onDeletePurchase?: (purchase: CardPurchase) => Promise<void>
 }
 
 export const NextMonthExpensesModal = ({
@@ -27,8 +30,52 @@ export const NextMonthExpensesModal = ({
   recurringExpensesDetails = [],
   transactionsDetails = [],
   nextMonthName,
+  categories = [],
+  cards = [],
+  onDeletePurchase,
 }: NextMonthExpensesModalProps) => {
   const [activeTab, setActiveTab] = useState<'installments' | 'recurring'>('installments')
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  const purchasesByCategory = fixedExpensesDetails.reduce((acc, purchase) => {
+    const category = categories.find(item => item.id === purchase.category_id)
+    const categoryName = category?.name || 'Sem categoria'
+    if (!acc[categoryName]) {
+      acc[categoryName] = {
+        categoryName,
+        categoryIcon: category?.icon || '💳',
+        categoryColor: category?.color || '#95A5A6',
+        purchases: [],
+        total: 0,
+      }
+    }
+    acc[categoryName].purchases.push(purchase)
+    acc[categoryName].total += purchase.installment_amount || 0
+    return acc
+  }, {} as Record<string, {
+    categoryName: string
+    categoryIcon: string
+    categoryColor: string
+    purchases: CardPurchase[]
+    total: number
+  }>)
+
+  const sortedPurchaseCategories = Object.values(purchasesByCategory).sort((a, b) => b.total - a.total)
+
+  const handleDeletePurchase = async (purchase: CardPurchase) => {
+    if (!onDeletePurchase || deletingId) return
+    const confirmed = confirm(
+      `Excluir "${purchase.description}"? A compra sai do cartão e da previsão do próximo mês.`
+    )
+    if (!confirmed) return
+
+    setDeletingId(purchase.id)
+    try {
+      await onDeletePurchase(purchase)
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
   return (
     <Modal
@@ -127,35 +174,67 @@ export const NextMonthExpensesModal = ({
         {/* Conteúdo das tabs */}
         {activeTab === 'installments' && (
           <div>
-            {fixedExpensesDetails.length > 0 ? (
-              <>
-                <h3 className="text-body font-semibold text-neutral-900 dark:text-neutral-50 mb-3">
-                  Despesas fixas - Parcelas ({fixedExpensesDetails.length})
-                </h3>
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {fixedExpensesDetails.map((purchase) => (
+            {sortedPurchaseCategories.length > 0 ? (
+              <div className="space-y-4">
+                {sortedPurchaseCategories.map((categoryGroup) => (
+                  <div key={categoryGroup.categoryName} className="border border-border dark:border-border-dark rounded-lg overflow-hidden">
                     <div
-                      key={purchase.id}
-                      className="p-3 bg-white dark:bg-neutral-900/30 rounded-lg border border-border dark:border-border-dark/70 flex items-center justify-between"
+                      className="p-3 flex items-center justify-between"
+                      style={{ backgroundColor: `${categoryGroup.categoryColor}15` }}
                     >
-                      <div>
-                        <p className="text-body-sm font-medium text-neutral-900 dark:text-neutral-50">
-                          {purchase.description}
-                        </p>
-                        <p className="text-caption text-neutral-500 dark:text-neutral-400">
-                          Parcela {purchase.current_installment}/{purchase.installments} • 
-                          Comprado em {parseLocalDate(purchase.purchase_date).toLocaleDateString('pt-BR')}
-                        </p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">{categoryGroup.categoryIcon}</span>
+                        <span className="text-body font-semibold text-neutral-900 dark:text-neutral-50">
+                          {categoryGroup.categoryName}
+                        </span>
                       </div>
-                      <p className="text-body font-semibold text-warning-600 dark:text-warning-400">
-                        R$ {purchase.installment_amount.toLocaleString('pt-BR', { 
-                          minimumFractionDigits: 2 
-                        })}
-                      </p>
+                      <span className="text-body-sm font-medium text-neutral-700 dark:text-neutral-200">
+                        R$ {categoryGroup.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </span>
                     </div>
-                  ))}
-                </div>
-              </>
+                    <div className="divide-y divide-border dark:divide-border-dark">
+                      {categoryGroup.purchases.map((purchase) => {
+                        const card = cards.find(item => item.id === purchase.card_id)
+                        return (
+                          <div key={purchase.id} className="p-3 flex items-center justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <p className="text-body-sm font-medium text-neutral-900 dark:text-neutral-50 truncate">
+                                  {purchase.description}
+                                </p>
+                                <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold tracking-wide bg-primary-100 text-primary-700 dark:bg-primary-500/15 dark:text-primary-300">
+                                  CREDITO
+                                </span>
+                              </div>
+                              <p className="text-caption text-neutral-500 dark:text-neutral-400 mt-0.5">
+                                Parcela {purchase.current_installment}/{purchase.installments}
+                                {card ? ` · ${card.name}` : ''}
+                                {' · '}
+                                Comprado em {parseLocalDate(purchase.purchase_date).toLocaleDateString('pt-BR')}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-3 shrink-0">
+                              <p className="text-body font-semibold text-warning-600 dark:text-warning-400">
+                                R$ {purchase.installment_amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                              </p>
+                              {onDeletePurchase && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeletePurchase(purchase)}
+                                  disabled={deletingId === purchase.id}
+                                  className="text-caption font-medium text-danger-600 dark:text-danger-400 hover:underline disabled:opacity-50"
+                                >
+                                  {deletingId === purchase.id ? 'Excluindo…' : 'Excluir'}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : (
               <div className="p-8 text-center bg-neutral-50 dark:bg-neutral-900/20 rounded-lg border border-border dark:border-border-dark">
                 <p className="text-body-sm text-neutral-500 dark:text-neutral-300">

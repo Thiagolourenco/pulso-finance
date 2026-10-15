@@ -120,6 +120,24 @@ export const cardInvoiceService = {
     throw error ?? new Error('Erro ao criar fatura')
   },
 
+  /** Remove da fatura do ciclo o valor que foi somado ao lançar a compra. */
+  async subtractAmountForPurchase(params: {
+    card: CardBillingDays & { id: string }
+    purchaseDate: string
+    amount: number
+  }): Promise<void> {
+    const amount = Math.round((Number(params.amount) || 0) * 100) / 100
+    if (amount <= 0) return
+
+    const purchaseDate = params.purchaseDate.slice(0, 10)
+    const dates = getInvoiceCycleDates(params.card, purchaseDate)
+    const existing = await this.getByCardAndReferenceMonth(params.card.id, dates.reference_month)
+    if (!existing) return
+
+    const nextTotal = Math.max(0, Math.round(((existing.total_amount || 0) - amount) * 100) / 100)
+    await this.update(existing.id, { total_amount: nextTotal })
+  },
+
   async create(invoice: CardInvoiceInsert) {
     const { data, error } = await supabase
       .from('card_invoices')

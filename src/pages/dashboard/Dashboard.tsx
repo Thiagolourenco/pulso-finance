@@ -37,6 +37,8 @@ import {
 } from '@/lib/utils/cardInvoiceCycle'
 import { getReportsMonthSummary } from '@/lib/utils/reportsMonthSummary'
 import { cardPurchaseService } from '@/services/cardPurchaseService'
+import { cardInvoiceService } from '@/services/cardInvoiceService'
+import { transactionService } from '@/services/transactionService'
 import { reimbursementService } from '@/services/reimbursementService'
 import { accountService } from '@/services/accountService'
 import { isCardExpense } from '@/lib/utils/accountBalance'
@@ -47,7 +49,7 @@ import {
   pendingCompanyInstallmentsForPaidInvoices,
   type FinanceView,
 } from '@/lib/utils/expenseOrigin'
-import type { Transaction } from '@/types'
+import type { CardPurchase, Transaction } from '@/types'
 
 type ModalType = 'transaction' | 'account' | 'card' | 'cardPurchase' | 'goal' | 'category' | 'recurringExpense' | 'totalMoney' | null
 type TransactionType = 'expense' | 'income' | 'balance'
@@ -713,6 +715,43 @@ export const Dashboard = () => {
     }
   }
 
+  const handleDeleteCardPurchase = async (purchase: CardPurchase) => {
+    try {
+      const card = cards.find(item => item.id === purchase.card_id)
+      if (card) {
+        await cardInvoiceService.subtractAmountForPurchase({
+          card,
+          purchaseDate: purchase.purchase_date.slice(0, 10),
+          amount: purchase.installment_amount || 0,
+        })
+      }
+
+      await cardPurchaseService.delete(purchase.id)
+
+      const purchaseDate = purchase.purchase_date.slice(0, 10)
+      const linkedTransaction = transactions.find(transaction =>
+        transaction.type === 'expense' &&
+        transaction.card_id === purchase.card_id &&
+        transaction.description === purchase.description &&
+        (transaction.date || '').slice(0, 10) === purchaseDate &&
+        Math.abs(Math.abs(Number(transaction.amount) || 0) - (purchase.total_amount || 0)) < 0.05
+      )
+      if (linkedTransaction) {
+        await transactionService.delete(linkedTransaction.id)
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['card_purchases'] })
+      queryClient.invalidateQueries({ queryKey: ['card_invoices'] })
+      queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      setToast({ message: 'Compra excluída do cartão.', type: 'success' })
+    } catch (error: unknown) {
+      setToast({
+        message: error instanceof Error ? error.message : 'Erro ao excluir compra',
+        type: 'error',
+      })
+    }
+  }
+
   const handleAddGoal = async (data: {
     name: string
     target_amount: number
@@ -1170,6 +1209,9 @@ export const Dashboard = () => {
                   recurringExpensesDetails={nextMonthRecurringExpensesList}
                   transactionsDetails={nextMonthTransactions}
                   nextMonthName={nextMonthName}
+                  categories={categories}
+                  cards={cards}
+                  onDeletePurchase={handleDeleteCardPurchase}
                 />
               </>
             )
